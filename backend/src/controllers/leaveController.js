@@ -9,6 +9,78 @@ const {
   normalizeRole
 } = require('../utils/companyLeavePolicyStore');
 const shiftService = require('../services/shiftService');
+const { getEffectiveSettings } = require('../utils/settingsResolver');
+const { getSystemTimeZone, getZonedParts } = require('../utils/attendanceUtils');
+
+// Safe leave-type resolver supporting database ID, code, name, and standard CRM aliases
+const resolveLeaveType = (rawType, companyLeaveTypes = []) => {
+  if (!rawType) return null;
+  const rawStr = String(rawType).trim();
+  const rawUpper = rawStr.toUpperCase();
+
+  // 1. Direct match by id, code, or name (case-insensitive)
+  const direct = companyLeaveTypes.find(lt =>
+    lt.id === rawStr ||
+    (lt.code && lt.code.toUpperCase() === rawUpper) ||
+    (lt.name && lt.name.trim().toUpperCase() === rawUpper)
+  );
+  if (direct) return direct;
+
+  // 2. Standard CRM aliases mapped to active organization types
+  if (['CL', 'CASUAL', 'CASUAL_LEAVE', 'CASUAL LEAVE'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => (lt.code && lt.code.toUpperCase() === 'CL') || (lt.name && lt.name.toLowerCase().includes('casual')));
+  }
+  if (['SL', 'SICK', 'SICK_LEAVE', 'SICK LEAVE', 'MEDICAL'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => (lt.code && lt.code.toUpperCase() === 'SL') || (lt.name && lt.name.toLowerCase().includes('sick')));
+  }
+  if (['COMP_OFF', 'COMPOFF', 'COMPENSATORY', 'COMPENSATORY_OFF', 'COMPENSATORY OFF'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => (lt.code && lt.code.toUpperCase() === 'COMP_OFF') || (lt.name && lt.name.toLowerCase().includes('comp')));
+  }
+  if (['WFH', 'WORK_FROM_HOME', 'WORK FROM HOME', 'REMOTE'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => (lt.code && lt.code.toUpperCase() === 'WFH') || (lt.name && lt.name.toLowerCase().includes('wfh')));
+  }
+  if (['EMERGENCY', 'EL', 'EMERGENCY_LEAVE'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => (lt.code && lt.code.toUpperCase() === 'EL') || (lt.name && lt.name.toLowerCase().includes('emergency')));
+  }
+  if (['LOP', 'UNPAID', 'LOSS_OF_PAY', 'LOSS OF PAY'].includes(rawUpper)) {
+    return companyLeaveTypes.find(lt => ['LOP', 'UNPAID'].includes(lt.code?.toUpperCase()) || (lt.name && (lt.name.toLowerCase().includes('unpaid') || lt.name.toLowerCase().includes('loss of pay'))));
+  }
+
+  return null;
+};
+
+// Helper to validate minimum advance notice requirement
+const validateMinNoticeDays = async (startDateInput, minNoticeDays, leaveTypeName, organizationId) => {
+  const minNotice = parseInt(minNoticeDays, 10) || 0;
+  if (minNotice <= 0) return null; // No advance notice required
+
+  const settings = await getEffectiveSettings(organizationId);
+  const timeZone = getSystemTimeZone(settings);
+  const todayParts = getZonedParts(new Date(), timeZone);
+
+  const startStr = typeof startDateInput === 'string'
+    ? startDateInput.split('T')[0]
+    : new Date(startDateInput).toISOString().split('T')[0];
+
+  const [tY, tM, tD] = todayParts.dateStr.split('-').map(Number);
+  const [sY, sM, sD] = startStr.split('-').map(Number);
+
+  const todayMidnight = Date.UTC(tY, tM - 1, tD);
+  const startMidnight = Date.UTC(sY, sM - 1, sD);
+  const diffCalendarDays = Math.round((startMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+
+  if (diffCalendarDays < minNotice) {
+    const earliestDateObj = new Date(todayMidnight + minNotice * 24 * 60 * 60 * 1000);
+    const eDay = String(earliestDateObj.getUTCDate()).padStart(2, '0');
+    const eMonth = String(earliestDateObj.getUTCMonth() + 1).padStart(2, '0');
+    const eYear = earliestDateObj.getUTCFullYear();
+    const earliestFormatted = `${eDay}/${eMonth}/${eYear}`;
+
+    return `${leaveTypeName || 'This leave type'} requires at least ${minNotice} day(s) advance notice. The earliest date you can apply for is ${earliestFormatted}.`;
+  }
+
+  return null;
+};
 
 // Helper to calculate working days count between 2 dates (Safeguard 3: evaluates each date, skips Sundays and shift holidays)
 const calculateTotalDays = async (startDate, endDate, userId = null, organizationId = null) => {
@@ -241,7 +313,9 @@ const getLeaveBalances = async (req, res) => {
         id: true,
         name: true,
         role: true,
-        organizationId: true
+        organizationId: true,
+        joiningDate: true,
+        createdAt: true
       }
     });
 
@@ -330,9 +404,23 @@ const getLeaveBalances = async (req, res) => {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
+    const userJoinDate = targetUser.joiningDate ? new Date(targetUser.joiningDate) : new Date(targetUser.createdAt || now);
+    const validJoinDate = isNaN(userJoinDate.getTime()) ? now : userJoinDate;
+    const joinYear = validJoinDate.getFullYear();
+    const joinMonth = validJoinDate.getMonth();
+
+    let startMonthIndex = 0;
+    if (joinYear === currentYear) {
+      startMonthIndex = Math.min(currentMonth, Math.max(0, joinMonth));
+    } else if (joinYear > currentYear) {
+      startMonthIndex = currentMonth + 1; // Future joiner
+    }
+    const priorMonthsCount = Math.max(0, currentMonth - startMonthIndex);
+
     for (const lt of companyLeaveTypes) {
       let usedThisYear = 0;
       let usedThisMonth = 0;
+      let usedPriorMonths = 0;
 
       for (const l of userApprovedLeaves) {
         const lType = (l.leaveType || l.type || '').toUpperCase();
@@ -341,8 +429,11 @@ const getLeaveBalances = async (req, res) => {
           const days = l.totalDays !== undefined ? parseFloat(l.totalDays) : 1.0;
           if (start.getFullYear() === currentYear) {
             usedThisYear += days;
-            if (start.getMonth() === currentMonth) {
+            const startMonth = start.getMonth();
+            if (startMonth === currentMonth) {
               usedThisMonth += days;
+            } else if (startMonth < currentMonth) {
+              usedPriorMonths += days;
             }
           }
         }
@@ -365,16 +456,6 @@ const getLeaveBalances = async (req, res) => {
         }
       }
 
-      const existing = await prisma.userLeaveBalance.findUnique({
-        where: {
-          userId_leaveTypeId: {
-            userId: targetUserId,
-            leaveTypeId: lt.id
-          }
-        }
-      });
-
-      const carryForward = existing?.carryForward || 0;
       const roleAllowance = cleanedRoleAllowances[lt.code] || cleanedRoleAllowances[lt.id] || cleanedRoleAllowances[lt.name];
       const annualDays = (roleAllowance?.annualDays !== undefined && roleAllowance?.annualDays !== null)
         ? parseFloat(roleAllowance.annualDays)
@@ -396,17 +477,43 @@ const getLeaveBalances = async (req, res) => {
       let used = 0;
       let pending = 0;
       let available = 0;
+      let calculatedCarryForward = 0;
+      let calculatedExpired = 0;
 
-      if (allocationMode === 'MONTHLY') {
+      if (lt.code === 'COMP_OFF' || (lt.code || '').toUpperCase() === 'COMP_OFF') {
+        const compOffService = require('../services/compOffService');
+        const ledgerBal = await compOffService.getUserCompOffLedgerBalance(targetUserId, now);
+        allocated = 0;
+        used = ledgerBal.totalUsed;
+        pending = ledgerBal.pendingDays;
+        available = ledgerBal.netAvailable;
+        calculatedCarryForward = 0;
+      } else if (allocationMode === 'MONTHLY') {
         allocated = monthlyCreditDays;
         used = usedThisMonth;
         pending = pendingThisMonth;
-        available = Math.max(0, monthlyCreditDays + carryForward - usedThisMonth - pendingThisMonth);
+
+        if (lt.allowCarryForward) {
+          // Unused monthly credits from prior months of current year accumulate into following months
+          const priorEarned = priorMonthsCount * monthlyCreditDays;
+          calculatedCarryForward = Math.max(0, priorEarned - usedPriorMonths);
+          const totalAccrued = priorEarned + monthlyCreditDays;
+          const totalUsedAndPending = usedPriorMonths + usedThisMonth + pendingThisMonth;
+          available = Math.max(0, totalAccrued - totalUsedAndPending);
+        } else {
+          // When Carry Forward is disabled, unused monthly credits expire at month-end
+          calculatedCarryForward = 0;
+          available = Math.max(0, monthlyCreditDays - usedThisMonth - pendingThisMonth);
+          const priorEarned = priorMonthsCount * monthlyCreditDays;
+          calculatedExpired = Math.max(0, priorEarned - usedPriorMonths);
+        }
       } else {
+        // ANNUAL mode: Unused annual leave does NOT carry forward to the next year
         allocated = annualDays;
         used = usedThisYear;
         pending = pendingThisYear;
-        available = Math.max(0, annualDays + carryForward - usedThisYear - pendingThisYear);
+        calculatedCarryForward = 0;
+        available = Math.max(0, annualDays - usedThisYear - pendingThisYear);
       }
 
       await prisma.userLeaveBalance.upsert({
@@ -421,6 +528,8 @@ const getLeaveBalances = async (req, res) => {
           used,
           pending,
           available,
+          carryForward: calculatedCarryForward,
+          expired: calculatedExpired,
           lastCreditedAt: new Date()
         },
         create: {
@@ -430,8 +539,8 @@ const getLeaveBalances = async (req, res) => {
           used,
           pending,
           available,
-          carryForward: 0,
-          expired: 0,
+          carryForward: calculatedCarryForward,
+          expired: calculatedExpired,
           lastCreditedAt: new Date()
         }
       });
@@ -477,9 +586,11 @@ const getLeaveBalances = async (req, res) => {
         used: b.used,
         pending: b.pending || 0,
         available: b.available,
+        carryForward: b.carryForward || 0,
         monthlyCredit: monthlyCreditDays,
         allowHalfDay: lt.allowHalfDay,
-        allowCarryForward: lt.allowCarryForward
+        allowCarryForward: lt.allowCarryForward,
+        minNoticeDays: lt.minNoticeDays ?? 0
       };
     });
 
@@ -501,6 +612,7 @@ const getLeaveBalances = async (req, res) => {
     const sickBal = balances.find(b => ['SL', 'SICK'].includes(b.leaveType.code.toUpperCase()) || b.leaveType.name.toLowerCase().includes('sick'));
     const emergencyBal = balances.find(b => ['EL', 'EMERGENCY'].includes(b.leaveType.code.toUpperCase()) || b.leaveType.name.toLowerCase().includes('emergency'));
     const wfhBal = balances.find(b => ['WFH'].includes(b.leaveType.code.toUpperCase()) || b.leaveType.name.toLowerCase().includes('wfh') || b.leaveType.name.toLowerCase().includes('home'));
+    const compOffBal = balances.find(b => ['COMP_OFF', 'COMPOFF'].includes(b.leaveType.code.toUpperCase()) || b.leaveType.name.toLowerCase().includes('compensatory'));
 
     res.json({
       userId: targetUser.id,
@@ -516,6 +628,7 @@ const getLeaveBalances = async (req, res) => {
       emergencyRemaining: emergencyBal ? emergencyBal.available : 0,
       wfhRemaining: wfhBal ? wfhBal.available : 0,
       wfhEnabled: !!wfhBal && wfhBal.leaveType.isActive,
+      compOffRemaining: compOffBal ? compOffBal.available : 0,
       pendingRequestsCount,
       approvedRequestsCount,
       pendingRequests: pendingRequestsCount,
@@ -555,9 +668,7 @@ const applyLeave = async (req, res) => {
       return res.status(400).json({ message: 'Start date must be before or equal to end date.' });
     }
 
-    const rawType = leaveType || altType || 'CASUAL';
-    const normalizedType = String(rawType).toUpperCase();
-
+    const rawType = leaveType || altType || 'CL';
     const userRecordObj = await prisma.user.findUnique({
       where: { id: userId },
       select: { organizationId: true }
@@ -574,11 +685,24 @@ const applyLeave = async (req, res) => {
     const allLeaveTypes = await prisma.leaveType.findMany({ where: { isActive: true } });
     const companyLeaveTypes = filterLeaveTypesForCompany(allLeaveTypes, userRecordObj?.organizationId);
 
-    const matchedTypeObj = companyLeaveTypes.find(
-      lt => lt.code.toUpperCase() === normalizedType ||
-            lt.id === rawType ||
-            lt.name.toUpperCase() === normalizedType
-    );
+    const matchedTypeObj = resolveLeaveType(rawType, companyLeaveTypes);
+
+    // Never silently skip validation on invalid or unknown leave types
+    if (!matchedTypeObj) {
+      const rawUpper = String(rawType).trim().toUpperCase();
+      if (rawUpper === 'WFH' || rawUpper === 'WORK_FROM_HOME') {
+        return res.status(400).json({
+          message: 'Work From Home (WFH) is not an active leave policy for your organization.'
+        });
+      }
+      if (!['LOP', 'UNPAID', 'LOSS_OF_PAY', 'LOSS OF PAY'].includes(rawUpper)) {
+        return res.status(400).json({
+          message: `The selected leave type "${rawType}" is invalid or not available in your organization.`
+        });
+      }
+    }
+
+    const normalizedType = matchedTypeObj ? matchedTypeObj.code.toUpperCase() : String(rawType).toUpperCase();
 
     const determinedPayType = inputPayType
       ? (String(inputPayType).toUpperCase() === 'UNPAID' ? 'UNPAID' : 'PAID')
@@ -590,44 +714,15 @@ const applyLeave = async (req, res) => {
       });
     }
 
-    // Check available Leave Quota Balance against UserLeaveBalance in DB
-    if (determinedPayType !== 'UNPAID') {
-      if (matchedTypeObj) {
-        const userBal = await prisma.userLeaveBalance.findUnique({
-          where: {
-            userId_leaveTypeId: {
-              userId,
-              leaveTypeId: matchedTypeObj.id
-            }
-          }
-        });
-
-        const availableDays = userBal ? userBal.available : matchedTypeObj.annualDays;
-
-        if (totalDays > availableDays) {
-          return res.status(400).json({
-            message: `Requested leave duration (${totalDays} day(s)) exceeds your available ${matchedTypeObj.name} balance (${availableDays} day(s) remaining).`
-          });
-        }
-      }
-    }
-
-    // Prevent Overlapping Active Leave/WFH Requests
-    const overlapping = await prisma.leaveRequest.findFirst({
-      where: {
-        userId,
-        status: { in: ['PENDING_TL_APPROVAL', 'PENDING_ADMIN_APPROVAL', 'APPROVED'] },
-        AND: [
-          { startDate: { lte: end } },
-          { endDate: { gte: start } }
-        ]
-      }
-    });
-
-    if (overlapping) {
-      return res.status(400).json({
-        message: 'You already have an active leave or WFH request overlapping with the selected date range.'
-      });
+    // Minimum advance notice validation
+    const minNoticeError = await validateMinNoticeDays(
+      startDate,
+      matchedTypeObj?.minNoticeDays,
+      matchedTypeObj?.name,
+      userRecordObj?.organizationId
+    );
+    if (minNoticeError) {
+      return res.status(400).json({ message: minNoticeError });
     }
 
     // Snapshot Team ID & Team Leader ID at creation time
@@ -652,25 +747,129 @@ const applyLeave = async (req, res) => {
       tlApprovalStatus = 'PENDING';
     }
 
-    const leave = await prisma.leaveRequest.create({
-      data: {
-        userId,
-        startDate: start,
-        endDate: end,
-        totalDays,
-        leaveType: normalizedType,
-        type: normalizedType === 'WFH' ? 'WFH' : 'LEAVE',
-        payType: determinedPayType,
-        reason: reason || 'Leave Application',
-        letterContent: letterContent || reason,
-        contactPhone: contactPhone || null,
-        submittedTeamId,
-        submittedTeamLeaderId,
-        status: initialStatus,
-        tlApprovalStatus,
-        adminApprovalStatus: 'PENDING'
+    const isCompOff = normalizedType === 'COMP_OFF' || (matchedTypeObj?.code || '').toUpperCase() === 'COMP_OFF';
+
+    let leave;
+
+    if (isCompOff) {
+      // Execute atomically inside interactive transaction with row-level lock on compoffcredit
+      leave = await prisma.$transaction(async (tx) => {
+        // Lock user's approved comp-off credits to serialize concurrent reservation attempts
+        await tx.$queryRaw`
+          SELECT id FROM compoffcredit 
+          WHERE userId = ${userId} AND status = 'APPROVED' 
+          FOR UPDATE
+        `;
+
+        const compOffService = require('../services/compOffService');
+        const ledgerBal = await compOffService.getUserCompOffLedgerBalance(userId, new Date(), tx);
+        const availableDays = ledgerBal.netAvailable;
+
+        if (totalDays > availableDays) {
+          const err = new Error(
+            `Requested leave duration (${totalDays} day(s)) exceeds your available ${matchedTypeObj?.name || 'Comp-Off'} balance (${availableDays} day(s) remaining after pending reservations).`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        // Prevent Overlapping Active Leave/WFH Requests
+        const overlapping = await tx.leaveRequest.findFirst({
+          where: {
+            userId,
+            status: { in: ['PENDING_TL_APPROVAL', 'PENDING_ADMIN_APPROVAL', 'APPROVED'] },
+            AND: [
+              { startDate: { lte: end } },
+              { endDate: { gte: start } }
+            ]
+          }
+        });
+
+        if (overlapping) {
+          const err = new Error('You already have an active leave or WFH request overlapping with the selected date range.');
+          err.statusCode = 400;
+          throw err;
+        }
+
+        return await tx.leaveRequest.create({
+          data: {
+            userId,
+            startDate: start,
+            endDate: end,
+            totalDays,
+            leaveType: normalizedType,
+            type: normalizedType === 'WFH' ? 'WFH' : 'LEAVE',
+            payType: determinedPayType,
+            reason: reason || 'Leave Application',
+            letterContent: letterContent || reason,
+            contactPhone: contactPhone || null,
+            submittedTeamId,
+            submittedTeamLeaderId,
+            status: initialStatus,
+            tlApprovalStatus,
+            adminApprovalStatus: 'PENDING'
+          }
+        });
+      });
+    } else {
+      // Normal leave type balance validation
+      if (determinedPayType !== 'UNPAID' && matchedTypeObj) {
+        const userBal = await prisma.userLeaveBalance.findUnique({
+          where: {
+            userId_leaveTypeId: {
+              userId,
+              leaveTypeId: matchedTypeObj.id
+            }
+          }
+        });
+
+        const availableDays = userBal ? userBal.available : matchedTypeObj.annualDays;
+
+        if (totalDays > availableDays) {
+          return res.status(400).json({
+            message: `Requested leave duration (${totalDays} day(s)) exceeds your available ${matchedTypeObj.name} balance (${availableDays} day(s) remaining).`
+          });
+        }
       }
-    });
+
+      // Prevent Overlapping Active Leave/WFH Requests
+      const overlapping = await prisma.leaveRequest.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING_TL_APPROVAL', 'PENDING_ADMIN_APPROVAL', 'APPROVED'] },
+          AND: [
+            { startDate: { lte: end } },
+            { endDate: { gte: start } }
+          ]
+        }
+      });
+
+      if (overlapping) {
+        return res.status(400).json({
+          message: 'You already have an active leave or WFH request overlapping with the selected date range.'
+        });
+      }
+
+      leave = await prisma.leaveRequest.create({
+        data: {
+          userId,
+          startDate: start,
+          endDate: end,
+          totalDays,
+          leaveType: normalizedType,
+          type: normalizedType === 'WFH' ? 'WFH' : 'LEAVE',
+          payType: determinedPayType,
+          reason: reason || 'Leave Application',
+          letterContent: letterContent || reason,
+          contactPhone: contactPhone || null,
+          submittedTeamId,
+          submittedTeamLeaderId,
+          status: initialStatus,
+          tlApprovalStatus,
+          adminApprovalStatus: 'PENDING'
+        }
+      });
+    }
 
     await logActivity({
       userId,
@@ -710,7 +909,7 @@ const applyLeave = async (req, res) => {
     res.status(201).json(leave);
   } catch (error) {
     console.error('Apply leave error:', error);
-    res.status(500).json({ message: 'Failed to apply for leave.' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'Failed to apply for leave.' });
   }
 };
 
@@ -812,77 +1011,161 @@ const approveLeaveAdmin = async (req, res) => {
       return res.status(403).json({ message: 'Only Administrators can perform final leave sanction.' });
     }
 
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id },
-      include: { user: true }
-    });
+    const { getEffectiveOrgId } = require('../utils/organizationScope');
+    const effectiveOrgId = getEffectiveOrgId(req);
 
-    if (!leave) {
-      return res.status(404).json({ message: 'Leave request not found.' });
-    }
+    // Atomically execute Admin approval, credit consumption, and attendance synchronization
+    const { updated, leave } = await prisma.$transaction(async (tx) => {
+      const targetLeave = await tx.leaveRequest.findUnique({
+        where: { id },
+        include: { user: true }
+      });
 
-    // Strict Admin Queue: Admin acts ONLY on PENDING_ADMIN_APPROVAL
-    if (leave.status !== 'PENDING_ADMIN_APPROVAL') {
-      return res.status(400).json({ message: 'Leave request is not pending final Admin approval.' });
-    }
-
-    const updated = await prisma.leaveRequest.update({
-      where: { id },
-      data: {
-        adminApprovalStatus: 'APPROVED',
-        adminApprovedById: userId,
-        adminApprovedAt: new Date(),
-        adminRemarks: remarks || 'Sanctioned by Admin',
-        status: 'APPROVED'
+      if (!targetLeave) {
+        const err = new Error('Leave request not found.');
+        err.statusCode = 404;
+        throw err;
       }
-    });
 
-    // Attendance Integration: Created or updated ONLY after final Admin approval
-    const leaveType = (leave.leaveType || leave.type || 'CASUAL').toUpperCase();
-    const attendanceStatus = leaveType === 'WFH' ? 'WORK_FROM_HOME' : 'LEAVE';
+      // Tenant isolation guard
+      if (effectiveOrgId && targetLeave.user?.organizationId !== effectiveOrgId) {
+        const err = new Error('Unauthorized organization scope.');
+        err.statusCode = 403;
+        throw err;
+      }
 
-    const start = new Date(leave.startDate);
-    const end = new Date(leave.endDate);
-    let curr = new Date(start);
+      // Strict Admin Queue: Admin acts ONLY on PENDING_ADMIN_APPROVAL
+      if (targetLeave.status !== 'PENDING_ADMIN_APPROVAL') {
+        const err = new Error('Leave request is not pending final Admin approval.');
+        err.statusCode = 400;
+        throw err;
+      }
 
-    while (curr <= end) {
-      const localDateStr = curr.toLocaleDateString('en-CA');
-      const targetDate = new Date(localDateStr + 'T00:00:00.000Z');
+      const leaveType = (targetLeave.leaveType || targetLeave.type || 'CASUAL').toUpperCase();
 
-      const existing = await prisma.attendance.findUnique({
-        where: {
-          userId_date: {
-            userId: leave.userId,
-            date: targetDate
+      // 1. If COMP_OFF: execute transactional FIFO credit consumption
+      if (leaveType === 'COMP_OFF') {
+        const compOffService = require('../services/compOffService');
+        await compOffService.consumeCompOffCreditsFIFO({
+          leaveRequestId: targetLeave.id,
+          userId: targetLeave.userId,
+          daysToConsume: targetLeave.totalDays || 1.0,
+          organizationId: targetLeave.user?.organizationId,
+          txClient: tx
+        });
+
+        // Synchronize UserLeaveBalance for COMP_OFF inside tx
+        const allLeaveTypes = await tx.leaveType.findMany({ where: { isActive: true } });
+        const matchedType = allLeaveTypes.find(
+          lt => lt.code.toUpperCase() === 'COMP_OFF' || lt.name.toUpperCase() === 'COMP_OFF'
+        );
+        if (matchedType) {
+          const userBal = await tx.userLeaveBalance.findUnique({
+            where: {
+              userId_leaveTypeId: {
+                userId: targetLeave.userId,
+                leaveTypeId: matchedType.id
+              }
+            }
+          });
+          if (userBal) {
+            const compOffLedger = await compOffService.getUserCompOffLedgerBalance(targetLeave.userId, new Date(), tx);
+            await tx.userLeaveBalance.update({
+              where: { id: userBal.id },
+              data: {
+                allocated: 0,
+                used: compOffLedger.totalUsed,
+                available: compOffLedger.netAvailable
+              }
+            });
           }
+        }
+      } else if (leaveType !== 'WFH' && targetLeave.payType !== 'UNPAID') {
+        // Normal leave type: update UserLeaveBalance
+        const allLeaveTypes = await tx.leaveType.findMany({ where: { isActive: true } });
+        const matchedType = allLeaveTypes.find(
+          lt => lt.code.toUpperCase() === leaveType || lt.name.toUpperCase() === leaveType
+        );
+        if (matchedType) {
+          const userBal = await tx.userLeaveBalance.findUnique({
+            where: {
+              userId_leaveTypeId: {
+                userId: targetLeave.userId,
+                leaveTypeId: matchedType.id
+              }
+            }
+          });
+          if (userBal) {
+            const leaveDays = targetLeave.totalDays || 1.0;
+            const newUsed = userBal.used + leaveDays;
+            const newAvailable = Math.max(0, userBal.available - leaveDays);
+            await tx.userLeaveBalance.update({
+              where: { id: userBal.id },
+              data: { used: newUsed, available: newAvailable }
+            });
+          }
+        }
+      }
+
+      // 2. Mark LeaveRequest as APPROVED
+      const updatedLeave = await tx.leaveRequest.update({
+        where: { id },
+        data: {
+          adminApprovalStatus: 'APPROVED',
+          adminApprovedById: userId,
+          adminApprovedAt: new Date(),
+          adminRemarks: remarks || 'Sanctioned by Admin',
+          status: 'APPROVED'
         }
       });
 
-      if (existing) {
-        await prisma.attendance.update({
-          where: { id: existing.id },
-          data: {
-            status: attendanceStatus,
-            workingHours: attendanceStatus === 'WORK_FROM_HOME' ? 8.0 : 0,
-            editedBy: userId
+      // 3. Attendance Integration
+      const attendanceStatus = leaveType === 'WFH' ? 'WORK_FROM_HOME' : 'LEAVE';
+      const start = new Date(targetLeave.startDate);
+      const end = new Date(targetLeave.endDate);
+      let curr = new Date(start);
+
+      while (curr <= end) {
+        const localDateStr = curr.toLocaleDateString('en-CA');
+        const targetDate = new Date(localDateStr + 'T00:00:00.000Z');
+
+        const existing = await tx.attendance.findUnique({
+          where: {
+            userId_date: {
+              userId: targetLeave.userId,
+              date: targetDate
+            }
           }
         });
-      } else {
-        await prisma.attendance.create({
-          data: {
-            userId: leave.userId,
-            date: targetDate,
-            clockIn: attendanceStatus === 'LEAVE' ? null : targetDate,
-            clockOut: attendanceStatus === 'LEAVE' ? null : targetDate,
-            status: attendanceStatus,
-            workingHours: attendanceStatus === 'WORK_FROM_HOME' ? 8.0 : 0,
-            clockInLocation: attendanceStatus === 'WORK_FROM_HOME' ? 'Work From Home (Approved)' : 'Approved Leave Period'
-          }
-        });
+
+        if (existing) {
+          await tx.attendance.update({
+            where: { id: existing.id },
+            data: {
+              status: attendanceStatus,
+              workingHours: attendanceStatus === 'WORK_FROM_HOME' ? 8.0 : 0,
+              editedBy: userId
+            }
+          });
+        } else {
+          await tx.attendance.create({
+            data: {
+              userId: targetLeave.userId,
+              date: targetDate,
+              clockIn: attendanceStatus === 'LEAVE' ? null : targetDate,
+              clockOut: attendanceStatus === 'LEAVE' ? null : targetDate,
+              status: attendanceStatus,
+              workingHours: attendanceStatus === 'WORK_FROM_HOME' ? 8.0 : 0,
+              clockInLocation: attendanceStatus === 'WORK_FROM_HOME' ? 'Work From Home (Approved)' : 'Approved Leave Period'
+            }
+          });
+        }
+
+        curr.setDate(curr.getDate() + 1);
       }
 
-      curr.setDate(curr.getDate() + 1);
-    }
+      return { updated: updatedLeave, leave: targetLeave };
+    });
 
     // 7-Stage Notification System Trigger (Step 5)
     await createNotification({
@@ -892,44 +1175,24 @@ const approveLeaveAdmin = async (req, res) => {
       type: 'LEAVE_APPROVED'
     });
 
-    // Update UserLeaveBalance upon Admin Final Sanction if paid leave
-    if (leaveType !== 'WFH' && leave.payType !== 'UNPAID') {
-      const allLeaveTypes = await prisma.leaveType.findMany({ where: { isActive: true } });
-      const matchedType = allLeaveTypes.find(
-        lt => lt.code.toUpperCase() === leaveType || lt.name.toUpperCase() === leaveType
-      );
-      if (matchedType) {
-        const userBal = await prisma.userLeaveBalance.findUnique({
-          where: {
-            userId_leaveTypeId: {
-              userId: leave.userId,
-              leaveTypeId: matchedType.id
-            }
-          }
-        });
-        if (userBal) {
-          const newUsed = userBal.used + (leave.totalDays || 1.0);
-          const newAvailable = Math.max(0, userBal.allocated + userBal.carryForward - newUsed);
-          await prisma.userLeaveBalance.update({
-            where: { id: userBal.id },
-            data: { used: newUsed, available: newAvailable }
-          });
-        }
-      }
-    }
-
     if (leave.user?.organizationId) {
       broadcastLeavePolicyUpdate(leave.user.organizationId);
     }
 
+    const leaveType = (leave.leaveType || leave.type || 'CASUAL').toUpperCase();
     await logActivity({
       userId,
+      organizationId: leave.user?.organizationId,
       action: 'LEAVE_ADMIN_APPROVE',
-      details: `Admin final sanctioned ${leaveType} leave for ${leave.user.name}. Remarks: "${remarks || 'None'}"`
+      details: `Admin final sanctioned ${leaveType} leave for ${leave.user?.name}. Remarks: "${remarks || 'None'}"`,
+      req
     });
 
     res.json(updated);
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     console.error('Admin approve leave error:', error);
     res.status(500).json({ message: 'Failed to perform final leave sanction.' });
   }
@@ -1031,23 +1294,162 @@ const rejectLeave = async (req, res) => {
   }
 };
 
-// 7. Cancel Pending Leave Request (Applicant only - while pending)
+// 7. Cancel Leave Request (Applicant while pending, Admin can cancel approved leave)
 const cancelLeave = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const userRole = req.user.role;
+    const effectiveOrgId = req.user.organizationId;
 
-    const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+    const leave = await prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { user: true }
+    });
     if (!leave) {
       return res.status(404).json({ message: 'Leave request not found.' });
     }
 
-    if (leave.userId !== userId && req.user.role !== 'ADMIN') {
+    // Tenant isolation guard
+    if (effectiveOrgId && leave.user?.organizationId !== effectiveOrgId) {
+      return res.status(403).json({ message: 'Unauthorized organization scope.' });
+    }
+
+    if (leave.status === 'CANCELLED') {
+      return res.status(400).json({ message: 'Leave request is already cancelled.' });
+    }
+
+    if (leave.status === 'REJECTED') {
+      return res.status(400).json({ message: 'Rejected leave requests cannot be cancelled.' });
+    }
+
+    // Cancellation of APPROVED leave: Admin only
+    if (leave.status === 'APPROVED') {
+      if (userRole !== 'ADMIN') {
+        return res.status(400).json({ message: 'Once approved or finalized, leave requests cannot be cancelled by employees.' });
+      }
+
+      // Admin cancels approved leave atomically
+      const { updated } = await prisma.$transaction(async (tx) => {
+        const cancelledLeave = await tx.leaveRequest.update({
+          where: { id },
+          data: { status: 'CANCELLED' }
+        });
+
+        const leaveType = (leave.leaveType || leave.type || 'CASUAL').toUpperCase();
+
+        if (leaveType === 'COMP_OFF') {
+          const compOffService = require('../services/compOffService');
+          await compOffService.restoreCompOffCreditConsumption({
+            leaveRequestId: leave.id,
+            organizationId: leave.user?.organizationId,
+            txClient: tx,
+            adminUserId: userId
+          });
+
+          // Sync UserLeaveBalance
+          const allLeaveTypes = await tx.leaveType.findMany({ where: { isActive: true } });
+          const matchedType = allLeaveTypes.find(
+            lt => lt.code.toUpperCase() === 'COMP_OFF' || lt.name.toUpperCase() === 'COMP_OFF'
+          );
+          if (matchedType) {
+            const userBal = await tx.userLeaveBalance.findUnique({
+              where: {
+                userId_leaveTypeId: {
+                  userId: leave.userId,
+                  leaveTypeId: matchedType.id
+                }
+              }
+            });
+            if (userBal) {
+              const compOffLedger = await compOffService.getUserCompOffLedgerBalance(leave.userId, new Date(), tx);
+              await tx.userLeaveBalance.update({
+                where: { id: userBal.id },
+                data: {
+                  allocated: 0,
+                  used: compOffLedger.totalUsed,
+                  available: compOffLedger.netAvailable
+                }
+              });
+            }
+          }
+        } else if (leaveType !== 'WFH' && leave.payType !== 'UNPAID') {
+          // Normal leave: restore used balance
+          const allLeaveTypes = await tx.leaveType.findMany({ where: { isActive: true } });
+          const matchedType = allLeaveTypes.find(
+            lt => lt.code.toUpperCase() === leaveType || lt.name.toUpperCase() === leaveType
+          );
+          if (matchedType) {
+            const userBal = await tx.userLeaveBalance.findUnique({
+              where: {
+                userId_leaveTypeId: {
+                  userId: leave.userId,
+                  leaveTypeId: matchedType.id
+                }
+              }
+            });
+            if (userBal) {
+              const leaveDays = leave.totalDays || 1.0;
+              const newUsed = Math.max(0, userBal.used - leaveDays);
+              const maxAvailable = userBal.allocated + userBal.carryForward;
+              const newAvailable = Math.min(maxAvailable, userBal.available + leaveDays);
+              await tx.userLeaveBalance.update({
+                where: { id: userBal.id },
+                data: {
+                  used: newUsed,
+                  available: newAvailable
+                }
+              });
+            }
+          }
+        }
+
+        // Clean up auto-generated attendance records for this approved period
+        const start = new Date(leave.startDate);
+        const end = new Date(leave.endDate);
+        const startStr = start.toLocaleDateString('en-CA');
+        const endStr = end.toLocaleDateString('en-CA');
+
+        await tx.attendance.deleteMany({
+          where: {
+            userId: leave.userId,
+            date: {
+              gte: new Date(startStr + 'T00:00:00.000Z'),
+              lte: new Date(endStr + 'T23:59:59.999Z')
+            },
+            clockInLocation: { in: ['Approved Leave Period', 'Work From Home (Approved)'] }
+          }
+        });
+
+        return { updated: cancelledLeave };
+      });
+
+      await logActivity({
+        userId,
+        organizationId: leave.user?.organizationId,
+        action: 'LEAVE_CANCEL_APPROVED',
+        details: `Admin cancelled approved leave for ${leave.user?.name} (${leave.leaveType || leave.type})`,
+        req
+      });
+
+      // Notify employee of cancellation and credit restoration
+      const leaveTypeStr = (leave.leaveType || leave.type || 'LEAVE').toUpperCase();
+      await createNotification({
+        userId: leave.userId,
+        title: 'Approved Leave Cancelled by Admin',
+        message: `Your approved ${leaveTypeStr} leave (${leave.totalDays} day(s)) was cancelled by an administrator.${leaveTypeStr === 'COMP_OFF' ? ' Consumed Comp-Off credits have been restored.' : ''}`,
+        type: 'LEAVE_CANCELLED_ADMIN'
+      });
+
+      return res.json(updated);
+    }
+
+    // Pending cancellation: Applicant only or Admin
+    if (leave.userId !== userId && userRole !== 'ADMIN') {
       return res.status(403).json({ message: 'You can only cancel your own leave requests.' });
     }
 
-    // Cancellation Allowed ONLY while status is PENDING_TL_APPROVAL or PENDING_ADMIN_APPROVAL
-    if (!['PENDING_TL_APPROVAL', 'PENDING_ADMIN_APPROVAL'].includes(leave.status)) {
+    if (!['PENDING_TL_APPROVAL', 'PENDING_ADMIN_APPROVAL', 'PENDING'].includes(leave.status)) {
       return res.status(400).json({ message: 'Once approved or finalized, leave requests cannot be cancelled by employees.' });
     }
 
@@ -1058,12 +1460,17 @@ const cancelLeave = async (req, res) => {
 
     await logActivity({
       userId,
+      organizationId: leave.user?.organizationId,
       action: 'LEAVE_CANCEL',
-      details: `Cancelled pending leave request (${leave.leaveType})`
+      details: `Cancelled pending leave request (${leave.leaveType || leave.type})`,
+      req
     });
 
     res.json(updated);
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     console.error('Cancel leave error:', error);
     res.status(500).json({ message: 'Failed to cancel leave request.' });
   }
@@ -1105,17 +1512,41 @@ const updateLeave = async (req, res) => {
       return res.status(400).json({ message: 'Start date must be before or equal to end date.' });
     }
 
-    let totalDays = calculateTotalDays(start, end);
+    let totalDays = await calculateTotalDays(start, end, leave.userId, leave.user?.organizationId);
     if (isHalfDay) {
       totalDays = 0.5;
     }
 
-    const rawType = leaveType || altType || leave.leaveType || 'CASUAL';
-    const normalizedType = String(rawType).toUpperCase();
-    const ALLOWED_TYPES = ['CASUAL', 'SICK', 'EMERGENCY', 'WFH', 'LOP', 'UNPAID', 'LOSS_OF_PAY'];
+    const rawType = leaveType || altType || leave.leaveType || 'CL';
+    const allLeaveTypes = await prisma.leaveType.findMany({ where: { isActive: true } });
+    const companyLeaveTypes = filterLeaveTypesForCompany(allLeaveTypes, leave.user?.organizationId);
+    const matchedTypeObj = resolveLeaveType(rawType, companyLeaveTypes);
 
-    if (!ALLOWED_TYPES.includes(normalizedType)) {
-      return res.status(400).json({ message: 'Invalid leave type.' });
+    if (!matchedTypeObj) {
+      const rawUpper = String(rawType).trim().toUpperCase();
+      if (rawUpper === 'WFH' || rawUpper === 'WORK_FROM_HOME') {
+        return res.status(400).json({
+          message: 'Work From Home (WFH) is not an active leave policy for your organization.'
+        });
+      }
+      if (!['LOP', 'UNPAID', 'LOSS_OF_PAY', 'LOSS OF PAY'].includes(rawUpper)) {
+        return res.status(400).json({
+          message: `The selected leave type "${rawType}" is invalid or not available in your organization.`
+        });
+      }
+    }
+
+    const normalizedType = matchedTypeObj ? matchedTypeObj.code.toUpperCase() : String(rawType).toUpperCase();
+
+    // Minimum advance notice validation for edits
+    const minNoticeError = await validateMinNoticeDays(
+      startDate || leave.startDate,
+      matchedTypeObj?.minNoticeDays,
+      matchedTypeObj?.name,
+      leave.user?.organizationId
+    );
+    if (minNoticeError) {
+      return res.status(400).json({ message: minNoticeError });
     }
 
     const determinedPayType = inputPayType

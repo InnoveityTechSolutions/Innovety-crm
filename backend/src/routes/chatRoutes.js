@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 const { requireChatEnabled } = require('../middleware/requireChatEnabled');
+const { requirePermission } = require('../middleware/permissionMiddleware');
 const chatController = require('../controllers/chatController');
 
 // Configure Multer storage for chat uploads
@@ -27,24 +28,25 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB max file size
 });
 
-// All chat routes require JWT Auth & Role Feature Access
+// All chat routes require JWT Auth, Feature Access, and VIEW permission on chat
 router.use(authenticate);
 router.use(requireChatEnabled);
+router.use(requirePermission('chat', 'VIEW'));
 
 // Rooms & Conversations
 router.get('/rooms', chatController.getRooms);
 router.get('/rooms/project/:projectId', chatController.getOrCreateProjectChatRoom);
-router.post('/rooms/direct', chatController.createDirectRoom);
-router.post('/rooms/team', chatController.createTeamRoom);
-router.delete('/groups/:groupId', chatController.deleteGroup);
-router.delete('/rooms/:roomId', chatController.deleteGroup);
+router.post('/rooms/direct', requirePermission('chat', 'EDIT'), chatController.createDirectRoom);
+router.post('/rooms/team', requirePermission('chat', 'EDIT'), chatController.createTeamRoom);
+router.delete('/groups/:groupId', requirePermission('chat', 'EDIT'), chatController.deleteGroup);
+router.delete('/rooms/:roomId', requirePermission('chat', 'EDIT'), chatController.deleteGroup);
 
 // Messages
 router.get('/rooms/:roomId/messages', chatController.getRoomMessages);
-router.post('/messages', chatController.sendMessage);
-router.put('/messages/:messageId', chatController.editMessage);
-router.delete('/messages/:messageId', chatController.softDeleteMessage);
-router.put('/messages/:messageId/pin', chatController.togglePinMessage);
+router.post('/messages', requirePermission('chat', 'EDIT'), chatController.sendMessage);
+router.put('/messages/:messageId', requirePermission('chat', 'EDIT'), chatController.editMessage);
+router.delete('/messages/:messageId', requirePermission('chat', 'EDIT'), chatController.softDeleteMessage);
+router.put('/messages/:messageId/pin', requirePermission('chat', 'EDIT'), chatController.togglePinMessage);
 router.get('/messages/:messageId/download', chatController.downloadAttachment);
 router.post('/rooms/:roomId/read', chatController.markRoomAsRead);
 
@@ -52,7 +54,7 @@ router.post('/rooms/:roomId/read', chatController.markRoomAsRead);
 router.get('/search', chatController.searchChat);
 
 // File Attachment Upload Endpoint
-router.post('/upload', upload.single('file'), (req, res) => {
+router.post('/upload', requirePermission('chat', 'EDIT'), upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file provided.' });

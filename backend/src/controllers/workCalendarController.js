@@ -10,9 +10,11 @@ const { broadcastShiftUpdate } = require('../socket');
  */
 const getCalendar = async (req, res) => {
   try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
 
     const today = new Date();
     const month = parseInt(req.query.month, 10) || (today.getMonth() + 1);
@@ -27,8 +29,35 @@ const getCalendar = async (req, res) => {
 
     const targetOrgId = getEffectiveOrgId(req);
 
+    // Access control for optional targetUserId query parameter
+    let targetUser = req.user;
+    const requestedUserId = req.query.userId;
+
+    if (requestedUserId && requestedUserId !== req.user.id) {
+      if (['EMPLOYEE', 'INTERN'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'You are not authorized to view another employee\'s calendar.' });
+      } else if (req.user.role === 'TEAM_LEADER') {
+        const membership = await prisma.teamMember.findFirst({
+          where: {
+            userId: requestedUserId,
+            team: { leaderId: req.user.id, organizationId: targetOrgId }
+          }
+        });
+        if (!membership) {
+          return res.status(403).json({ message: 'You can only view calendars for members of teams you lead.' });
+        }
+        targetUser = await prisma.user.findUnique({ where: { id: requestedUserId } });
+      } else if (['ADMIN', 'SUPER_ADMIN'].includes(req.user.role)) {
+        const u = await prisma.user.findUnique({ where: { id: requestedUserId } });
+        if (u && targetOrgId && u.organizationId !== targetOrgId && req.user.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({ message: 'Unauthorized organization scope.' });
+        }
+        if (u) targetUser = u;
+      }
+    }
+
     const calendarResult = await resolveMonthlyCalendar({
-      user: req.user,
+      user: targetUser,
       month,
       year,
       organizationId: targetOrgId

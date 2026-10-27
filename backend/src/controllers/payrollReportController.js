@@ -17,7 +17,10 @@ const getPayrollReportsSummary = async (req, res) => {
     if (year) whereClause.year = Number(year);
 
     if (targetOrgId) {
-      whereClause.organizationId = targetOrgId;
+      whereClause.OR = [
+        { organizationId: targetOrgId },
+        { batch: { organizationId: targetOrgId } }
+      ];
     }
 
     const publishedPayslips = await prisma.payslip.findMany({

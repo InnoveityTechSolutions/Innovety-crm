@@ -307,16 +307,27 @@ const ShiftDetailsDrawer = ({
                   <div className="grid grid-cols-7 gap-1.5">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayShort, idx) => {
                       const fullDay = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'][idx];
-                      let status = 'Working';
-                      if (fullDay === 'SUNDAY') status = 'Holiday';
+                      let rawStatus = fullDay === 'SUNDAY' ? 'Holiday' : 'Working';
                       if (shift.workingDays) {
                         if (Array.isArray(shift.workingDays)) {
-                          const m = shift.workingDays.find(d => d.day === fullDay);
-                          if (m) status = m.status || (m.isWorking ? 'Working' : 'Holiday');
-                        } else if (typeof shift.workingDays === 'object') {
-                          status = shift.workingDays[fullDay] || 'Working';
+                          const m = shift.workingDays.find(d => String(d.day).toUpperCase() === fullDay);
+                          if (m) {
+                            const candidate = typeof m.status === 'object' && m.status !== null ? m.status.status : m.status;
+                            rawStatus = candidate || (m.isWorking ? 'Working' : 'Holiday');
+                          }
+                        } else if (typeof shift.workingDays === 'object' && shift.workingDays !== null) {
+                          const dayVal = shift.workingDays[fullDay];
+                          if (dayVal && typeof dayVal === 'object') {
+                            rawStatus = dayVal.status || 'Working';
+                          } else if (dayVal) {
+                            rawStatus = dayVal;
+                          }
                         }
                       }
+
+                      // Normalize to clean display string ("Working", "WFH", "Holiday")
+                      const normStr = String(rawStatus || '').toUpperCase();
+                      const status = normStr === 'WFH' ? 'WFH' : (normStr === 'HOLIDAY' || normStr === 'LEAVE') ? 'Holiday' : 'Working';
 
                       const badgeClass =
                         status === 'Working'

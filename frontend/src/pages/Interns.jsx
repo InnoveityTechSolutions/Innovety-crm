@@ -906,7 +906,7 @@ const Interns = () => {
                 <label className="text-xs font-semibold text-muted-foreground">CSV Text Data</label>
                 <textarea
                   rows={8}
-                  placeholder="name,email,dob,role,phone,college,department&#10;John Doe,john@example.com,2000-08-15,INTERN,12345678,MIT,CS&#10;Jane Smith,jane@example.com,1998-05-12,TEAM_LEADER,,IIT,EE"
+                  placeholder="name,email,dob,role,phone,college,department,joiningDate&#10;John Doe,john@example.com,2000-08-15,INTERN,12345678,MIT,CS,2026-10-01&#10;Jane Smith,jane@example.com,1998-05-12,INTERN,,IIT,EE,2026-10-15"
                   className="w-full border border-border p-3 text-xs bg-muted/40 font-mono rounded-lg outline-none"
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}

@@ -18,6 +18,7 @@ import TeamRosterStatus from './TeamRosterStatus';
 import TeamLeaderShiftWidget from './TeamLeaderShiftWidget';
 import TeamLeaderPerformanceView from '../intelligence/TeamLeaderPerformanceView';
 import TimeRollSuccessBanner from '../common/TimeRollSuccessBanner';
+import { captureDeviceCoordinates, reverseGeocodeCoordinates } from '../../utils/geolocationHelper';
 import {
   Clock,
   CheckCircle2,
@@ -433,7 +434,18 @@ export const TeamLeaderDashboard = () => {
     try {
       setClockLoading(true);
       setAttendanceAlert('');
-      const res = await api.post('/attendance/clock-out');
+      const coords = await captureDeviceCoordinates();
+      const address = await reverseGeocodeCoordinates(coords.latitude, coords.longitude);
+      const locationStr = address
+        ? `${address} (Lat: ${coords.latitude}, Lon: ${coords.longitude})`
+        : `Lat: ${coords.latitude}, Lon: ${coords.longitude}`;
+
+      const res = await api.post('/attendance/clock-out', {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        address: address || null,
+        location: locationStr
+      });
       const record = res.data.record || res.data;
       setClockedRecord(record);
 
@@ -530,7 +542,15 @@ export const TeamLeaderDashboard = () => {
     let wfh = 0;
     let absent = 0;
 
-    teamMembers.forEach(member => {
+    // Filter out members who haven't officially joined yet
+    const eligibleMembers = teamMembers.filter(member => {
+      const joinDate = member.joiningDate || member.createdAt;
+      if (!joinDate) return true;
+      const joinStr = new Date(joinDate).toLocaleDateString('en-CA');
+      return joinStr <= todayStr;
+    });
+
+    eligibleMembers.forEach(member => {
       const leaveToday = leaves.find(l => 
         l.userId === member.id &&
         l.status === 'APPROVED' &&
@@ -557,11 +577,11 @@ export const TeamLeaderDashboard = () => {
       }
     });
 
-    const total = teamMembers.length || 1;
+    const total = eligibleMembers.length || 1;
     const activeTurnout = present + late + wfh;
     const attendancePercent = Math.round((activeTurnout / total) * 100);
 
-    return { present, late, onLeave, wfh, absent, attendancePercent, total: teamMembers.length };
+    return { present, late, onLeave, wfh, absent, attendancePercent, total: eligibleMembers.length };
   }, [teamMembers, leaves, attendanceLogs]);
 
   // 2. Enhanced Pending Approvals (Pending Leave Requests + Pending Task Reviews)
@@ -1396,7 +1416,7 @@ export const TeamLeaderDashboard = () => {
                       {type.available ?? 0}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-medium block text-center">
-                      Days Left
+                      {type.carryForward > 0 ? `Days Left (+${type.carryForward} carried)` : 'Days Left'}
                     </span>
                   </div>
                 ))

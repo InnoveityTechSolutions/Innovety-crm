@@ -17,6 +17,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCompanyScope } from '../../context/CompanyScopeContext';
 import CompanyScopeSelector from '../../components/common/CompanyScopeSelector';
+import ToggleSwitch from '../../components/common/ToggleSwitch';
 
 const LatePolicySettings = () => {
   const { user } = useAuth();
@@ -166,15 +167,13 @@ const LatePolicySettings = () => {
                   When enabled, employees will receive warnings up to the threshold, after which late deductions apply.
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={policy.latePolicyEnabled}
-                  onChange={(e) => setPolicy({ ...policy, latePolicyEnabled: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
+              <ToggleSwitch
+                id="late-policy-enabled-toggle"
+                ariaLabel="Enable late attendance policy"
+                title={policy.latePolicyEnabled ? 'Disable Late Policy' : 'Enable Late Policy'}
+                checked={Boolean(policy.latePolicyEnabled)}
+                onChange={(val) => setPolicy({ ...policy, latePolicyEnabled: val })}
+              />
             </div>
 
             {/* 2. Applies To Roles */}

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import ToggleSwitch from '../../components/common/ToggleSwitch';
 
 const extractCompanyList = (responseData) => {
   if (Array.isArray(responseData)) return responseData;
@@ -54,7 +55,10 @@ const LeavePolicySettings = () => {
     maxCarryForwardDays: 5.0,
     halfDayAllowed: true,
     workingDaysOnly: true,
-    autoApproval: false
+    autoApproval: false,
+    compOffValidityDays: 90,
+    compOffClaimWindowDays: 30,
+    compOffClaimWindowEnabled: true
   });
 
   const [leaveTypes, setLeaveTypes] = useState([]);
@@ -78,6 +82,7 @@ const LeavePolicySettings = () => {
     isPaid: true,
     annualDays: 12,
     monthlyCreditDays: 1,
+    minNoticeDays: 0,
     allowCarryForward: false,
     requireDoc: false,
     allowHalfDay: true
@@ -104,8 +109,17 @@ const LeavePolicySettings = () => {
 
   const isProtectedLeaveType = (lt) => {
     if (!lt) return false;
-    const protectedCodes = ['CL', 'SL'];
-    return protectedCodes.includes((lt.code || '').toUpperCase());
+    const protectedCodes = ['CL', 'SL', 'COMP_OFF', 'WFH'];
+    const code = (lt.code || '').toUpperCase();
+    const name = (lt.name || '').trim().toLowerCase();
+    return protectedCodes.includes(code) ||
+      name === 'casual leave' ||
+      name === 'sick leave' ||
+      name === 'compensatory off' ||
+      name === 'comp-off' ||
+      name === 'work from home' ||
+      name === 'wfh' ||
+      lt.isSystem === true;
   };
 
   const [selectedRole, setSelectedRole] = useState('ALL'); // 'ALL' | 'TEAM_LEADER' | 'EMPLOYEE' | 'INTERN'
@@ -120,7 +134,13 @@ const LeavePolicySettings = () => {
       const polRes = await api.get('/leave-policy', { params });
 
       if (polRes.data?.policy) {
-        setPolicy(polRes.data.policy);
+        setPolicy((prev) => ({
+          ...prev,
+          ...polRes.data.policy,
+          compOffClaimWindowEnabled: polRes.data.policy.compOffClaimWindowEnabled !== undefined
+            ? polRes.data.policy.compOffClaimWindowEnabled
+            : (prev.compOffClaimWindowEnabled !== undefined ? prev.compOffClaimWindowEnabled : true)
+        }));
       }
       setLeaveTypes(polRes.data?.leaveTypes || []);
       setAlert({ type: '', text: '' });
@@ -202,6 +222,7 @@ const LeavePolicySettings = () => {
         annualDays: annualVal,
         monthlyCreditDays: monthlyVal,
         monthlyCredit: monthlyVal,
+        minNoticeDays: lt.minNoticeDays !== undefined && lt.minNoticeDays !== null ? lt.minNoticeDays : 0,
         allowCarryForward: lt.allowCarryForward ?? false,
         requireDoc: lt.requireDoc ?? false,
         allowHalfDay: lt.allowHalfDay ?? true
@@ -219,6 +240,7 @@ const LeavePolicySettings = () => {
         annualDays: 12,
         monthlyCreditDays: 1,
         monthlyCredit: 1,
+        minNoticeDays: 0,
         allowCarryForward: false,
         requireDoc: false,
         allowHalfDay: true
@@ -234,9 +256,15 @@ const LeavePolicySettings = () => {
       ? typeFormData.monthlyCreditDays
       : typeFormData.monthlyCredit;
     const monthlyCreditNum = (monthlyCreditRaw === '' || monthlyCreditRaw === undefined) ? 0 : Number(monthlyCreditRaw);
+    const minNoticeNum = typeFormData.minNoticeDays === '' ? 0 : Number(typeFormData.minNoticeDays);
 
     if (isNaN(annualDaysNum) || isNaN(monthlyCreditNum) || annualDaysNum < 0 || monthlyCreditNum < 0) {
       setAlert({ type: 'error', text: 'Leave allowances cannot be negative or invalid numbers.' });
+      return;
+    }
+
+    if (!Number.isInteger(minNoticeNum) || minNoticeNum < 0) {
+      setAlert({ type: 'error', text: 'Minimum Notice (Days) must be a non-negative whole number (0, 1, 2, ...).' });
       return;
     }
 
@@ -245,6 +273,7 @@ const LeavePolicySettings = () => {
       annualDays: annualDaysNum,
       monthlyCredit: monthlyCreditNum,
       monthlyCreditDays: monthlyCreditNum,
+      minNoticeDays: minNoticeNum,
       organizationId: selectedOrgId,
       role: selectedRole !== 'ALL' ? selectedRole : undefined
     };
@@ -300,6 +329,20 @@ const LeavePolicySettings = () => {
 
   const handleConfirmDelete = async () => {
     if (!typeToDelete) return;
+    if (isProtectedLeaveType(typeToDelete)) {
+      const code = (typeToDelete.code || '').toUpperCase();
+      const name = (typeToDelete.name || '').trim().toLowerCase();
+      const isWfh = code === 'WFH' || name === 'work from home' || name === 'wfh';
+      setAlert({
+        type: 'error',
+        text: isWfh
+          ? 'Work From Home (WFH) is a built-in system leave type and cannot be deleted. It can only be disabled.'
+          : `${typeToDelete.name || 'System policy'} is a mandatory system policy and cannot be deleted.`
+      });
+      setDeleteConfirmOpen(false);
+      setTypeToDelete(null);
+      return;
+    }
     const deletedId = typeToDelete.id;
     const deletedName = typeToDelete.name;
     try {
@@ -552,7 +595,91 @@ const LeavePolicySettings = () => {
           </div>
         </div>
 
-        {/* 2. Leave Types List Immediately Below Allocation Mode */}
+        {/* 2. Comp-Off (Compensatory Off) Policy Settings */}
+        <div className="pt-6 border-t border-border/40 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <Shield className="h-5 w-5 text-indigo-500" />
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground">Compensatory Off (Comp-Off) Policy</h3>
+              <p className="text-xs text-muted-foreground font-medium">
+                Configure retrospective claim windows, claim rule enforcement, and credit validity days.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Toggle 30-Day Rule */}
+            <div className="p-4 rounded-2xl border border-border/60 bg-muted/20 space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-foreground">Retrospective Claim Rule</span>
+                  <ToggleSwitch
+                    id="comp-off-claim-window-toggle"
+                    ariaLabel="Retrospective Claim Rule"
+                    title={policy.compOffClaimWindowEnabled ? 'Disable Retrospective Claim Rule' : 'Enable Retrospective Claim Rule'}
+                    checked={Boolean(policy.compOffClaimWindowEnabled)}
+                    onChange={(nextChecked) => setPolicy({ ...policy, compOffClaimWindowEnabled: nextChecked })}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 font-medium leading-relaxed">
+                  {policy.compOffClaimWindowEnabled
+                    ? 'Active: Retrospective claims must be submitted within the configured claim window.'
+                    : 'Disabled: No retrospective age cutoff is enforced on retrospective claims.'}
+                </p>
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md inline-block w-fit ${
+                policy.compOffClaimWindowEnabled ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+              }`}>
+                {policy.compOffClaimWindowEnabled ? 'Enforced' : 'Unrestricted'}
+              </span>
+            </div>
+
+            {/* Claim Window Days */}
+            <div className="p-4 rounded-2xl border border-border/60 bg-muted/20 space-y-2">
+              <label className="block text-xs font-black text-foreground">
+                Retrospective Claim Window
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  disabled={!policy.compOffClaimWindowEnabled}
+                  value={policy.compOffClaimWindowDays ?? 30}
+                  onChange={(e) => setPolicy({ ...policy, compOffClaimWindowDays: parseInt(e.target.value, 10) || 30 })}
+                  className="w-full px-3 py-2 text-xs font-bold font-mono rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
+                <span className="text-xs text-muted-foreground font-bold shrink-0">Days</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium">
+                Default: 30 calendar days from the worked holiday / weekly off.
+              </p>
+            </div>
+
+            {/* Validity Days */}
+            <div className="p-4 rounded-2xl border border-border/60 bg-muted/20 space-y-2">
+              <label className="block text-xs font-black text-foreground">
+                Credit Expiry Window
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={policy.compOffValidityDays ?? 90}
+                  onChange={(e) => setPolicy({ ...policy, compOffValidityDays: parseInt(e.target.value, 10) || 90 })}
+                  className="w-full px-3 py-2 text-xs font-bold font-mono rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <span className="text-xs text-muted-foreground font-bold shrink-0">Days</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium">
+                Default: 90 days validity before earned credit expires.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Leave Types List Immediately Below */}
         <div className="pt-6 border-t border-border/40 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -614,14 +741,18 @@ const LeavePolicySettings = () => {
                       </p>
                     </div>
 
-                    <div className="pt-3 border-t border-border/40 grid grid-cols-2 gap-3 text-center text-xs">
-                      <div className="bg-muted/40 p-3 rounded-2xl border border-border/40">
-                        <span className="text-[10px] text-muted-foreground font-extrabold block uppercase tracking-wider">Annual Allowance</span>
-                        <span className="font-black text-sm text-foreground mt-0.5 block">{lt.isPaid ? `${lt.annualDays ?? 0} Days` : 'Unpaid'}</span>
+                    <div className="pt-3 border-t border-border/40 grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="bg-muted/40 p-2.5 rounded-2xl border border-border/40">
+                        <span className="text-[9px] text-muted-foreground font-extrabold block uppercase tracking-wider">Annual Allowance</span>
+                        <span className="font-black text-xs text-foreground mt-0.5 block">{lt.isPaid ? `${lt.annualDays ?? 0} Days` : 'Unpaid'}</span>
                       </div>
-                      <div className="bg-muted/40 p-3 rounded-2xl border border-border/40">
-                        <span className="text-[10px] text-muted-foreground font-extrabold block uppercase tracking-wider">Monthly Credit</span>
-                        <span className="font-black text-sm text-foreground mt-0.5 block">{lt.isPaid ? `${lt.monthlyCreditDays ?? lt.monthlyCredit ?? 0} Days` : 'N/A'}</span>
+                      <div className="bg-muted/40 p-2.5 rounded-2xl border border-border/40">
+                        <span className="text-[9px] text-muted-foreground font-extrabold block uppercase tracking-wider">Monthly Credit</span>
+                        <span className="font-black text-xs text-foreground mt-0.5 block">{lt.isPaid ? `${lt.monthlyCreditDays ?? lt.monthlyCredit ?? 0} Days` : 'N/A'}</span>
+                      </div>
+                      <div className="bg-muted/40 p-2.5 rounded-2xl border border-border/40">
+                        <span className="text-[9px] text-muted-foreground font-extrabold block uppercase tracking-wider">Min Notice</span>
+                        <span className="font-black text-xs text-foreground mt-0.5 block">{lt.minNoticeDays ? `${lt.minNoticeDays} Day${lt.minNoticeDays > 1 ? 's' : ''}` : 'Same Day'}</span>
                       </div>
                     </div>
                   </div>
@@ -762,6 +893,24 @@ const LeavePolicySettings = () => {
                     className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Minimum Notice (Days) *
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  required
+                  value={typeFormData.minNoticeDays}
+                  onChange={(e) => setTypeFormData({ ...typeFormData, minNoticeDays: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                  Minimum days in advance required before applying for leave. Set to 0 to allow same-day applications.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2">

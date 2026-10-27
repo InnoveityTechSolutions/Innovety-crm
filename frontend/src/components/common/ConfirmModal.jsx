@@ -22,7 +22,9 @@ const ConfirmModal = ({
   onConfirm,
   onClose,
   loading = false,
-  triggerElement = null
+  triggerElement = null,
+  confirmBtnClass = null,
+  variant = 'danger'
 }) => {
   const cancelBtnRef = useRef(null);
   const confirmBtnRef = useRef(null);
@@ -163,7 +165,15 @@ const ConfirmModal = ({
               ref={confirmBtnRef}
               disabled={loading}
               onClick={() => !loading && onConfirm()}
-              className="rounded-xl bg-danger px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-danger-hover active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2 focus:ring-2 focus:ring-danger focus:ring-offset-2 dark:focus:ring-offset-slate-900 focus:outline-none"
+              className={`rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-md active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2 focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 focus:outline-none ${
+                confirmBtnClass
+                  ? confirmBtnClass
+                  : variant === 'success'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500'
+                  : variant === 'primary'
+                  ? 'bg-primary hover:bg-primary-hover focus:ring-primary'
+                  : 'bg-danger hover:bg-danger-hover focus:ring-danger'
+              }`}
             >
               {loading && (
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />

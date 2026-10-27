@@ -18,8 +18,8 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
 
   const settings = inputSettings || effectiveSettings || {};
 
-  // 1. Fetch user's assigned salary structure, holidays (both HolidayCalendar & WorkCalendar), attendances & shift resolver
-  const [structure, holidays, workCalendarOverrides, permanentHolidays, attendances, batchShiftResolver] = await Promise.all([
+  // 1. Fetch user's assigned salary structure, holidays (both HolidayCalendar & WorkCalendar), attendances, shift resolver & approved leaves
+  const [structure, holidays, workCalendarOverrides, permanentHolidays, attendances, batchShiftResolver, leaves] = await Promise.all([
     prisma.salaryStructure.findUnique({
       where: { userId: user.id },
       include: { template: true }
@@ -67,6 +67,16 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
       startDate,
       endDate,
       client: prisma
+    }),
+    prisma.leaveRequest.findMany({
+      where: {
+        userId: user.id,
+        status: 'APPROVED',
+        AND: [
+          { startDate: { lte: endDate } },
+          { endDate: { gte: startDate } }
+        ]
+      }
     })
   ]);
 
@@ -80,7 +90,6 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
   const snapshotShiftName = attendances.find(a => a.shiftName)?.shiftName;
   const shiftUsedName = snapshotShiftName || assignedShift?.name || 'Company Default';
 
-  // Calculate workingDays for the month (Safeguard 2: Attendance first, Shift second, Settings fallback)
   const daysInMonth = endDate.getUTCDate();
   const attendanceMap = new Map();
   attendances.forEach(a => {
@@ -88,35 +97,185 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
     attendanceMap.set(dStr, a);
   });
 
+  // Map approved leaves date-by-date
+  const leaveByDateMap = new Map();
+  leaves.forEach(l => {
+    const lType = (l.leaveType || l.type || 'CASUAL').toUpperCase();
+    const isUnpaid = l.payType === 'UNPAID' || ['LOP', 'UNPAID', 'LOSS_OF_PAY'].includes(lType);
+
+    const rawStart = new Date(l.startDate);
+    const rawEnd = new Date(l.endDate || l.startDate);
+
+    const lStart = new Date(Math.max(startDate.getTime(), Date.UTC(rawStart.getUTCFullYear(), rawStart.getUTCMonth(), rawStart.getUTCDate())));
+    const lEnd = new Date(Math.min(endDate.getTime(), Date.UTC(rawEnd.getUTCFullYear(), rawEnd.getUTCMonth(), rawEnd.getUTCDate())));
+
+    let curr = new Date(lStart);
+    while (curr <= lEnd) {
+      const dateStr = curr.toISOString().split('T')[0];
+      leaveByDateMap.set(dateStr, { leave: l, lType, isUnpaid });
+      curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+  });
+
+  // In-progress payroll period detection
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+  const todayDateStr = now.toISOString().split('T')[0];
+  const isCurrentMonthYear = (year === currentYear && month === currentMonth);
+  const isFutureMonth = (year > currentYear || (year === currentYear && month > currentMonth));
+  const userJoiningStr = user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : null;
+
   let computedWorkingDays = 0;
+  let presentDays = 0;
+  let lateCount = 0;
+  let halfDays = 0;
+  let attWfhDays = 0;
+  let paidLeaveDays = 0;
+  let unpaidLeaveDays = 0;
+  let leaveWfhDays = 0;
+  let explicitAbsentDays = 0;
+  let missingAttendanceDays = 0;
+  let futureScheduledDays = 0;
+
+  // Day-by-Day Evaluation of assigned working schedule
   for (let dNum = 1; dNum <= daysInMonth; dNum++) {
     const d = new Date(Date.UTC(year, month - 1, dNum));
     const dStr = d.toISOString().split('T')[0];
-    const dayName = shiftService.getDayName(d);
-    const isSunday = d.getUTCDay() === 0 || dayName === 'SUNDAY';
     const isCompanyHoliday = holidayDatesStr.has(dStr) || permDaySet.has(dNum);
 
     const shiftStatusInfo = batchShiftResolver.getDayStatus(user.id, d);
     const isShiftHoliday = shiftStatusInfo.isHoliday;
+    const isOffOrHoliday = isCompanyHoliday || isShiftHoliday;
 
-    if (isSunday || isCompanyHoliday || isShiftHoliday) {
-      continue; // Sunday is permanently locked, and company/shift holidays are excluded
+    // Skip dates before employee's joining date (not scheduled to work)
+    if (userJoiningStr && dStr < userJoiningStr) {
+      continue;
     }
 
     const dayAtt = attendanceMap.get(dStr);
+    const dayLeave = leaveByDateMap.get(dStr);
+
+    let isWorkingDay = false;
+    if (!isOffOrHoliday) {
+      if (dayAtt) {
+        isWorkingDay = (dayAtt.status !== 'HOLIDAY');
+      } else {
+        isWorkingDay = (shiftStatusInfo.status === 'Working' || shiftStatusInfo.status === 'WFH' || !shiftStatusInfo.shift);
+      }
+    }
+
+    if (isWorkingDay) {
+      computedWorkingDays += 1;
+    }
+
+    const isAttWfh = dayAtt && (dayAtt.status === 'WORK_FROM_HOME' || dayAtt.status === 'WFH' || dayAtt.workLocation === 'HOME');
+    const isLeaveWfh = dayLeave && (dayLeave.lType === 'WFH' || dayLeave.lType === 'WORK_FROM_HOME');
+
+    // Evaluate attendance, leave, or potential absence for this day
     if (dayAtt) {
-      if (dayAtt.status !== 'HOLIDAY') {
-        computedWorkingDays += 1;
+      if (dayAtt.status === 'PRESENT') {
+        if (isWorkingDay) {
+          presentDays += 1;
+        }
+      } else if (dayAtt.status === 'LATE') {
+        if (isWorkingDay) {
+          presentDays += 1;
+        }
+        lateCount += 1;
+      } else if (dayAtt.status === 'HALF_DAY') {
+        if (isWorkingDay) {
+          presentDays += 0.5;
+          halfDays += 1;
+        }
+      } else if (isAttWfh) {
+        if (isWorkingDay) {
+          presentDays += 1;
+          attWfhDays += 1;
+        }
+      } else if (dayAtt.status === 'LEAVE') {
+        if (isWorkingDay) {
+          if (isLeaveWfh) {
+            presentDays += 1;
+            leaveWfhDays += 1;
+          } else if (dayLeave?.isUnpaid) {
+            unpaidLeaveDays += 1;
+          } else {
+            paidLeaveDays += 1;
+          }
+        }
+      } else if (dayAtt.status === 'ABSENT') {
+        // Check if employee has an approved WFH or approved leave exemption
+        if (isWorkingDay) {
+          if (isLeaveWfh) {
+            presentDays += 1;
+            leaveWfhDays += 1;
+          } else if (dayLeave) {
+            if (dayLeave.isUnpaid) {
+              unpaidLeaveDays += 1;
+            } else {
+              paidLeaveDays += 1;
+            }
+          } else {
+            explicitAbsentDays += 1;
+          }
+        }
+      } else if (dayAtt.clockIn || (dayAtt.workingHours && dayAtt.workingHours > 0)) {
+        // Valid clock-in with missing clock-out or custom status
+        if (isWorkingDay) {
+          presentDays += 1;
+        }
+      } else {
+        // Attendance record without clock-in or custom status
+        if (isWorkingDay) {
+          if (isLeaveWfh) {
+            presentDays += 1;
+            leaveWfhDays += 1;
+          } else if (dayLeave) {
+            if (dayLeave.isUnpaid) {
+              unpaidLeaveDays += 1;
+            } else {
+              paidLeaveDays += 1;
+            }
+          } else {
+            explicitAbsentDays += 1;
+          }
+        }
+      }
+    } else if (dayLeave) {
+      // Approved leave request without separate attendance record
+      if (isWorkingDay) {
+        if (isLeaveWfh) {
+          presentDays += 1;
+          leaveWfhDays += 1;
+        } else if (dayLeave.isUnpaid) {
+          unpaidLeaveDays += 1;
+        } else {
+          paidLeaveDays += 1;
+        }
       }
     } else {
-      if (shiftStatusInfo.status === 'Working' || shiftStatusInfo.status === 'WFH') {
-        computedWorkingDays += 1;
-      } else if (!shiftStatusInfo.shift) {
-        computedWorkingDays += 1;
+      // Scheduled working day with no attendance and no approved leave
+      if (isWorkingDay) {
+        const isFutureDay = isFutureMonth || (isCurrentMonthYear && dStr > todayDateStr);
+        if (isFutureDay) {
+          // Future date of an in-progress month: do not penalize or mark absent
+          futureScheduledDays += 1;
+        } else if (isCurrentMonthYear && dStr === todayDateStr) {
+          // Current date during an in-progress month: do not prematurely treat as absent
+          futureScheduledDays += 1;
+        } else {
+          // Past scheduled working day without attendance or approved leave: unexcused absence
+          missingAttendanceDays += 1;
+        }
       }
     }
   }
+
   const workingDays = computedWorkingDays > 0 ? computedWorkingDays : daysInMonth;
+  const wfhDays = attWfhDays + leaveWfhDays;
+  const unpaidAbsentDays = Math.round((explicitAbsentDays + (halfDays * 0.5) + unpaidLeaveDays + missingAttendanceDays) * 10) / 10;
+  const payableDays = Math.max(0, Math.round((workingDays - unpaidAbsentDays) * 10) / 10);
 
   if (!structure) {
     return {
@@ -134,7 +293,10 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
         travelAllowance: 0,
         medicalAllowance: 0,
         otherAllowances: 0,
-        bonus: 0
+        bonus: 0,
+        payableDays: 0,
+        hasMissingAttendance: missingAttendanceDays > 0,
+        missingAttendanceDays
       },
       deductionsJson: {
         pfDeduction: 0,
@@ -151,10 +313,12 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
       grossSalary: 0,
       netSalary: 0,
       workingDays,
-      presentDays: 0,
-      paidLeaveDays: 0,
-      unpaidAbsentDays: 0,
-      wfhDays: 0,
+      presentDays,
+      paidLeaveDays,
+      unpaidAbsentDays,
+      payableDays,
+      missingAttendanceDays,
+      wfhDays,
       overtimeHours: 0,
       overtimePay: 0,
       holidayDaysWorked: 0,
@@ -163,95 +327,6 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
       qrCodeHash: null
     };
   }
-
-  let presentDays = 0;
-  let lateCount = 0;
-  let explicitAbsentDays = 0;
-  let halfDays = 0;
-  let attWfhDays = 0;
-
-  attendances.forEach(att => {
-    const attDate = new Date(att.date);
-    const attDayNum = attDate.getUTCDate();
-    const attDStr = attDate.toISOString().split('T')[0];
-    const attDayName = shiftService.getDayName(attDate);
-    const isAttSunday = attDate.getUTCDay() === 0 || attDayName === 'SUNDAY';
-    const isAttCompanyHoliday = holidayDatesStr.has(attDStr) || permDaySet.has(attDayNum);
-    const attShiftStatusInfo = batchShiftResolver.getDayStatus(user.id, attDate);
-    const isAttShiftHoliday = attShiftStatusInfo.isHoliday;
-
-    if (att.status === 'PRESENT') {
-      presentDays += 1;
-    } else if (att.status === 'LATE') {
-      presentDays += 1;
-      lateCount += 1;
-    } else if (att.status === 'HALF_DAY') {
-      presentDays += 0.5;
-      halfDays += 1;
-    } else if (att.status === 'ABSENT') {
-      // CRITICAL REQUIREMENT:
-      // If an explicit ABSENT record exists on a shift holiday, Sunday, or company holiday,
-      // payroll MUST NOT treat it as an absent/LOP deduction!
-      if (!isAttSunday && !isAttCompanyHoliday && !isAttShiftHoliday) {
-        explicitAbsentDays += 1;
-      }
-    } else if (att.status === 'WORK_FROM_HOME' || att.status === 'WFH') {
-      attWfhDays += 1;
-    }
-  });
-
-  // 3. Fetch live Leave requests for month
-  const leaves = await prisma.leaveRequest.findMany({
-    where: {
-      userId: user.id,
-      status: 'APPROVED',
-      AND: [
-        { startDate: { lte: endDate } },
-        { endDate: { gte: startDate } }
-      ]
-    }
-  });
-
-  let paidLeaveDays = 0;
-  let leaveWfhDays = 0;
-  let unpaidLeaveDays = 0;
-
-  // Safeguard 3: Leave should evaluate each date individually: skip Sundays and shift holidays
-  leaves.forEach(l => {
-    const lType = (l.leaveType || l.type || 'CASUAL').toUpperCase();
-    const isUnpaid = l.payType === 'UNPAID' || ['LOP', 'UNPAID', 'LOSS_OF_PAY'].includes(lType);
-
-    const rawStart = new Date(l.startDate);
-    const rawEnd = new Date(l.endDate || l.startDate);
-
-    const lStart = new Date(Math.max(startDate.getTime(), Date.UTC(rawStart.getFullYear(), rawStart.getMonth(), rawStart.getDate())));
-    const lEnd = new Date(Math.min(endDate.getTime(), Date.UTC(rawEnd.getFullYear(), rawEnd.getMonth(), rawEnd.getDate())));
-
-    let curr = new Date(lStart);
-    while (curr <= lEnd) {
-      const dateStr = curr.toISOString().split('T')[0];
-      const dNum = curr.getUTCDate();
-      const dayName = shiftService.getDayName(curr);
-      const isSunday = curr.getUTCDay() === 0 || dayName === 'SUNDAY';
-      const isCompanyHoliday = holidayDatesStr.has(dateStr) || permDaySet.has(dNum);
-      const shiftStatusInfo = batchShiftResolver.getDayStatus(user.id, curr);
-      const isShiftHoliday = shiftStatusInfo.isHoliday;
-
-      if (!isSunday && !isCompanyHoliday && !isShiftHoliday) {
-        if (lType === 'WFH') {
-          leaveWfhDays += 1;
-        } else if (isUnpaid) {
-          unpaidLeaveDays += 1;
-        } else {
-          paidLeaveDays += 1;
-        }
-      }
-      curr.setUTCDate(curr.getUTCDate() + 1);
-    }
-  });
-
-  const wfhDays = attWfhDays + leaveWfhDays;
-  const unpaidAbsentDays = explicitAbsentDays + (halfDays * 0.5) + unpaidLeaveDays;
 
   // 4. Overtime & Holiday Work Calculations (Controlled by Site Settings toggles)
   const isOvertimePayEnabled = Boolean(effectiveSettings.enableOvertimePay);
@@ -312,7 +387,7 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
   }
 
   const dailyPay = workingDays > 0 ? (structure.grossSalary / workingDays) : 0;
-  const leaveDeduction = Math.round(unpaidAbsentDays * dailyPay);
+  const leaveDeduction = Math.min(structure.grossSalary, Math.round(unpaidAbsentDays * dailyPay));
 
   // Dynamic Late Policy: First 3 warnings (default), 4th late onward starts deduction
   const latePolicyEnabled = effectiveSettings.latePolicyEnabled !== false;
@@ -363,7 +438,10 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
       travelAllowance: structure.travelAllowance,
       medicalAllowance: structure.medicalAllowance,
       otherAllowances: structure.otherAllowances,
-      bonus: structure.bonus
+      bonus: structure.bonus,
+      payableDays,
+      hasMissingAttendance: missingAttendanceDays > 0,
+      missingAttendanceDays
     },
     deductionsJson: {
       pfDeduction: structure.pfDeduction,
@@ -375,7 +453,11 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
       lateDeduction,
       totalLates: lateCount,
       deductibleLates,
-      warningLimit: warningLateLimit
+      warningLimit: warningLateLimit,
+      missingAttendanceDays,
+      explicitAbsentDays,
+      unpaidLeaveDays,
+      dailyPay: Math.round(dailyPay * 100) / 100
     },
     grossSalary: totalEarnings,
     netSalary: finalNetSalary,
@@ -383,6 +465,8 @@ const calculateUserPayroll = async (user, month, year, inputSettings) => {
     presentDays,
     paidLeaveDays,
     unpaidAbsentDays,
+    payableDays,
+    missingAttendanceDays,
     wfhDays,
     overtimeHours: Math.round(overtimeHours * 10) / 10,
     overtimePay,
@@ -490,7 +574,7 @@ const processPayrollBatch = async (req, res) => {
 
     // Upsert payslip items
     for (const psData of payslipsData) {
-      const { totalLates, deductibleLates, warningLimit, ...payload } = psData;
+      const { totalLates, deductibleLates, warningLimit, payableDays, missingAttendanceDays, ...payload } = psData;
       await prisma.payslip.upsert({
         where: { batchId_userId: { batchId: batch.id, userId: payload.userId } },
         update: { ...payload, organizationId: targetOrgId || null, status: 'PREVIEW' },

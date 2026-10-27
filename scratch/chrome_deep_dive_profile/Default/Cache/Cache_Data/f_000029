@@ -1,0 +1,657 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/finance/PayrollSettingsPage.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useRef = __vite__cjsImport3_react["useRef"];
+import api from "/src/services/api.js";
+import { Settings, Save, ShieldCheck } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import CompanyScopeSelector from "/src/components/common/CompanyScopeSelector.jsx";
+import { useCompanyScope } from "/src/context/CompanyScopeContext.jsx";
+import { useAuth } from "/src/context/AuthContext.jsx";
+export default function PayrollSettingsPage() {
+  _s();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const { selectedOrgId, effectiveOrgId, loading: orgsLoading, selectedCompany } = useCompanyScope();
+  const targetOrg = isSuperAdmin ? selectedOrgId : effectiveOrgId || user?.organizationId;
+  const selectedOrgIdRef = useRef(targetOrg);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedSettings, setSavedSettings] = useState(null);
+  const [formData, setFormData] = useState({
+    cycleStartDay: "",
+    payDay: "",
+    currency: "",
+    overtimeHourlyRate: "",
+    holidayPayMultiplier: "",
+    weekendPayMultiplier: "",
+    lateDeductionRule: "FLAT_RATE",
+    lateDeductionRate: "",
+    minimumWorkingHours: "",
+    payslipTemplate: "STANDARD",
+    companyName: "",
+    companyAddress: "",
+    authorizedSignature: ""
+  });
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const activeOrg = selectedOrgIdRef.current || targetOrg;
+      const params = activeOrg ? { organizationId: activeOrg } : {};
+      const res = await api.get("/payroll/settings", { params });
+      if (res.data) {
+        setSavedSettings(res.data);
+        setFormData((prev) => ({
+          ...prev,
+          lateDeductionRule: res.data.lateDeductionRule || "FLAT_RATE",
+          payslipTemplate: res.data.payslipTemplate || "STANDARD"
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load payroll settings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    selectedOrgIdRef.current = targetOrg;
+    setSavedSettings(null);
+    setFormData({
+      cycleStartDay: "",
+      payDay: "",
+      currency: "",
+      overtimeHourlyRate: "",
+      holidayPayMultiplier: "",
+      weekendPayMultiplier: "",
+      lateDeductionRule: "FLAT_RATE",
+      lateDeductionRate: "",
+      minimumWorkingHours: "",
+      payslipTemplate: "STANDARD",
+      companyName: "",
+      companyAddress: "",
+      authorizedSignature: ""
+    });
+    if (orgsLoading) return;
+    fetchSettings();
+  }, [user, targetOrg, user?.organizationId, orgsLoading]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const targetOrg2 = selectedOrgIdRef.current || selectedOrgId;
+      const payload = {
+        organizationId: targetOrg2,
+        cycleStartDay: formData.cycleStartDay !== "" ? Number(formData.cycleStartDay) : Number(savedSettings?.cycleStartDay || 1),
+        payDay: formData.payDay !== "" ? Number(formData.payDay) : Number(savedSettings?.payDay || 30),
+        currency: formData.currency !== "" ? formData.currency.trim() : savedSettings?.currency || "INR",
+        overtimeHourlyRate: formData.overtimeHourlyRate !== "" ? Number(formData.overtimeHourlyRate) : Number(savedSettings?.overtimeHourlyRate || 150),
+        holidayPayMultiplier: formData.holidayPayMultiplier !== "" ? Number(formData.holidayPayMultiplier) : Number(savedSettings?.holidayPayMultiplier || 2),
+        weekendPayMultiplier: formData.weekendPayMultiplier !== "" ? Number(formData.weekendPayMultiplier) : Number(savedSettings?.weekendPayMultiplier || 1.5),
+        lateDeductionRule: formData.lateDeductionRule || savedSettings?.lateDeductionRule || "FLAT_RATE",
+        lateDeductionRate: formData.lateDeductionRate !== "" ? Number(formData.lateDeductionRate) : Number(savedSettings?.lateDeductionRate || 100),
+        halfDayDeductionRate: savedSettings?.halfDayDeductionRate || 0.5,
+        minimumWorkingHours: formData.minimumWorkingHours !== "" ? Number(formData.minimumWorkingHours) : Number(savedSettings?.minimumWorkingHours || 8),
+        roundingRule: savedSettings?.roundingRule || "ROUND_HALF_UP",
+        payslipTemplate: formData.payslipTemplate || savedSettings?.payslipTemplate || "STANDARD",
+        companyName: formData.companyName !== "" ? formData.companyName.trim() : savedSettings?.companyName || selectedCompany?.name || "Company Workspace",
+        companyAddress: formData.companyAddress !== "" ? formData.companyAddress.trim() : savedSettings?.companyAddress || selectedCompany?.address || "Corporate Headquarters",
+        authorizedSignature: formData.authorizedSignature !== "" ? formData.authorizedSignature.trim() : savedSettings?.authorizedSignature || "HR Manager"
+      };
+      const res = await api.put("/payroll/settings", payload);
+      setSavedSettings(res.data);
+      setFormData({
+        cycleStartDay: "",
+        payDay: "",
+        currency: "",
+        overtimeHourlyRate: "",
+        holidayPayMultiplier: "",
+        weekendPayMultiplier: "",
+        lateDeductionRule: res.data.lateDeductionRule || "FLAT_RATE",
+        lateDeductionRate: "",
+        minimumWorkingHours: "",
+        payslipTemplate: res.data.payslipTemplate || "STANDARD",
+        companyName: "",
+        companyAddress: "",
+        authorizedSignature: ""
+      });
+      alert(`Payroll Settings for ${selectedCompany?.name || "Selected Company"} saved successfully!`);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to save payroll settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-6 text-left font-sans w-full max-w-5xl mx-auto", children: [
+    /* @__PURE__ */ jsxDEV(CompanyScopeSelector, {}, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+      lineNumber: 159,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4", children: /* @__PURE__ */ jsxDEV("div", { children: [
+      /* @__PURE__ */ jsxDEV("h1", { className: "text-2xl font-black text-foreground flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxDEV(Settings, { className: "w-6 h-6 text-primary" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 164,
+          columnNumber: 13
+        }, this),
+        " Company Payroll Configurations (",
+        selectedCompany?.name || "Selected Scope",
+        ")"
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 163,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("p", { className: "text-sm text-muted-foreground mt-1", children: [
+        "Set salary cycle dates, deduction rules, overtime rates, and company payslip headers for ",
+        selectedCompany?.name || "this organization",
+        "."
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 166,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+      lineNumber: 162,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+      lineNumber: 161,
+      columnNumber: 7
+    }, this),
+    loading ? /* @__PURE__ */ jsxDEV("p", { className: "text-sm text-muted-foreground py-8 text-center", children: [
+      "Loading payroll settings for ",
+      selectedCompany?.name || "company",
+      "..."
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+      lineNumber: 173,
+      columnNumber: 7
+    }, this) : /* @__PURE__ */ jsxDEV("form", { onSubmit: handleSubmit, className: "bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6 text-xs", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-2 font-bold text-foreground text-sm border-b border-border pb-2", children: "Salary Cycle & Timing" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 176,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Cycle Start Day (1-31)" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 179,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: "1",
+              max: "31",
+              value: formData.cycleStartDay,
+              onChange: (e) => setFormData({ ...formData, cycleStartDay: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.cycleStartDay ? `Eg. ${savedSettings.cycleStartDay}` : "Eg. 1"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 180,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 178,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Pay Date (1-31)" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 191,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: "1",
+              max: "31",
+              value: formData.payDay,
+              onChange: (e) => setFormData({ ...formData, payDay: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.payDay ? `Eg. ${savedSettings.payDay}` : "Eg. 30"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 192,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 190,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Currency Code" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 203,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.currency,
+              onChange: (e) => setFormData({ ...formData, currency: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.currency ? `Eg. ${savedSettings.currency}` : "Eg. INR"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 204,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 202,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 177,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-2 font-bold text-foreground text-sm border-b border-border pb-2", children: "Overtime & Holiday Rules" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 214,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Overtime Hourly Rate (₹)" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 217,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              step: "0.01",
+              value: formData.overtimeHourlyRate,
+              onChange: (e) => setFormData({ ...formData, overtimeHourlyRate: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.overtimeHourlyRate ? `Eg. ${savedSettings.overtimeHourlyRate}` : "Eg. 150"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 218,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 216,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Holiday Pay Multiplier" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 228,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              step: "0.1",
+              value: formData.holidayPayMultiplier,
+              onChange: (e) => setFormData({ ...formData, holidayPayMultiplier: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.holidayPayMultiplier ? `Eg. ${savedSettings.holidayPayMultiplier}` : "Eg. 2.0"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 229,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 227,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Weekend Pay Multiplier" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 239,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              step: "0.1",
+              value: formData.weekendPayMultiplier,
+              onChange: (e) => setFormData({ ...formData, weekendPayMultiplier: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.weekendPayMultiplier ? `Eg. ${savedSettings.weekendPayMultiplier}` : "Eg. 1.5"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 240,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 238,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 215,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-2 font-bold text-foreground text-sm border-b border-border pb-2", children: "Deductions & Working Hours" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 251,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Late Deduction Rule" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 254,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "select",
+            {
+              value: formData.lateDeductionRule,
+              onChange: (e) => setFormData({ ...formData, lateDeductionRule: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground font-semibold",
+              children: [
+                /* @__PURE__ */ jsxDEV("option", { value: "FLAT_RATE", children: "Flat Rate Deduction (₹)" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+                  lineNumber: 260,
+                  columnNumber: 17
+                }, this),
+                /* @__PURE__ */ jsxDEV("option", { value: "PERCENTAGE", children: "Percentage Deduction (%)" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+                  lineNumber: 261,
+                  columnNumber: 17
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 255,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 253,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Late Deduction Rate" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 265,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              step: "0.01",
+              value: formData.lateDeductionRate,
+              onChange: (e) => setFormData({ ...formData, lateDeductionRate: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.lateDeductionRate ? `Eg. ${savedSettings.lateDeductionRate}` : "Eg. 100"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 266,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 264,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Minimum Working Hours" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 276,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              step: "0.5",
+              value: formData.minimumWorkingHours,
+              onChange: (e) => setFormData({ ...formData, minimumWorkingHours: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.minimumWorkingHours ? `Eg. ${savedSettings.minimumWorkingHours}` : "Eg. 8"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 277,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 275,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 252,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-2 font-bold text-foreground text-sm border-b border-border pb-2", children: "Company Branding & Payslip Customization" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 288,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Company Display Name" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 291,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.companyName,
+              onChange: (e) => setFormData({ ...formData, companyName: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.companyName ? `Eg. ${savedSettings.companyName}` : "Eg. Innoveity Workspace"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 292,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 290,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Authorized HR Signatory" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 301,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.authorizedSignature,
+              onChange: (e) => setFormData({ ...formData, authorizedSignature: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.authorizedSignature ? `Eg. ${savedSettings.authorizedSignature}` : "Eg. HR Manager"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 302,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 300,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "font-semibold text-muted-foreground block mb-1", children: "Company Address (Appears on Payslips)" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+            lineNumber: 311,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "textarea",
+            {
+              rows: "2",
+              value: formData.companyAddress,
+              onChange: (e) => setFormData({ ...formData, companyAddress: e.target.value }),
+              className: "w-full bg-muted/50 border border-border rounded-xl p-2.5 text-foreground placeholder:text-muted-foreground/60",
+              placeholder: savedSettings?.companyAddress ? `Eg. ${savedSettings.companyAddress}` : "Eg. Corporate Headquarters"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 312,
+              columnNumber: 15
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 310,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 289,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-4 flex justify-end", children: /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "submit",
+          disabled: saving,
+          className: "flex items-center gap-2 px-6 py-2.5 btn-primary rounded-xl font-bold text-sm shadow-md transition-all disabled:opacity-50",
+          children: [
+            /* @__PURE__ */ jsxDEV(Save, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+              lineNumber: 328,
+              columnNumber: 15
+            }, this),
+            " ",
+            saving ? "Saving Settings..." : "Save Company Settings"
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+          lineNumber: 323,
+          columnNumber: 13
+        },
+        this
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+        lineNumber: 322,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+      lineNumber: 175,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx",
+    lineNumber: 157,
+    columnNumber: 5
+  }, this);
+}
+_s(PayrollSettingsPage, "TfrOskwntvzOj00lC3hWvD+Sm9w=", false, function() {
+  return [useAuth, useCompanyScope];
+});
+_c = PayrollSettingsPage;
+var _c;
+$RefreshReg$(_c, "PayrollSettingsPage");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayrollSettingsPage.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QkFBdUI7QUFBQTtBQUFBO0FBQUEsUUFMaEU7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLE1BTUEsS0FQRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBUUE7QUFBQSxTQTNKRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBNEpBO0FBQUEsT0E5S0o7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQWdMQTtBQUVKO0FBQUNiLEdBblR1QkQscUJBQW1CO0FBQUEsVUFDeEJELFNBRWdFRCxlQUFlO0FBQUE7QUFBQSxLQUgxRUU7QUFBbUIsSUFBQTREO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbIlJlYWN0IiwidXNlU3RhdGUiLCJ1c2VFZmZlY3QiLCJ1c2VSZWYiLCJhcGkiLCJTZXR0aW5ncyIsIlNhdmUiLCJTaGllbGRDaGVjayIsIkNvbXBhbnlTY29wZVNlbGVjdG9yIiwidXNlQ29tcGFueVNjb3BlIiwidXNlQXV0aCIsIlBheXJvbGxTZXR0aW5nc1BhZ2UiLCJfcyIsInVzZXIiLCJpc1N1cGVyQWRtaW4iLCJyb2xlIiwic2VsZWN0ZWRPcmdJZCIsImVmZmVjdGl2ZU9yZ0lkIiwibG9hZGluZyIsIm9yZ3NMb2FkaW5nIiwic2VsZWN0ZWRDb21wYW55IiwidGFyZ2V0T3JnIiwib3JnYW5pemF0aW9uSWQiLCJzZWxlY3RlZE9yZ0lkUmVmIiwic2V0TG9hZGluZyIsInNhdmluZyIsInNldFNhdmluZyIsInNhdmVkU2V0dGluZ3MiLCJzZXRTYXZlZFNldHRpbmdzIiwiZm9ybURhdGEiLCJzZXRGb3JtRGF0YSIsImN5Y2xlU3RhcnREYXkiLCJwYXlEYXkiLCJjdXJyZW5jeSIsIm92ZXJ0aW1lSG91cmx5UmF0ZSIsImhvbGlkYXlQYXlNdWx0aXBsaWVyIiwid2Vla2VuZFBheU11bHRpcGxpZXIiLCJsYXRlRGVkdWN0aW9uUnVsZSIsImxhdGVEZWR1Y3Rpb25SYXRlIiwibWluaW11bVdvcmtpbmdIb3VycyIsInBheXNsaXBUZW1wbGF0ZSIsImNvbXBhbnlOYW1lIiwiY29tcGFueUFkZHJlc3MiLCJhdXRob3JpemVkU2lnbmF0dXJlIiwiZmV0Y2hTZXR0aW5ncyIsImFjdGl2ZU9yZyIsImN1cnJlbnQiLCJwYXJhbXMiLCJyZXMiLCJnZXQiLCJkYXRhIiwicHJldiIsImVyciIsImNvbnNvbGUiLCJlcnJvciIsImhhbmRsZVN1Ym1pdCIsImUiLCJwcmV2ZW50RGVmYXVsdCIsInBheWxvYWQiLCJOdW1iZXIiLCJ0cmltIiwiaGFsZkRheURlZHVjdGlvblJhdGUiLCJyb3VuZGluZ1J1bGUiLCJuYW1lIiwiYWRkcmVzcyIsInB1dCIsImFsZXJ0IiwicmVzcG9uc2UiLCJtZXNzYWdlIiwidGFyZ2V0IiwidmFsdWUiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJQYXlyb2xsU2V0dGluZ3NQYWdlLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUsIHVzZUVmZmVjdCwgdXNlUmVmIH0gZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgYXBpIGZyb20gJy4uLy4uL3NlcnZpY2VzL2FwaSc7XHJcbmltcG9ydCB7IFNldHRpbmdzLCBTYXZlLCBTaGllbGRDaGVjayB9IGZyb20gJ2x1Y2lkZS1yZWFjdCc7XHJcbmltcG9ydCBDb21wYW55U2NvcGVTZWxlY3RvciBmcm9tICcuLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Db21wYW55U2NvcGVTZWxlY3Rvcic7XHJcbmltcG9ydCB7IHVzZUNvbXBhbnlTY29wZSB9IGZyb20gJy4uLy4uL2NvbnRleHQvQ29tcGFueVNjb3BlQ29udGV4dCc7XHJcblxyXG5pbXBvcnQgeyB1c2VBdXRoIH0gZnJvbSAnLi4vLi4vY29udGV4dC9BdXRoQ29udGV4dCc7XHJcblxyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBQYXlyb2xsU2V0dGluZ3NQYWdlKCkge1xyXG4gIGNvbnN0IHsgdXNlciB9ID0gdXNlQXV0aCgpO1xyXG4gIGNvbnN0IGlzU3VwZXJBZG1pbiA9IHVzZXI/LnJvbGUgPT09ICdTVVBFUl9BRE1JTic7XHJcbiAgY29uc3QgeyBzZWxlY3RlZE9yZ0lkLCBlZmZlY3RpdmVPcmdJZCwgbG9hZGluZzogb3Jnc0xvYWRpbmcsIHNlbGVjdGVkQ29tcGFueSB9ID0gdXNlQ29tcGFueVNjb3BlKCk7XHJcbiAgY29uc3QgdGFyZ2V0T3JnID0gaXNTdXBlckFkbWluID8gc2VsZWN0ZWRPcmdJZCA6IChlZmZlY3RpdmVPcmdJZCB8fCB1c2VyPy5vcmdhbml6YXRpb25JZCk7XHJcbiAgY29uc3Qgc2VsZWN0ZWRPcmdJZFJlZiA9IHVzZVJlZih0YXJnZXRPcmcpO1xyXG5cclxuICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZSh0cnVlKTtcclxuICBjb25zdCBbc2F2aW5nLCBzZXRTYXZpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xyXG5cclxuICAvLyBMb2FkZWQgZGF0YWJhc2Ugc2V0dGluZ3MgZm9yIHNlbGVjdGVkIGNvbXBhbnlcclxuICBjb25zdCBbc2F2ZWRTZXR0aW5ncywgc2V0U2F2ZWRTZXR0aW5nc10gPSB1c2VTdGF0ZShudWxsKTtcclxuXHJcbiAgLy8gRm9ybSBpbnB1dCBzdGF0ZSAoZW1wdHkgc3RyaW5nIGJ5IGRlZmF1bHQgc28gcGxhY2Vob2xkZXJzIHNob3cpXHJcbiAgY29uc3QgW2Zvcm1EYXRhLCBzZXRGb3JtRGF0YV0gPSB1c2VTdGF0ZSh7XHJcbiAgICBjeWNsZVN0YXJ0RGF5OiAnJyxcclxuICAgIHBheURheTogJycsXHJcbiAgICBjdXJyZW5jeTogJycsXHJcbiAgICBvdmVydGltZUhvdXJseVJhdGU6ICcnLFxyXG4gICAgaG9saWRheVBheU11bHRpcGxpZXI6ICcnLFxyXG4gICAgd2Vla2VuZFBheU11bHRpcGxpZXI6ICcnLFxyXG4gICAgbGF0ZURlZHVjdGlvblJ1bGU6ICdGTEFUX1JBVEUnLFxyXG4gICAgbGF0ZURlZHVjdGlvblJhdGU6ICcnLFxyXG4gICAgbWluaW11bVdvcmtpbmdIb3VyczogJycsXHJcbiAgICBwYXlzbGlwVGVtcGxhdGU6ICdTVEFOREFSRCcsXHJcbiAgICBjb21wYW55TmFtZTogJycsXHJcbiAgICBjb21wYW55QWRkcmVzczogJycsXHJcbiAgICBhdXRob3JpemVkU2lnbmF0dXJlOiAnJ1xyXG4gIH0pO1xyXG5cclxuICBjb25zdCBmZXRjaFNldHRpbmdzID0gYXN5bmMgKCkgPT4ge1xyXG4gICAgdHJ5IHtcclxuICAgICAgc2V0TG9hZGluZyh0cnVlKTtcclxuICAgICAgY29uc3QgYWN0aXZlT3JnID0gc2VsZWN0ZWRPcmdJZFJlZi5jdXJyZW50IHx8IHRhcmdldE9yZztcclxuICAgICAgY29uc3QgcGFyYW1zID0gYWN0aXZlT3JnID8geyBvcmdhbml6YXRpb25JZDogYWN0aXZlT3JnIH0gOiB7fTtcclxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLmdldCgnL3BheXJvbGwvc2V0dGluZ3MnLCB7IHBhcmFtcyB9KTtcclxuICAgICAgaWYgKHJlcy5kYXRhKSB7XHJcbiAgICAgICAgc2V0U2F2ZWRTZXR0aW5ncyhyZXMuZGF0YSk7XHJcbiAgICAgICAgc2V0Rm9ybURhdGEocHJldiA9PiAoe1xyXG4gICAgICAgICAgLi4ucHJldixcclxuICAgICAgICAgIGxhdGVEZWR1Y3Rpb25SdWxlOiByZXMuZGF0YS5sYXRlRGVkdWN0aW9uUnVsZSB8fCAnRkxBVF9SQVRFJyxcclxuICAgICAgICAgIHBheXNsaXBUZW1wbGF0ZTogcmVzLmRhdGEucGF5c2xpcFRlbXBsYXRlIHx8ICdTVEFOREFSRCdcclxuICAgICAgICB9KSk7XHJcbiAgICAgIH1cclxuICAgIH0gY2F0Y2ggKGVycikge1xyXG4gICAgICBjb25zb2xlLmVycm9yKCdGYWlsZWQgdG8gbG9hZCBwYXlyb2xsIHNldHRpbmdzOicsIGVycik7XHJcbiAgICB9IGZpbmFsbHkge1xyXG4gICAgICBzZXRMb2FkaW5nKGZhbHNlKTtcclxuICAgIH1cclxuICB9O1xyXG5cclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgc2VsZWN0ZWRPcmdJZFJlZi5jdXJyZW50ID0gdGFyZ2V0T3JnO1xyXG4gICAgc2V0U2F2ZWRTZXR0aW5ncyhudWxsKTtcclxuICAgIHNldEZvcm1EYXRhKHtcclxuICAgICAgY3ljbGVTdGFydERheTogJycsXHJcbiAgICAgIHBheURheTogJycsXHJcbiAgICAgIGN1cnJlbmN5OiAnJyxcclxuICAgICAgb3ZlcnRpbWVIb3VybHlSYXRlOiAnJyxcclxuICAgICAgaG9saWRheVBheU11bHRpcGxpZXI6ICcnLFxyXG4gICAgICB3ZWVrZW5kUGF5TXVsdGlwbGllcjogJycsXHJcbiAgICAgIGxhdGVEZWR1Y3Rpb25SdWxlOiAnRkxBVF9SQVRFJyxcclxuICAgICAgbGF0ZURlZHVjdGlvblJhdGU6ICcnLFxyXG4gICAgICBtaW5pbXVtV29ya2luZ0hvdXJzOiAnJyxcclxuICAgICAgcGF5c2xpcFRlbXBsYXRlOiAnU1RBTkRBUkQnLFxyXG4gICAgICBjb21wYW55TmFtZTogJycsXHJcbiAgICAgIGNvbXBhbnlBZGRyZXNzOiAnJyxcclxuICAgICAgYXV0aG9yaXplZFNpZ25hdHVyZTogJydcclxuICAgIH0pO1xyXG4gICAgaWYgKG9yZ3NMb2FkaW5nKSByZXR1cm47XHJcbiAgICBmZXRjaFNldHRpbmdzKCk7XHJcbiAgfSwgW3VzZXIsIHRhcmdldE9yZywgdXNlcj8ub3JnYW5pemF0aW9uSWQsIG9yZ3NMb2FkaW5nXSk7XHJcblxyXG4gIGNvbnN0IGhhbmRsZVN1Ym1pdCA9IGFzeW5jIChlKSA9PiB7XHJcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XHJcbiAgICB0cnkge1xyXG4gICAgICBzZXRTYXZpbmcodHJ1ZSk7XHJcblxyXG4gICAgICBjb25zdCB0YXJnZXRPcmcgPSBzZWxlY3RlZE9yZ0lkUmVmLmN1cnJlbnQgfHwgc2VsZWN0ZWRPcmdJZDtcclxuXHJcbiAgICAgIC8vIE1lcmdlIHVzZXIgaW5wdXRzIHdpdGggc2F2ZWQgZGF0YWJhc2UgdmFsdWVzIChwcmVzZXJ2ZXMgc2F2ZWQgc2V0dGluZ3MgaWYgaW5wdXQgaXMgZW1wdHkpXHJcbiAgICAgIGNvbnN0IHBheWxvYWQgPSB7XHJcbiAgICAgICAgb3JnYW5pemF0aW9uSWQ6IHRhcmdldE9yZyxcclxuICAgICAgICBjeWNsZVN0YXJ0RGF5OiBmb3JtRGF0YS5jeWNsZVN0YXJ0RGF5ICE9PSAnJyA/IE51bWJlcihmb3JtRGF0YS5jeWNsZVN0YXJ0RGF5KSA6IE51bWJlcihzYXZlZFNldHRpbmdzPy5jeWNsZVN0YXJ0RGF5IHx8IDEpLFxyXG4gICAgICAgIHBheURheTogZm9ybURhdGEucGF5RGF5ICE9PSAnJyA/IE51bWJlcihmb3JtRGF0YS5wYXlEYXkpIDogTnVtYmVyKHNhdmVkU2V0dGluZ3M/LnBheURheSB8fCAzMCksXHJcbiAgICAgICAgY3VycmVuY3k6IGZvcm1EYXRhLmN1cnJlbmN5ICE9PSAnJyA/IGZvcm1EYXRhLmN1cnJlbmN5LnRyaW0oKSA6IChzYXZlZFNldHRpbmdzPy5jdXJyZW5jeSB8fCAnSU5SJyksXHJcbiAgICAgICAgb3ZlcnRpbWVIb3VybHlSYXRlOiBmb3JtRGF0YS5vdmVydGltZUhvdXJseVJhdGUgIT09ICcnID8gTnVtYmVyKGZvcm1EYXRhLm92ZXJ0aW1lSG91cmx5UmF0ZSkgOiBOdW1iZXIoc2F2ZWRTZXR0aW5ncz8ub3ZlcnRpbWVIb3VybHlSYXRlIHx8IDE1MCksXHJcbiAgICAgICAgaG9saWRheVBheU11bHRpcGxpZXI6IGZvcm1EYXRhLmhvbGlkYXlQYXlNdWx0aXBsaWVyICE9PSAnJyA/IE51bWJlcihmb3JtRGF0YS5ob2xpZGF5UGF5TXVsdGlwbGllcikgOiBOdW1iZXIoc2F2ZWRTZXR0aW5ncz8uaG9saWRheVBheU11bHRpcGxpZXIgfHwgMi4wKSxcclxuICAgICAgICB3ZWVrZW5kUGF5TXVsdGlwbGllcjogZm9ybURhdGEud2Vla2VuZFBheU11bHRpcGxpZXIgIT09ICcnID8gTnVtYmVyKGZvcm1EYXRhLndlZWtlbmRQYXlNdWx0aXBsaWVyKSA6IE51bWJlcihzYXZlZFNldHRpbmdzPy53ZWVrZW5kUGF5TXVsdGlwbGllciB8fCAxLjUpLFxyXG4gICAgICAgIGxhdGVEZWR1Y3Rpb25SdWxlOiBmb3JtRGF0YS5sYXRlRGVkdWN0aW9uUnVsZSB8fCBzYXZlZFNldHRpbmdzPy5sYXRlRGVkdWN0aW9uUnVsZSB8fCAnRkxBVF9SQVRFJyxcclxuICAgICAgICBsYXRlRGVkdWN0aW9uUmF0ZTogZm9ybURhdGEubGF0ZURlZHVjdGlvblJhdGUgIT09ICcnID8gTnVtYmVyKGZvcm1EYXRhLmxhdGVEZWR1Y3Rpb25SYXRlKSA6IE51bWJlcihzYXZlZFNldHRpbmdzPy5sYXRlRGVkdWN0aW9uUmF0ZSB8fCAxMDApLFxyXG4gICAgICAgIGhhbGZEYXlEZWR1Y3Rpb25SYXRlOiBzYXZlZFNldHRpbmdzPy5oYWxmRGF5RGVkdWN0aW9uUmF0ZSB8fCAwLjUsXHJcbiAgICAgICAgbWluaW11bVdvcmtpbmdIb3VyczogZm9ybURhdGEubWluaW11bVdvcmtpbmdIb3VycyAhPT0gJycgPyBOdW1iZXIoZm9ybURhdGEubWluaW11bVdvcmtpbmdIb3VycykgOiBOdW1iZXIoc2F2ZWRTZXR0aW5ncz8ubWluaW11bVdvcmtpbmdIb3VycyB8fCA4LjApLFxyXG4gICAgICAgIHJvdW5kaW5nUnVsZTogc2F2ZWRTZXR0aW5ncz8ucm91bmRpbmdSdWxlIHx8ICdST1VORF9IQUxGX1VQJyxcclxuICAgICAgICBwYXlzbGlwVGVtcGxhdGU6IGZvcm1EYXRhLnBheXNsaXBUZW1wbGF0ZSB8fCBzYXZlZFNldHRpbmdzPy5wYXlzbGlwVGVtcGxhdGUgfHwgJ1NUQU5EQVJEJyxcclxuICAgICAgICBjb21wYW55TmFtZTogZm9ybURhdGEuY29tcGFueU5hbWUgIT09ICcnID8gZm9ybURhdGEuY29tcGFueU5hbWUudHJpbSgpIDogKHNhdmVkU2V0dGluZ3M/LmNvbXBhbnlOYW1lIHx8IHNlbGVjdGVkQ29tcGFueT8ubmFtZSB8fCAnQ29tcGFueSBXb3Jrc3BhY2UnKSxcclxuICAgICAgICBjb21wYW55QWRkcmVzczogZm9ybURhdGEuY29tcGFueUFkZHJlc3MgIT09ICcnID8gZm9ybURhdGEuY29tcGFueUFkZHJlc3MudHJpbSgpIDogKHNhdmVkU2V0dGluZ3M/LmNvbXBhbnlBZGRyZXNzIHx8IHNlbGVjdGVkQ29tcGFueT8uYWRkcmVzcyB8fCAnQ29ycG9yYXRlIEhlYWRxdWFydGVycycpLFxyXG4gICAgICAgIGF1dGhvcml6ZWRTaWduYXR1cmU6IGZvcm1EYXRhLmF1dGhvcml6ZWRTaWduYXR1cmUgIT09ICcnID8gZm9ybURhdGEuYXV0aG9yaXplZFNpZ25hdHVyZS50cmltKCkgOiAoc2F2ZWRTZXR0aW5ncz8uYXV0aG9yaXplZFNpZ25hdHVyZSB8fCAnSFIgTWFuYWdlcicpXHJcbiAgICAgIH07XHJcblxyXG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkucHV0KCcvcGF5cm9sbC9zZXR0aW5ncycsIHBheWxvYWQpO1xyXG4gICAgICBzZXRTYXZlZFNldHRpbmdzKHJlcy5kYXRhKTtcclxuICAgICAgXHJcbiAgICAgIC8vIFJlc2V0IGZvcm0gaW5wdXQgdmFsdWVzIGJhY2sgdG8gZW1wdHkgc3RyaW5ncyBzbyBwbGFjZWhvbGRlcnMgY29udGludWUgZGlzcGxheWluZyB1cGRhdGVkIHZhbHVlc1xyXG4gICAgICBzZXRGb3JtRGF0YSh7XHJcbiAgICAgICAgY3ljbGVTdGFydERheTogJycsXHJcbiAgICAgICAgcGF5RGF5OiAnJyxcclxuICAgICAgICBjdXJyZW5jeTogJycsXHJcbiAgICAgICAgb3ZlcnRpbWVIb3VybHlSYXRlOiAnJyxcclxuICAgICAgICBob2xpZGF5UGF5TXVsdGlwbGllcjogJycsXHJcbiAgICAgICAgd2Vla2VuZFBheU11bHRpcGxpZXI6ICcnLFxyXG4gICAgICAgIGxhdGVEZWR1Y3Rpb25SdWxlOiByZXMuZGF0YS5sYXRlRGVkdWN0aW9uUnVsZSB8fCAnRkxBVF9SQVRFJyxcclxuICAgICAgICBsYXRlRGVkdWN0aW9uUmF0ZTogJycsXHJcbiAgICAgICAgbWluaW11bVdvcmtpbmdIb3VyczogJycsXHJcbiAgICAgICAgcGF5c2xpcFRlbXBsYXRlOiByZXMuZGF0YS5wYXlzbGlwVGVtcGxhdGUgfHwgJ1NUQU5EQVJEJyxcclxuICAgICAgICBjb21wYW55TmFtZTogJycsXHJcbiAgICAgICAgY29tcGFueUFkZHJlc3M6ICcnLFxyXG4gICAgICAgIGF1dGhvcml6ZWRTaWduYXR1cmU6ICcnXHJcbiAgICAgIH0pO1xyXG5cclxuICAgICAgYWxlcnQoYFBheXJvbGwgU2V0dGluZ3MgZm9yICR7c2VsZWN0ZWRDb21wYW55Py5uYW1lIHx8ICdTZWxlY3RlZCBDb21wYW55J30gc2F2ZWQgc3VjY2Vzc2Z1bGx5IWApO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIGFsZXJ0KGVyci5yZXNwb25zZT8uZGF0YT8ubWVzc2FnZSB8fCAnRmFpbGVkIHRvIHNhdmUgcGF5cm9sbCBzZXR0aW5ncy4nKTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldFNhdmluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS02IHRleHQtbGVmdCBmb250LXNhbnMgdy1mdWxsIG1heC13LTV4bCBteC1hdXRvXCI+XHJcbiAgICAgIHsvKiBDb21wYW55IFNjb3BlIFNlbGVjdG9yICovfVxyXG4gICAgICA8Q29tcGFueVNjb3BlU2VsZWN0b3IgLz5cclxuXHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctY2FyZCBib3JkZXIgYm9yZGVyLWJvcmRlciBwLTYgcm91bmRlZC0yeGwgc2hhZG93LXNtIGZsZXggZmxleC1jb2wgc206ZmxleC1yb3cgaXRlbXMtc3RhcnQgc206aXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBnYXAtNFwiPlxyXG4gICAgICAgIDxkaXY+XHJcbiAgICAgICAgICA8aDEgY2xhc3NOYW1lPVwidGV4dC0yeGwgZm9udC1ibGFjayB0ZXh0LWZvcmVncm91bmQgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cclxuICAgICAgICAgICAgPFNldHRpbmdzIGNsYXNzTmFtZT1cInctNiBoLTYgdGV4dC1wcmltYXJ5XCIgLz4gQ29tcGFueSBQYXlyb2xsIENvbmZpZ3VyYXRpb25zICh7c2VsZWN0ZWRDb21wYW55Py5uYW1lIHx8ICdTZWxlY3RlZCBTY29wZSd9KVxyXG4gICAgICAgICAgPC9oMT5cclxuICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc20gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTFcIj5cclxuICAgICAgICAgICAgU2V0IHNhbGFyeSBjeWNsZSBkYXRlcywgZGVkdWN0aW9uIHJ1bGVzLCBvdmVydGltZSByYXRlcywgYW5kIGNvbXBhbnkgcGF5c2xpcCBoZWFkZXJzIGZvciB7c2VsZWN0ZWRDb21wYW55Py5uYW1lIHx8ICd0aGlzIG9yZ2FuaXphdGlvbid9LlxyXG4gICAgICAgICAgPC9wPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L2Rpdj5cclxuXHJcbiAgICAgIHtsb2FkaW5nID8gKFxyXG4gICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc20gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIHB5LTggdGV4dC1jZW50ZXJcIj5Mb2FkaW5nIHBheXJvbGwgc2V0dGluZ3MgZm9yIHtzZWxlY3RlZENvbXBhbnk/Lm5hbWUgfHwgJ2NvbXBhbnknfS4uLjwvcD5cclxuICAgICAgKSA6IChcclxuICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlU3VibWl0fSBjbGFzc05hbWU9XCJiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQtMnhsIHAtNiBzaGFkb3ctc20gc3BhY2UteS02IHRleHQteHNcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHQtMiBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIHRleHQtc20gYm9yZGVyLWIgYm9yZGVyLWJvcmRlciBwYi0yXCI+U2FsYXJ5IEN5Y2xlICYgVGltaW5nPC9kaXY+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTRcIj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkN5Y2xlIFN0YXJ0IERheSAoMS0zMSk8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXHJcbiAgICAgICAgICAgICAgICBtaW49XCIxXCJcclxuICAgICAgICAgICAgICAgIG1heD1cIjMxXCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5jeWNsZVN0YXJ0RGF5fVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgY3ljbGVTdGFydERheTogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgYmctbXV0ZWQvNTAgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC14bCBwLTIuNSB0ZXh0LWZvcmVncm91bmQgcGxhY2Vob2xkZXI6dGV4dC1tdXRlZC1mb3JlZ3JvdW5kLzYwXCJcclxuICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPXtzYXZlZFNldHRpbmdzPy5jeWNsZVN0YXJ0RGF5ID8gYEVnLiAke3NhdmVkU2V0dGluZ3MuY3ljbGVTdGFydERheX1gIDogXCJFZy4gMVwifVxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9jayBtYi0xXCI+UGF5IERhdGUgKDEtMzEpPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxyXG4gICAgICAgICAgICAgICAgbWluPVwiMVwiXHJcbiAgICAgICAgICAgICAgICBtYXg9XCIzMVwiXHJcbiAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEucGF5RGF5fVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgcGF5RGF5OiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1tdXRlZC81MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIHAtMi41IHRleHQtZm9yZWdyb3VuZCBwbGFjZWhvbGRlcjp0ZXh0LW11dGVkLWZvcmVncm91bmQvNjBcIlxyXG4gICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9e3NhdmVkU2V0dGluZ3M/LnBheURheSA/IGBFZy4gJHtzYXZlZFNldHRpbmdzLnBheURheX1gIDogXCJFZy4gMzBcIn1cclxuICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkN1cnJlbmN5IENvZGU8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLmN1cnJlbmN5fVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgY3VycmVuY3k6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLW11dGVkLzUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcC0yLjUgdGV4dC1mb3JlZ3JvdW5kIHBsYWNlaG9sZGVyOnRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MFwiXHJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17c2F2ZWRTZXR0aW5ncz8uY3VycmVuY3kgPyBgRWcuICR7c2F2ZWRTZXR0aW5ncy5jdXJyZW5jeX1gIDogXCJFZy4gSU5SXCJ9XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB0LTIgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCB0ZXh0LXNtIGJvcmRlci1iIGJvcmRlci1ib3JkZXIgcGItMlwiPk92ZXJ0aW1lICYgSG9saWRheSBSdWxlczwvZGl2PlxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIHNtOmdyaWQtY29scy0zIGdhcC00XCI+XHJcbiAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrIG1iLTFcIj5PdmVydGltZSBIb3VybHkgUmF0ZSAo4oK5KTwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcclxuICAgICAgICAgICAgICAgIHN0ZXA9XCIwLjAxXCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5vdmVydGltZUhvdXJseVJhdGV9XHJcbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17ZSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBvdmVydGltZUhvdXJseVJhdGU6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLW11dGVkLzUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcC0yLjUgdGV4dC1mb3JlZ3JvdW5kIHBsYWNlaG9sZGVyOnRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MFwiXHJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17c2F2ZWRTZXR0aW5ncz8ub3ZlcnRpbWVIb3VybHlSYXRlID8gYEVnLiAke3NhdmVkU2V0dGluZ3Mub3ZlcnRpbWVIb3VybHlSYXRlfWAgOiBcIkVnLiAxNTBcIn1cclxuICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkhvbGlkYXkgUGF5IE11bHRpcGxpZXI8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXHJcbiAgICAgICAgICAgICAgICBzdGVwPVwiMC4xXCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5ob2xpZGF5UGF5TXVsdGlwbGllcn1cclxuICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXtlID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIGhvbGlkYXlQYXlNdWx0aXBsaWVyOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1tdXRlZC81MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIHAtMi41IHRleHQtZm9yZWdyb3VuZCBwbGFjZWhvbGRlcjp0ZXh0LW11dGVkLWZvcmVncm91bmQvNjBcIlxyXG4gICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9e3NhdmVkU2V0dGluZ3M/LmhvbGlkYXlQYXlNdWx0aXBsaWVyID8gYEVnLiAke3NhdmVkU2V0dGluZ3MuaG9saWRheVBheU11bHRpcGxpZXJ9YCA6IFwiRWcuIDIuMFwifVxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9jayBtYi0xXCI+V2Vla2VuZCBQYXkgTXVsdGlwbGllcjwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcclxuICAgICAgICAgICAgICAgIHN0ZXA9XCIwLjFcIlxyXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLndlZWtlbmRQYXlNdWx0aXBsaWVyfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgd2Vla2VuZFBheU11bHRpcGxpZXI6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLW11dGVkLzUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcC0yLjUgdGV4dC1mb3JlZ3JvdW5kIHBsYWNlaG9sZGVyOnRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MFwiXHJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17c2F2ZWRTZXR0aW5ncz8ud2Vla2VuZFBheU11bHRpcGxpZXIgPyBgRWcuICR7c2F2ZWRTZXR0aW5ncy53ZWVrZW5kUGF5TXVsdGlwbGllcn1gIDogXCJFZy4gMS41XCJ9XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB0LTIgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCB0ZXh0LXNtIGJvcmRlci1iIGJvcmRlci1ib3JkZXIgcGItMlwiPkRlZHVjdGlvbnMgJiBXb3JraW5nIEhvdXJzPC9kaXY+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTRcIj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkxhdGUgRGVkdWN0aW9uIFJ1bGU8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxzZWxlY3RcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5sYXRlRGVkdWN0aW9uUnVsZX1cclxuICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXtlID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIGxhdGVEZWR1Y3Rpb25SdWxlOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1tdXRlZC81MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIHAtMi41IHRleHQtZm9yZWdyb3VuZCBmb250LXNlbWlib2xkXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiRkxBVF9SQVRFXCI+RmxhdCBSYXRlIERlZHVjdGlvbiAo4oK5KTwvb3B0aW9uPlxyXG4gICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlBFUkNFTlRBR0VcIj5QZXJjZW50YWdlIERlZHVjdGlvbiAoJSk8L29wdGlvbj5cclxuICAgICAgICAgICAgICA8L3NlbGVjdD5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrIG1iLTFcIj5MYXRlIERlZHVjdGlvbiBSYXRlPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxyXG4gICAgICAgICAgICAgICAgc3RlcD1cIjAuMDFcIlxyXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLmxhdGVEZWR1Y3Rpb25SYXRlfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgbGF0ZURlZHVjdGlvblJhdGU6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLW11dGVkLzUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcC0yLjUgdGV4dC1mb3JlZ3JvdW5kIHBsYWNlaG9sZGVyOnRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MFwiXHJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17c2F2ZWRTZXR0aW5ncz8ubGF0ZURlZHVjdGlvblJhdGUgPyBgRWcuICR7c2F2ZWRTZXR0aW5ncy5sYXRlRGVkdWN0aW9uUmF0ZX1gIDogXCJFZy4gMTAwXCJ9XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrIG1iLTFcIj5NaW5pbXVtIFdvcmtpbmcgSG91cnM8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXHJcbiAgICAgICAgICAgICAgICBzdGVwPVwiMC41XCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5taW5pbXVtV29ya2luZ0hvdXJzfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgbWluaW11bVdvcmtpbmdIb3VyczogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgYmctbXV0ZWQvNTAgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC14bCBwLTIuNSB0ZXh0LWZvcmVncm91bmQgcGxhY2Vob2xkZXI6dGV4dC1tdXRlZC1mb3JlZ3JvdW5kLzYwXCJcclxuICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPXtzYXZlZFNldHRpbmdzPy5taW5pbXVtV29ya2luZ0hvdXJzID8gYEVnLiAke3NhdmVkU2V0dGluZ3MubWluaW11bVdvcmtpbmdIb3Vyc31gIDogXCJFZy4gOFwifVxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwdC0yIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgdGV4dC1zbSBib3JkZXItYiBib3JkZXItYm9yZGVyIHBiLTJcIj5Db21wYW55IEJyYW5kaW5nICYgUGF5c2xpcCBDdXN0b21pemF0aW9uPC9kaXY+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkNvbXBhbnkgRGlzcGxheSBOYW1lPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5jb21wYW55TmFtZX1cclxuICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXtlID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIGNvbXBhbnlOYW1lOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1tdXRlZC81MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIHAtMi41IHRleHQtZm9yZWdyb3VuZCBwbGFjZWhvbGRlcjp0ZXh0LW11dGVkLWZvcmVncm91bmQvNjBcIlxyXG4gICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9e3NhdmVkU2V0dGluZ3M/LmNvbXBhbnlOYW1lID8gYEVnLiAke3NhdmVkU2V0dGluZ3MuY29tcGFueU5hbWV9YCA6IFwiRWcuIElubm92ZWl0eSBXb3Jrc3BhY2VcIn1cclxuICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkF1dGhvcml6ZWQgSFIgU2lnbmF0b3J5PC9sYWJlbD5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5hdXRob3JpemVkU2lnbmF0dXJlfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgYXV0aG9yaXplZFNpZ25hdHVyZTogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgYmctbXV0ZWQvNTAgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC14bCBwLTIuNSB0ZXh0LWZvcmVncm91bmQgcGxhY2Vob2xkZXI6dGV4dC1tdXRlZC1mb3JlZ3JvdW5kLzYwXCJcclxuICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPXtzYXZlZFNldHRpbmdzPy5hdXRob3JpemVkU2lnbmF0dXJlID8gYEVnLiAke3NhdmVkU2V0dGluZ3MuYXV0aG9yaXplZFNpZ25hdHVyZX1gIDogXCJFZy4gSFIgTWFuYWdlclwifVxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNtOmNvbC1zcGFuLTJcIj5cclxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2sgbWItMVwiPkNvbXBhbnkgQWRkcmVzcyAoQXBwZWFycyBvbiBQYXlzbGlwcyk8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDx0ZXh0YXJlYVxyXG4gICAgICAgICAgICAgICAgcm93cz1cIjJcIlxyXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLmNvbXBhbnlBZGRyZXNzfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9e2UgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgY29tcGFueUFkZHJlc3M6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLW11dGVkLzUwIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcC0yLjUgdGV4dC1mb3JlZ3JvdW5kIHBsYWNlaG9sZGVyOnRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MFwiXHJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17c2F2ZWRTZXR0aW5ncz8uY29tcGFueUFkZHJlc3MgPyBgRWcuICR7c2F2ZWRTZXR0aW5ncy5jb21wYW55QWRkcmVzc31gIDogXCJFZy4gQ29ycG9yYXRlIEhlYWRxdWFydGVyc1wifVxyXG4gICAgICAgICAgICAgID48L3RleHRhcmVhPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHQtNCBmbGV4IGp1c3RpZnktZW5kXCI+XHJcbiAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICB0eXBlPVwic3VibWl0XCJcclxuICAgICAgICAgICAgICBkaXNhYmxlZD17c2F2aW5nfVxyXG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHB4LTYgcHktMi41IGJ0bi1wcmltYXJ5IHJvdW5kZWQteGwgZm9udC1ib2xkIHRleHQtc20gc2hhZG93LW1kIHRyYW5zaXRpb24tYWxsIGRpc2FibGVkOm9wYWNpdHktNTBcIlxyXG4gICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgPFNhdmUgY2xhc3NOYW1lPVwidy00IGgtNFwiIC8+IHtzYXZpbmcgPyAnU2F2aW5nIFNldHRpbmdzLi4uJyA6ICdTYXZlIENvbXBhbnkgU2V0dGluZ3MnfVxyXG4gICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZm9ybT5cclxuICAgICAgKX1cclxuICAgIDwvZGl2PlxyXG4gICk7XHJcbn1cclxuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL3BhZ2VzL2ZpbmFuY2UvUGF5cm9sbFNldHRpbmdzUGFnZS5qc3gifQ==

@@ -5,8 +5,11 @@ import api from '../services/api';
 import UserAvatar from '../components/common/UserAvatar';
 import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../config/crmModules';
 import CompanyLeaveAuditModal from '../components/attendance/CompanyLeaveAuditModal';
 import AttendanceReportSection from '../components/attendance/AttendanceReportSection';
+import AttendanceAuditDetailsModal from '../components/attendance/AttendanceAuditDetailsModal';
 import {
   Search,
   Filter,
@@ -155,6 +158,8 @@ const parseLocalToISO = (datetimeLocalStr) => {
 
 const AttendanceAudit = () => {
   const { user } = useAuth();
+  const { canEdit } = usePermissions();
+  const canEditAttendance = canEdit(CRM_MODULE_KEYS.ATTENDANCE_AUDIT);
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const { selectedOrgId, effectiveOrgId, selectedCompany } = useCompanyScope();
   const targetOrg = isSuperAdmin ? selectedOrgId : (effectiveOrgId || user?.organizationId);
@@ -190,6 +195,25 @@ const AttendanceAudit = () => {
 
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [viewDetailsRecord, setViewDetailsRecord] = useState(null);
+
+  const handleOpenViewDetails = async (record) => {
+    setViewDetailsRecord(record);
+    if (record?.id && !record.isSynthetic && !String(record.id).startsWith('absent_') && !String(record.id).startsWith('holiday_') && !String(record.id).startsWith('leave_')) {
+      try {
+        const res = await api.get(`/attendance/${record.id}`);
+        if (res.data?.success && res.data?.record) {
+          setViewDetailsRecord(prev => ({
+            ...prev,
+            ...res.data.record,
+            user: res.data.record.user || prev?.user
+          }));
+        }
+      } catch (err) {
+        // Fallback silently to existing record in row
+      }
+    }
+  };
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [editForm, setEditForm] = useState({
     clockIn: '',
@@ -875,13 +899,24 @@ const AttendanceAudit = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => openEditModal(log)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer inline-flex items-center justify-center border border-border/40"
-                          title="Edit Attendance"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenViewDetails(log)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer inline-flex items-center justify-center border border-border/40"
+                            title="View Attendance Details"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          {canEditAttendance && (
+                            <button
+                              onClick={() => openEditModal(log)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer inline-flex items-center justify-center border border-border/40"
+                              title="Edit Attendance"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1116,6 +1151,14 @@ const AttendanceAudit = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {viewDetailsRecord && (
+        <AttendanceAuditDetailsModal
+          isOpen={Boolean(viewDetailsRecord)}
+          onClose={() => setViewDetailsRecord(null)}
+          record={viewDetailsRecord}
+        />
       )}
     </div>
   );

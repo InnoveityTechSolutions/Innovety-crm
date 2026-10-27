@@ -1,0 +1,369 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/assets/ViewEstimateModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { X, Printer, FileText, AlertCircle, RefreshCw, Download } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+import EstimateDocumentPreview from "/src/components/assets/EstimateDocumentPreview.jsx";
+import { generateEstimatePdf, getEstimatePdfFilename } from "/src/utils/estimatePdfGenerator.js";
+const ViewEstimateModal = ({ isOpen, onClose, estimateId }) => {
+  _s();
+  const [estimate, setEstimate] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  useEffect(() => {
+    if (!isOpen || !estimateId) {
+      setEstimate(null);
+      setErrorMsg("");
+      setDownloadingPdf(false);
+      return;
+    }
+    const fetchEstimate = async () => {
+      try {
+        setLoading(true);
+        setErrorMsg("");
+        const res = await api.get(`/assets/estimates/${estimateId}`);
+        setEstimate(res.data);
+      } catch (err) {
+        console.error("Failed to load estimate:", err);
+        setErrorMsg(err.response?.data?.message || "Failed to load estimate details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEstimate();
+  }, [isOpen, estimateId]);
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("has-estimate-preview");
+      return () => {
+        document.body.classList.remove("has-estimate-preview");
+      };
+    }
+  }, [isOpen]);
+  const handleDownloadPdf = async () => {
+    if (downloadingPdf || !estimate) return;
+    try {
+      setDownloadingPdf(true);
+      const filename = getEstimatePdfFilename(estimate);
+      await generateEstimatePdf("printable-estimate-document", filename);
+    } catch (err) {
+      console.error("Failed to download PDF:", err);
+      alert("Failed to generate PDF document. Please try again or use Print Document.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-200 print:p-0 print:bg-white print:static print:z-auto", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-card w-full max-w-5xl h-[92vh] rounded-3xl border border-border shadow-2xl flex flex-col overflow-hidden text-foreground print:border-none print:shadow-none print:w-full print:h-auto print:max-w-none print:p-0", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-muted/20 print:hidden", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-2 rounded-xl bg-primary/10 text-primary border border-primary/20", children: /* @__PURE__ */ jsxDEV(FileText, { className: "h-5 w-5" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 89,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 88,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV("h3", { className: "font-bold text-sm text-foreground", children: estimate?.estimateNumber ? `Estimate ${estimate.estimateNumber}` : "Estimate Document Preview" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+              lineNumber: 93,
+              columnNumber: 17
+            }, this),
+            estimate?.status && /* @__PURE__ */ jsxDEV(
+              "span",
+              {
+                className: `text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase ${estimate.status === "CANCELLED" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`,
+                children: estimate.status
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 97,
+                columnNumber: 17
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 92,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5", children: estimate?.billToName ? `Issued to ${estimate.billToName}` : "Historical estimate snapshot" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 108,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 91,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 87,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: onClose,
+          className: "p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer",
+          title: "Close Preview",
+          children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 120,
+            columnNumber: 15
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 115,
+          columnNumber: 13
+        },
+        this
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 114,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+      lineNumber: 86,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex-1 overflow-y-auto p-4 sm:p-6 bg-muted/10 print:p-0 print:bg-white print:overflow-visible", children: [
+      loading && /* @__PURE__ */ jsxDEV("div", { className: "h-full min-h-[400px] flex flex-col items-center justify-center gap-3", children: [
+        /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-8 w-8 text-primary animate-spin" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 129,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-semibold text-muted-foreground", children: "Loading frozen estimate snapshot..." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 130,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 128,
+        columnNumber: 11
+      }, this),
+      errorMsg && !loading && /* @__PURE__ */ jsxDEV("div", { className: "h-full min-h-[400px] flex flex-col items-center justify-center gap-3 text-center", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20", children: /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-8 w-8" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 137,
+          columnNumber: 17
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 136,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("h4", { className: "text-sm font-bold text-foreground", children: "Failed to Load Estimate" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 139,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground max-w-sm", children: errorMsg }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+          lineNumber: 140,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: onClose,
+            className: "mt-2 px-4 py-2 rounded-xl border border-border bg-card text-xs font-bold hover:bg-muted transition-all",
+            children: "Close"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 141,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 135,
+        columnNumber: 11
+      }, this),
+      !loading && !errorMsg && estimate && /* @__PURE__ */ jsxDEV("div", { className: "flex justify-center", children: /* @__PURE__ */ jsxDEV(EstimateDocumentPreview, { estimateData: estimate }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 152,
+        columnNumber: 15
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 151,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+      lineNumber: 126,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "px-6 py-3 border-t border-border flex items-center justify-between shrink-0 bg-card print:hidden", children: [
+      /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground", children: estimate?.createdAt ? `Generated on ${new Date(estimate.createdAt).toLocaleString()}` : "" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 159,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: onClose,
+            className: "px-4 py-1.5 rounded-xl border border-border hover:bg-muted text-xs font-bold transition-all cursor-pointer",
+            children: "Close"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 163,
+            columnNumber: 13
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => window.print(),
+            disabled: loading || !estimate || downloadingPdf,
+            className: "flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary-hover transition-all disabled:opacity-50 cursor-pointer",
+            title: "Open browser print dialog",
+            children: [
+              /* @__PURE__ */ jsxDEV(Printer, { className: "h-3.5 w-3.5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 175,
+                columnNumber: 15
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Print Document" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 176,
+                columnNumber: 15
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 169,
+            columnNumber: 13
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: handleDownloadPdf,
+            disabled: loading || !estimate || downloadingPdf,
+            className: "flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-md hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer",
+            title: "Download PDF directly to your device",
+            children: downloadingPdf ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5 animate-spin" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 186,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Generating PDF..." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 187,
+                columnNumber: 19
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+              lineNumber: 185,
+              columnNumber: 15
+            }, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV(Download, { className: "h-3.5 w-3.5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 191,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Download PDF" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+                lineNumber: 192,
+                columnNumber: 19
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+              lineNumber: 190,
+              columnNumber: 15
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+            lineNumber: 178,
+            columnNumber: 13
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+        lineNumber: 162,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+      lineNumber: 158,
+      columnNumber: 9
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+    lineNumber: 84,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx",
+    lineNumber: 83,
+    columnNumber: 5
+  }, this);
+};
+_s(ViewEstimateModal, "5Ktfomh6szxhDFoMhvMXxq/mr8s=");
+_c = ViewEstimateModal;
+export default ViewEstimateModal;
+var _c;
+$RefreshReg$(_c, "ViewEstimateModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/assets/ViewEstimateModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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RjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBa0hBLEtBbkhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0FvSEE7QUFFSjtBQUFFUCxHQS9LSUosbUJBQWlCO0FBQUEsS0FBakJBO0FBaUxOLGVBQWVBO0FBQWtCLElBQUFzQztBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsInVzZVN0YXRlIiwidXNlRWZmZWN0IiwiWCIsIlByaW50ZXIiLCJGaWxlVGV4dCIsIkFsZXJ0Q2lyY2xlIiwiUmVmcmVzaEN3IiwiRG93bmxvYWQiLCJhcGkiLCJFc3RpbWF0ZURvY3VtZW50UHJldmlldyIsImdlbmVyYXRlRXN0aW1hdGVQZGYiLCJnZXRFc3RpbWF0ZVBkZkZpbGVuYW1lIiwiVmlld0VzdGltYXRlTW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwiZXN0aW1hdGVJZCIsIl9zIiwiZXN0aW1hdGUiLCJzZXRFc3RpbWF0ZSIsImxvYWRpbmciLCJzZXRMb2FkaW5nIiwiZXJyb3JNc2ciLCJzZXRFcnJvck1zZyIsImRvd25sb2FkaW5nUGRmIiwic2V0RG93bmxvYWRpbmdQZGYiLCJmZXRjaEVzdGltYXRlIiwicmVzIiwiZ2V0IiwiZGF0YSIsImVyciIsImNvbnNvbGUiLCJlcnJvciIsInJlc3BvbnNlIiwibWVzc2FnZSIsImRvY3VtZW50IiwiYm9keSIsImNsYXNzTGlzdCIsImFkZCIsInJlbW92ZSIsImhhbmRsZURvd25sb2FkUGRmIiwiZmlsZW5hbWUiLCJhbGVydCIsImVzdGltYXRlTnVtYmVyIiwic3RhdHVzIiwiYmlsbFRvTmFtZSIsImNyZWF0ZWRBdCIsIkRhdGUiLCJ0b0xvY2FsZVN0cmluZyIsIndpbmRvdyIsInByaW50IiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiVmlld0VzdGltYXRlTW9kYWwuanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCwgeyB1c2VTdGF0ZSwgdXNlRWZmZWN0IH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IHsgWCwgUHJpbnRlciwgRmlsZVRleHQsIEFsZXJ0Q2lyY2xlLCBSZWZyZXNoQ3csIERvd25sb2FkIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcbmltcG9ydCBFc3RpbWF0ZURvY3VtZW50UHJldmlldyBmcm9tICcuL0VzdGltYXRlRG9jdW1lbnRQcmV2aWV3JztcbmltcG9ydCB7IGdlbmVyYXRlRXN0aW1hdGVQZGYsIGdldEVzdGltYXRlUGRmRmlsZW5hbWUgfSBmcm9tICcuLi8uLi91dGlscy9lc3RpbWF0ZVBkZkdlbmVyYXRvcic7XG5cbmNvbnN0IFZpZXdFc3RpbWF0ZU1vZGFsID0gKHsgaXNPcGVuLCBvbkNsb3NlLCBlc3RpbWF0ZUlkIH0pID0+IHtcbiAgY29uc3QgW2VzdGltYXRlLCBzZXRFc3RpbWF0ZV0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW2xvYWRpbmcsIHNldExvYWRpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbZXJyb3JNc2csIHNldEVycm9yTXNnXSA9IHVzZVN0YXRlKCcnKTtcbiAgY29uc3QgW2Rvd25sb2FkaW5nUGRmLCBzZXREb3dubG9hZGluZ1BkZl0gPSB1c2VTdGF0ZShmYWxzZSk7XG5cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBpZiAoIWlzT3BlbiB8fCAhZXN0aW1hdGVJZCkge1xuICAgICAgc2V0RXN0aW1hdGUobnVsbCk7XG4gICAgICBzZXRFcnJvck1zZygnJyk7XG4gICAgICBzZXREb3dubG9hZGluZ1BkZihmYWxzZSk7XG4gICAgICByZXR1cm47XG4gICAgfVxuXG4gICAgY29uc3QgZmV0Y2hFc3RpbWF0ZSA9IGFzeW5jICgpID0+IHtcbiAgICAgIHRyeSB7XG4gICAgICAgIHNldExvYWRpbmcodHJ1ZSk7XG4gICAgICAgIHNldEVycm9yTXNnKCcnKTtcbiAgICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLmdldChgL2Fzc2V0cy9lc3RpbWF0ZXMvJHtlc3RpbWF0ZUlkfWApO1xuICAgICAgICBzZXRFc3RpbWF0ZShyZXMuZGF0YSk7XG4gICAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIGxvYWQgZXN0aW1hdGU6JywgZXJyKTtcbiAgICAgICAgc2V0RXJyb3JNc2coZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gbG9hZCBlc3RpbWF0ZSBkZXRhaWxzLicpO1xuICAgICAgfSBmaW5hbGx5IHtcbiAgICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XG4gICAgICB9XG4gICAgfTtcblxuICAgIGZldGNoRXN0aW1hdGUoKTtcbiAgfSwgW2lzT3BlbiwgZXN0aW1hdGVJZF0pO1xuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgaWYgKGlzT3Blbikge1xuICAgICAgZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QuYWRkKCdoYXMtZXN0aW1hdGUtcHJldmlldycpO1xuICAgICAgcmV0dXJuICgpID0+IHtcbiAgICAgICAgZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QucmVtb3ZlKCdoYXMtZXN0aW1hdGUtcHJldmlldycpO1xuICAgICAgfTtcbiAgICB9XG4gIH0sIFtpc09wZW5dKTtcblxuICBjb25zdCBoYW5kbGVEb3dubG9hZFBkZiA9IGFzeW5jICgpID0+IHtcbiAgICBpZiAoZG93bmxvYWRpbmdQZGYgfHwgIWVzdGltYXRlKSByZXR1cm47XG4gICAgdHJ5IHtcbiAgICAgIHNldERvd25sb2FkaW5nUGRmKHRydWUpO1xuICAgICAgY29uc3QgZmlsZW5hbWUgPSBnZXRFc3RpbWF0ZVBkZkZpbGVuYW1lKGVzdGltYXRlKTtcbiAgICAgIGF3YWl0IGdlbmVyYXRlRXN0aW1hdGVQZGYoJ3ByaW50YWJsZS1lc3RpbWF0ZS1kb2N1bWVudCcsIGZpbGVuYW1lKTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0ZhaWxlZCB0byBkb3dubG9hZCBQREY6JywgZXJyKTtcbiAgICAgIGFsZXJ0KCdGYWlsZWQgdG8gZ2VuZXJhdGUgUERGIGRvY3VtZW50LiBQbGVhc2UgdHJ5IGFnYWluIG9yIHVzZSBQcmludCBEb2N1bWVudC4nKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0RG93bmxvYWRpbmdQZGYoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICBpZiAoIWlzT3BlbikgcmV0dXJuIG51bGw7XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei01MCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBiZy1ibGFjay83MCBiYWNrZHJvcC1ibHVyLXNtIHAtMiBzbTpwLTQgYW5pbWF0ZS1pbiBmYWRlLWluIGR1cmF0aW9uLTIwMCBwcmludDpwLTAgcHJpbnQ6Ymctd2hpdGUgcHJpbnQ6c3RhdGljIHByaW50OnotYXV0b1wiPlxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1jYXJkIHctZnVsbCBtYXgtdy01eGwgaC1bOTJ2aF0gcm91bmRlZC0zeGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgc2hhZG93LTJ4bCBmbGV4IGZsZXgtY29sIG92ZXJmbG93LWhpZGRlbiB0ZXh0LWZvcmVncm91bmQgcHJpbnQ6Ym9yZGVyLW5vbmUgcHJpbnQ6c2hhZG93LW5vbmUgcHJpbnQ6dy1mdWxsIHByaW50OmgtYXV0byBwcmludDptYXgtdy1ub25lIHByaW50OnAtMFwiPlxuICAgICAgICB7LyogSGVhZGVyIC0gSGlkZGVuIGR1cmluZyBicm93c2VyIHByaW50ICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB4LTYgcHktNCBib3JkZXItYiBib3JkZXItYm9yZGVyIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBzaHJpbmstMCBiZy1tdXRlZC8yMCBwcmludDpoaWRkZW5cIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0zXCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMiByb3VuZGVkLXhsIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IGJvcmRlciBib3JkZXItcHJpbWFyeS8yMFwiPlxuICAgICAgICAgICAgICA8RmlsZVRleHQgY2xhc3NOYW1lPVwiaC01IHctNVwiIC8+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtc20gdGV4dC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgICAgICB7ZXN0aW1hdGU/LmVzdGltYXRlTnVtYmVyID8gYEVzdGltYXRlICR7ZXN0aW1hdGUuZXN0aW1hdGVOdW1iZXJ9YCA6ICdFc3RpbWF0ZSBEb2N1bWVudCBQcmV2aWV3J31cbiAgICAgICAgICAgICAgICA8L2gzPlxuICAgICAgICAgICAgICAgIHtlc3RpbWF0ZT8uc3RhdHVzICYmIChcbiAgICAgICAgICAgICAgICAgIDxzcGFuXG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHRleHQtWzEwcHhdIGZvbnQtZXh0cmFib2xkIHB4LTIgcHktMC41IHJvdW5kZWQtZnVsbCBib3JkZXIgdXBwZXJjYXNlICR7XG4gICAgICAgICAgICAgICAgICAgICAgZXN0aW1hdGUuc3RhdHVzID09PSAnQ0FOQ0VMTEVEJ1xuICAgICAgICAgICAgICAgICAgICAgICAgPyAnYmctcm9zZS01MDAvMTAgdGV4dC1yb3NlLTYwMCBib3JkZXItcm9zZS01MDAvMjAnXG4gICAgICAgICAgICAgICAgICAgICAgICA6ICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGJvcmRlci1lbWVyYWxkLTUwMC8yMCdcbiAgICAgICAgICAgICAgICAgICAgfWB9XG4gICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgIHtlc3RpbWF0ZS5zdGF0dXN9XG4gICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTAuNVwiPlxuICAgICAgICAgICAgICAgIHtlc3RpbWF0ZT8uYmlsbFRvTmFtZSA/IGBJc3N1ZWQgdG8gJHtlc3RpbWF0ZS5iaWxsVG9OYW1lfWAgOiAnSGlzdG9yaWNhbCBlc3RpbWF0ZSBzbmFwc2hvdCd9XG4gICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJwLTIgcm91bmRlZC14bCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kIGhvdmVyOmJnLW11dGVkIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyXCJcbiAgICAgICAgICAgICAgdGl0bGU9XCJDbG9zZSBQcmV2aWV3XCJcbiAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgPFggY2xhc3NOYW1lPVwiaC01IHctNVwiIC8+XG4gICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIENvbnRlbnQgQm9keSAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4LTEgb3ZlcmZsb3cteS1hdXRvIHAtNCBzbTpwLTYgYmctbXV0ZWQvMTAgcHJpbnQ6cC0wIHByaW50OmJnLXdoaXRlIHByaW50Om92ZXJmbG93LXZpc2libGVcIj5cbiAgICAgICAgICB7bG9hZGluZyAmJiAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImgtZnVsbCBtaW4taC1bNDAwcHhdIGZsZXggZmxleC1jb2wgaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0zXCI+XG4gICAgICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPVwiaC04IHctOCB0ZXh0LXByaW1hcnkgYW5pbWF0ZS1zcGluXCIgLz5cbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkxvYWRpbmcgZnJvemVuIGVzdGltYXRlIHNuYXBzaG90Li4uPC9wPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cblxuICAgICAgICAgIHtlcnJvck1zZyAmJiAhbG9hZGluZyAmJiAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImgtZnVsbCBtaW4taC1bNDAwcHhdIGZsZXggZmxleC1jb2wgaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0zIHRleHQtY2VudGVyXCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQtMnhsIGJnLXJvc2UtNTAwLzEwIHRleHQtcm9zZS01MDAgYm9yZGVyIGJvcmRlci1yb3NlLTUwMC8yMFwiPlxuICAgICAgICAgICAgICAgIDxBbGVydENpcmNsZSBjbGFzc05hbWU9XCJoLTggdy04XCIgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5GYWlsZWQgdG8gTG9hZCBFc3RpbWF0ZTwvaDQ+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG1heC13LXNtXCI+e2Vycm9yTXNnfTwvcD5cbiAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwibXQtMiBweC00IHB5LTIgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1jYXJkIHRleHQteHMgZm9udC1ib2xkIGhvdmVyOmJnLW11dGVkIHRyYW5zaXRpb24tYWxsXCJcbiAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgIENsb3NlXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cblxuICAgICAgICAgIHshbG9hZGluZyAmJiAhZXJyb3JNc2cgJiYgZXN0aW1hdGUgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktY2VudGVyXCI+XG4gICAgICAgICAgICAgIDxFc3RpbWF0ZURvY3VtZW50UHJldmlldyBlc3RpbWF0ZURhdGE9e2VzdGltYXRlfSAvPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIEZvb3RlciBDb250cm9scyAtIEhpZGRlbiBkdXJpbmcgcHJpbnQgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHgtNiBweS0zIGJvcmRlci10IGJvcmRlci1ib3JkZXIgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIHNocmluay0wIGJnLWNhcmQgcHJpbnQ6aGlkZGVuXCI+XG4gICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICB7ZXN0aW1hdGU/LmNyZWF0ZWRBdCA/IGBHZW5lcmF0ZWQgb24gJHtuZXcgRGF0ZShlc3RpbWF0ZS5jcmVhdGVkQXQpLnRvTG9jYWxlU3RyaW5nKCl9YCA6ICcnfVxuICAgICAgICAgIDwvcD5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTQgcHktMS41IHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgaG92ZXI6YmctbXV0ZWQgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICBDbG9zZVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHdpbmRvdy5wcmludCgpfVxuICAgICAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZyB8fCAhZXN0aW1hdGUgfHwgZG93bmxvYWRpbmdQZGZ9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgcHgtNCBweS0xLjUgcm91bmRlZC14bCBiZy1wcmltYXJ5IHRleHQtcHJpbWFyeS1mb3JlZ3JvdW5kIHRleHQteHMgZm9udC1ib2xkIHNoYWRvdy1tZCBob3ZlcjpiZy1wcmltYXJ5LWhvdmVyIHRyYW5zaXRpb24tYWxsIGRpc2FibGVkOm9wYWNpdHktNTAgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICB0aXRsZT1cIk9wZW4gYnJvd3NlciBwcmludCBkaWFsb2dcIlxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICA8UHJpbnRlciBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNVwiIC8+XG4gICAgICAgICAgICAgIDxzcGFuPlByaW50IERvY3VtZW50PC9zcGFuPlxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZURvd25sb2FkUGRmfVxuICAgICAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZyB8fCAhZXN0aW1hdGUgfHwgZG93bmxvYWRpbmdQZGZ9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgcHgtNCBweS0xLjUgcm91bmRlZC14bCBiZy1zbGF0ZS05MDAgZGFyazpiZy1zbGF0ZS0xMDAgdGV4dC13aGl0ZSBkYXJrOnRleHQtc2xhdGUtOTAwIHRleHQteHMgZm9udC1ib2xkIHNoYWRvdy1tZCBob3ZlcjpvcGFjaXR5LTkwIHRyYW5zaXRpb24tYWxsIGRpc2FibGVkOm9wYWNpdHktNTAgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICB0aXRsZT1cIkRvd25sb2FkIFBERiBkaXJlY3RseSB0byB5b3VyIGRldmljZVwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIHtkb3dubG9hZGluZ1BkZiA/IChcbiAgICAgICAgICAgICAgICA8PlxuICAgICAgICAgICAgICAgICAgPFJlZnJlc2hDdyBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSBhbmltYXRlLXNwaW5cIiAvPlxuICAgICAgICAgICAgICAgICAgPHNwYW4+R2VuZXJhdGluZyBQREYuLi48L3NwYW4+XG4gICAgICAgICAgICAgICAgPC8+XG4gICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgPD5cbiAgICAgICAgICAgICAgICAgIDxEb3dubG9hZCBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNVwiIC8+XG4gICAgICAgICAgICAgICAgICA8c3Bhbj5Eb3dubG9hZCBQREY8L3NwYW4+XG4gICAgICAgICAgICAgICAgPC8+XG4gICAgICAgICAgICAgICl9XG4gICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IFZpZXdFc3RpbWF0ZU1vZGFsO1xuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvYXNzZXRzL1ZpZXdFc3RpbWF0ZU1vZGFsLmpzeCJ9

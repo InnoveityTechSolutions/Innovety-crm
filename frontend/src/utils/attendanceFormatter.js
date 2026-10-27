@@ -89,3 +89,28 @@ export const formatWorkingHoursRange = (arg1 = '09:00', arg2 = '18:00') => {
   const formattedEnd = formatTime12Hour(end);
   return `${formattedStart} – ${formattedEnd}`;
 };
+
+/**
+ * Safely parses and formats a duration in hours into a formatted decimal string (e.g. "4.5").
+ * Handles numbers, numeric strings ("4.50"), zero, null/undefined, and invalid values.
+ * Returns null if the value is not a valid finite number.
+ */
+export const formatDurationHours = (value, decimals = 1) => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return num.toFixed(decimals);
+};
+
+/**
+ * Safely formats a completed comp-off session worked duration label.
+ * If duration is a valid positive number, returns `${formatted}${suffix}`.
+ * Otherwise returns the specified fallback.
+ */
+export const formatCompOffWorkedDuration = (value, suffix = 'h', fallback = 'Completed', decimals = 1) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return `${num.toFixed(decimals)}${suffix}`;
+};
+

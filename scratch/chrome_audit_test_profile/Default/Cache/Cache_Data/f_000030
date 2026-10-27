@@ -1,0 +1,1330 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/super-admin/admins/AdminManagement.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { useSearchParams } from "/node_modules/.vite/deps/react-router-dom.js?v=d349bcef";
+import {
+  UserCheck,
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  ShieldCheck,
+  Key,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Lock,
+  UserX,
+  Building2
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api, { getSocket } from "/src/services/api.js";
+import UserAvatar from "/src/components/common/UserAvatar.jsx";
+import CompanyScopeSelector from "/src/components/common/CompanyScopeSelector.jsx";
+import { useCompanyScope, extractCompanyList } from "/src/context/CompanyScopeContext.jsx";
+const AdminManagement = () => {
+  _s();
+  const [searchParams] = useSearchParams();
+  const { selectedOrgId, selectedCompany, companies: scopeCompanies, refetchCompanies } = useCompanyScope();
+  const [admins, setAdmins] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    organizationId: "",
+    password: "",
+    department: "Administration",
+    designation: "System Administrator",
+    status: "ACTIVE"
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState({ type: "", text: "" });
+  const fetchAdmins = async () => {
+    try {
+      setLoading(true);
+      const params = selectedOrgId ? { organizationId: selectedOrgId } : {};
+      const res = await api.get("/super-admin/admins", { params });
+      setAdmins(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch admin list:", err);
+      showToast("error", "Failed to retrieve admin accounts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchOrganizations = async () => {
+    try {
+      const res = await api.get("/organizations");
+      const list = extractCompanyList(res.data);
+      setOrganizations(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to fetch organizations:", err);
+    }
+  };
+  useEffect(() => {
+    fetchAdmins();
+    fetchOrganizations();
+    if (searchParams.get("action") === "new") {
+      handleOpenCreateModal();
+    }
+  }, [selectedOrgId, searchParams]);
+  useEffect(() => {
+    if (Array.isArray(scopeCompanies) && scopeCompanies.length > 0) {
+      setOrganizations(scopeCompanies);
+    }
+  }, [scopeCompanies]);
+  useEffect(() => {
+    const handleOrgUpdate = () => {
+      fetchOrganizations();
+      fetchAdmins();
+      if (refetchCompanies) refetchCompanies();
+    };
+    window.addEventListener("organization-updated", handleOrgUpdate);
+    const socket = getSocket();
+    if (socket) {
+      socket.on("organization_deleted", handleOrgUpdate);
+      socket.on("organization_created", handleOrgUpdate);
+      socket.on("organization_updated", handleOrgUpdate);
+    }
+    return () => {
+      window.removeEventListener("organization-updated", handleOrgUpdate);
+      if (socket) {
+        socket.off("organization_deleted", handleOrgUpdate);
+        socket.off("organization_created", handleOrgUpdate);
+        socket.off("organization_updated", handleOrgUpdate);
+      }
+    };
+  }, [refetchCompanies]);
+  const showToast = (type, text) => {
+    setToast({ type, text });
+    setTimeout(() => setToast({ type: "", text: "" }), 3500);
+  };
+  const handleOpenCreateModal = () => {
+    const validOrgs = (organizations.length > 0 ? organizations : scopeCompanies) || [];
+    const defaultOrgId = selectedOrgId && selectedOrgId !== "all" && validOrgs.some((o) => o.id === selectedOrgId) ? selectedOrgId : validOrgs[0]?.id || "";
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      organizationId: defaultOrgId,
+      password: "AdminPassword@123",
+      department: "Administration",
+      designation: "System Administrator",
+      status: "ACTIVE"
+    });
+    setShowCreateModal(true);
+  };
+  const handleOpenEditModal = (admin) => {
+    setSelectedAdmin(admin);
+    setFormData({
+      name: admin.name || "",
+      email: admin.email || "",
+      phone: admin.phone || "",
+      organizationId: admin.organizationId || admin.organization?.id || "",
+      password: "",
+      department: admin.department || "Administration",
+      designation: admin.designation || "System Administrator",
+      status: admin.status || "ACTIVE"
+    });
+    setShowEditModal(true);
+  };
+  const handleOpenDeleteModal = (admin) => {
+    setSelectedAdmin(admin);
+    setShowDeleteModal(true);
+  };
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.password) {
+      showToast("error", "Please fill in all required fields.");
+      return;
+    }
+    if (!formData.organizationId) {
+      showToast("error", "Please select a company.");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const res = await api.post("/super-admin/admins", formData);
+      showToast("success", `Admin account created successfully for ${res.data.name} (${res.data.employeeId})!`);
+      setShowCreateModal(false);
+      fetchAdmins();
+    } catch (err) {
+      console.error("Failed to create admin:", err);
+      showToast("error", err.response?.data?.message || "Failed to create admin account.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const handleUpdateAdmin = async (e) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      await api.put(`/super-admin/admins/${selectedAdmin.id}`, formData);
+      showToast("success", `Updated Admin account for ${formData.name}.`);
+      setShowEditModal(false);
+      fetchAdmins();
+    } catch (err) {
+      console.error("Failed to update admin:", err);
+      showToast("error", err.response?.data?.message || "Failed to update admin account.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const handleDeleteAdmin = async () => {
+    try {
+      setSubmitting(true);
+      await api.delete(`/super-admin/admins/${selectedAdmin.id}`);
+      showToast("success", `Admin account for ${selectedAdmin.name} deleted.`);
+      setShowDeleteModal(false);
+      fetchAdmins();
+    } catch (err) {
+      console.error("Failed to delete admin:", err);
+      showToast("error", err.response?.data?.message || "Failed to delete admin account.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const handleToggleStatus = async (admin) => {
+    const nextStatus = admin.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    try {
+      await api.put(`/super-admin/admins/${admin.id}`, { status: nextStatus });
+      showToast("success", `Admin ${admin.name} status set to ${nextStatus}.`);
+      fetchAdmins();
+    } catch (err) {
+      console.error("Failed to toggle admin status:", err);
+      showToast("error", "Failed to update admin status.");
+    }
+  };
+  const filteredAdmins = admins.filter((admin) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return admin.name && admin.name.toLowerCase().includes(term) || admin.email && admin.email.toLowerCase().includes(term) || admin.employeeId && admin.employeeId.toLowerCase().includes(term) || admin.department && admin.department.toLowerCase().includes(term) || admin.designation && admin.designation.toLowerCase().includes(term) || admin.organization?.name && admin.organization.name.toLowerCase().includes(term) || admin.organization?.companyCode && admin.organization.companyCode.toLowerCase().includes(term);
+  });
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-6 text-left", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/30 pb-4", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary border border-primary/20 mb-2", children: [
+          /* @__PURE__ */ jsxDEV(UserCheck, { className: "h-3.5 w-3.5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 254,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { children: "Administrator Management Module" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 255,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 253,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("h1", { className: "text-2xl font-extrabold text-foreground tracking-tight", children: "Admin Accounts Management" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 257,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: "Provision, update, disable, delete, and manage system Administrator accounts. All actions log audit entries." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 260,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 252,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: handleOpenCreateModal,
+          className: "flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white hover:bg-primary-hover shadow-md transition-all shrink-0",
+          children: [
+            /* @__PURE__ */ jsxDEV(Plus, { className: "h-4 w-4" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 269,
+              columnNumber: 11
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Provision New Admin" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 270,
+              columnNumber: 11
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 265,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 251,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(CompanyScopeSelector, { allowAllCompanies: true }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 275,
+      columnNumber: 7
+    }, this),
+    toast.text && /* @__PURE__ */ jsxDEV("div", { className: `p-4 rounded-xl text-xs font-bold flex items-center gap-2 ${toast.type === "success" ? "bg-primary/10 text-primary border border-primary/30" : "bg-red-500/10 text-red-500 border border-red-500/30"}`, children: [
+      toast.type === "success" ? /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "h-4 w-4 shrink-0" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 279,
+        columnNumber: 39
+      }, this) : /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-4 w-4 shrink-0" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 279,
+        columnNumber: 87
+      }, this),
+      /* @__PURE__ */ jsxDEV("span", { children: toast.text }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 280,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 278,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "rounded-2xl border border-border/40 bg-card p-4 shadow-sm", children: /* @__PURE__ */ jsxDEV("div", { className: "relative flex-1 w-full", children: [
+      /* @__PURE__ */ jsxDEV(Search, { className: "absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 287,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "input",
+        {
+          type: "text",
+          placeholder: "Search admins by name, email, employee ID, department...",
+          value: searchTerm,
+          onChange: (e) => setSearchTerm(e.target.value),
+          className: "w-full rounded-xl border border-border/60 bg-background pl-10 pr-4 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 288,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 286,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 285,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "w-full min-w-0 overflow-x-auto rounded-2xl border border-border/40 bg-card shadow-sm", children: /* @__PURE__ */ jsxDEV("table", { className: "w-full min-w-[900px] text-sm border-collapse text-left", children: [
+      /* @__PURE__ */ jsxDEV("thead", { children: /* @__PURE__ */ jsxDEV("tr", { className: "text-xs font-semibold text-muted-foreground uppercase border-b border-border/30 bg-muted/20 whitespace-nowrap", children: [
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 whitespace-nowrap", children: "Admin Profile" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 303,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 whitespace-nowrap", children: "Company" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 304,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 whitespace-nowrap", children: "Department & Designation" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 305,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 whitespace-nowrap", children: "Status" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 306,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 whitespace-nowrap", children: "Created Date" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 307,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "px-6 py-4 text-right whitespace-nowrap", children: "Actions" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 308,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 302,
+        columnNumber: 13
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 301,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("tbody", { className: "divide-y divide-border/20 text-xs", children: loading ? /* @__PURE__ */ jsxDEV("tr", { children: /* @__PURE__ */ jsxDEV("td", { colSpan: 6, className: "px-6 py-12 text-center text-muted-foreground", children: /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-center gap-2", children: [
+        /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-4 w-4 animate-spin text-primary" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 316,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { children: "Loading admin accounts..." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 317,
+          columnNumber: 21
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 315,
+        columnNumber: 19
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 314,
+        columnNumber: 17
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 313,
+        columnNumber: 13
+      }, this) : filteredAdmins.length === 0 ? /* @__PURE__ */ jsxDEV("tr", { children: /* @__PURE__ */ jsxDEV("td", { colSpan: 6, className: "px-6 py-10 text-center text-muted-foreground", children: searchTerm ? `No administrator accounts match "${searchTerm}".` : `No administrator accounts found for ${selectedCompany?.name || "this company"}.` }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 323,
+        columnNumber: 17
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 322,
+        columnNumber: 13
+      }, this) : filteredAdmins.map(
+        (admin) => /* @__PURE__ */ jsxDEV("tr", { className: "hover:bg-muted/10 transition-all whitespace-nowrap", children: [
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 whitespace-nowrap", children: /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxDEV(UserAvatar, { user: admin, className: "h-9 w-9 shrink-0" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 334,
+              columnNumber: 23
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("p", { className: "font-bold text-foreground text-xs", children: admin.name }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                lineNumber: 336,
+                columnNumber: 25
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground font-mono", children: [
+                admin.email,
+                " • ",
+                admin.employeeId
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                lineNumber: 337,
+                columnNumber: 25
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 335,
+              columnNumber: 23
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 333,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 332,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 whitespace-nowrap", children: admin.organization?.name ? /* @__PURE__ */ jsxDEV("span", { className: "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold uppercase tracking-wider shrink-0 shadow-2xs", children: [
+            /* @__PURE__ */ jsxDEV(Building2, { className: "h-3.5 w-3.5 text-primary shrink-0" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 344,
+              columnNumber: 25
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: admin.organization.name }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 345,
+              columnNumber: 25
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 343,
+            columnNumber: 17
+          }, this) : /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground font-medium", children: "—" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 348,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 341,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 whitespace-nowrap", children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "font-semibold text-foreground", children: admin.department || "Administration" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 352,
+              columnNumber: 21
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground", children: admin.designation || "System Administrator" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 353,
+              columnNumber: 21
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 351,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 whitespace-nowrap", children: /* @__PURE__ */ jsxDEV("span", { className: `inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${admin.status === "ACTIVE" ? "bg-primary/10 text-primary" : "bg-rose-500/10 text-rose-600"}`, children: [
+            /* @__PURE__ */ jsxDEV("span", { className: `h-1.5 w-1.5 rounded-full ${admin.status === "ACTIVE" ? "bg-primary" : "bg-rose-500"}` }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 357,
+              columnNumber: 23
+            }, this),
+            admin.status
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 356,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 355,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 text-muted-foreground whitespace-nowrap", children: new Date(admin.createdAt).toLocaleDateString() }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 361,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "px-6 py-4 text-right whitespace-nowrap", children: /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-end gap-1.5", children: [
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: () => handleOpenEditModal(admin),
+                className: "p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all",
+                title: "Edit Admin Account",
+                children: /* @__PURE__ */ jsxDEV(Edit3, { className: "h-4 w-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 371,
+                  columnNumber: 25
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                lineNumber: 366,
+                columnNumber: 23
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: () => handleToggleStatus(admin),
+                className: `p-1.5 rounded-lg transition-all ${admin.status === "ACTIVE" ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`,
+                title: admin.status === "ACTIVE" ? "Disable Admin" : "Activate Admin",
+                children: admin.status === "ACTIVE" ? /* @__PURE__ */ jsxDEV(UserX, { className: "h-4 w-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 379,
+                  columnNumber: 54
+                }, this) : /* @__PURE__ */ jsxDEV(UserCheck, { className: "h-4 w-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 379,
+                  columnNumber: 86
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                lineNumber: 374,
+                columnNumber: 23
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: () => handleOpenDeleteModal(admin),
+                className: "p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-all",
+                title: "Delete Admin Account",
+                children: /* @__PURE__ */ jsxDEV(Trash2, { className: "h-4 w-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 387,
+                  columnNumber: 25
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                lineNumber: 382,
+                columnNumber: 23
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 365,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 364,
+            columnNumber: 19
+          }, this)
+        ] }, admin.id, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 331,
+          columnNumber: 13
+        }, this)
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 311,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 300,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 299,
+      columnNumber: 7
+    }, this),
+    showCreateModal && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4", children: /* @__PURE__ */ jsxDEV("form", { onSubmit: handleCreateAdmin, className: "w-full max-w-lg rounded-2xl border border-border/40 bg-card p-6 shadow-2xl space-y-4 text-left", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/30 pb-3", children: [
+        /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-bold text-foreground", children: "Provision New Admin Account" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 403,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowCreateModal(false),
+            className: "p-1 text-muted-foreground hover:text-foreground rounded-lg",
+            children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 409,
+              columnNumber: 17
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 404,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 402,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+            "Full Name ",
+            /* @__PURE__ */ jsxDEV("span", { className: "text-red-500", children: "*" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 416,
+              columnNumber: 29
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 415,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.name,
+              onChange: (e) => setFormData({ ...formData, name: e.target.value }),
+              placeholder: "e.g. Alexander Pierce",
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+              required: true
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 418,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 414,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+            "Email Address ",
+            /* @__PURE__ */ jsxDEV("span", { className: "text-red-500", children: "*" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 430,
+              columnNumber: 33
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 429,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "email",
+              value: formData.email,
+              onChange: (e) => setFormData({ ...formData, email: e.target.value }),
+              placeholder: "admin@company.com",
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+              required: true
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 432,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 428,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Phone Number" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 443,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.phone,
+              onChange: (e) => setFormData({ ...formData, phone: e.target.value }),
+              placeholder: "+91 9876543210",
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 446,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 442,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+            "Company (Organization) ",
+            /* @__PURE__ */ jsxDEV("span", { className: "text-red-500", children: "*" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 457,
+              columnNumber: 42
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 456,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "select",
+            {
+              value: formData.organizationId,
+              onChange: (e) => setFormData({ ...formData, organizationId: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer",
+              required: true,
+              children: [
+                /* @__PURE__ */ jsxDEV("option", { value: "", children: "-- Select Company --" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 465,
+                  columnNumber: 19
+                }, this),
+                organizations.map(
+                  (org) => /* @__PURE__ */ jsxDEV("option", { value: org.id, children: [
+                    org.name,
+                    " ",
+                    org.companyCode ? `(${org.companyCode})` : ""
+                  ] }, org.id, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                    lineNumber: 467,
+                    columnNumber: 17
+                  }, this)
+                )
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 459,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 455,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+            "Initial Password ",
+            /* @__PURE__ */ jsxDEV("span", { className: "text-red-500", children: "*" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 476,
+              columnNumber: 36
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 475,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.password,
+              onChange: (e) => setFormData({ ...formData, password: e.target.value }),
+              placeholder: "Enter initial password",
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+              required: true
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 478,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 474,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Department" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 489,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.department,
+              onChange: (e) => setFormData({ ...formData, department: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 490,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 488,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Designation" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 499,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.designation,
+              onChange: (e) => setFormData({ ...formData, designation: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 500,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 498,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 413,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-3 border-t border-border/30 pt-4", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowCreateModal(false),
+            className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-all",
+            children: "Cancel"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 510,
+            columnNumber: 15
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "submit",
+            disabled: submitting,
+            className: "px-5 py-2 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary-hover transition-all",
+            children: submitting ? "Creating..." : "Provision Admin Account"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 517,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 509,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 401,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 400,
+      columnNumber: 7
+    }, this),
+    showEditModal && selectedAdmin && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4", children: /* @__PURE__ */ jsxDEV("form", { onSubmit: handleUpdateAdmin, className: "w-full max-w-lg rounded-2xl border border-border/40 bg-card p-6 shadow-2xl space-y-4 text-left", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/30 pb-3", children: [
+        /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-bold text-foreground", children: [
+          "Edit Admin (",
+          selectedAdmin.employeeId,
+          ")"
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 534,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowEditModal(false),
+            className: "p-1 text-muted-foreground hover:text-foreground rounded-lg",
+            children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 540,
+              columnNumber: 17
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 535,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 533,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Full Name" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 546,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.name,
+              onChange: (e) => setFormData({ ...formData, name: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+              required: true
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 547,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 545,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Email Address" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 557,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "email",
+              value: formData.email,
+              onChange: (e) => setFormData({ ...formData, email: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+              required: true
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 558,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 556,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Phone" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 568,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.phone,
+              onChange: (e) => setFormData({ ...formData, phone: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 569,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 567,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 sm:col-span-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Company (Organization)" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 578,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "select",
+            {
+              value: formData.organizationId,
+              onChange: (e) => setFormData({ ...formData, organizationId: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer",
+              children: [
+                /* @__PURE__ */ jsxDEV("option", { value: "", children: "-- Select Company --" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                  lineNumber: 584,
+                  columnNumber: 19
+                }, this),
+                organizations.map(
+                  (org) => /* @__PURE__ */ jsxDEV("option", { value: org.id, children: [
+                    org.name,
+                    " ",
+                    org.companyCode ? `(${org.companyCode})` : ""
+                  ] }, org.id, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+                    lineNumber: 586,
+                    columnNumber: 17
+                  }, this)
+                )
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 579,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 577,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Department" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 594,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.department,
+              onChange: (e) => setFormData({ ...formData, department: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 595,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 593,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: "Designation" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 604,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: formData.designation,
+              onChange: (e) => setFormData({ ...formData, designation: e.target.value }),
+              className: "w-full rounded-xl border border-border/60 bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+              lineNumber: 605,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 603,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 544,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-3 border-t border-border/30 pt-4", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowEditModal(false),
+            className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-all",
+            children: "Cancel"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 615,
+            columnNumber: 15
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "submit",
+            disabled: submitting,
+            className: "px-5 py-2 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary-hover transition-all",
+            children: submitting ? "Saving..." : "Save Changes"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 622,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 614,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 532,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 531,
+      columnNumber: 7
+    }, this),
+    showDeleteModal && selectedAdmin && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4", children: /* @__PURE__ */ jsxDEV("div", { className: "w-full max-w-md rounded-2xl border border-border/40 bg-card p-6 shadow-2xl space-y-4 text-left", children: [
+      /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-bold text-foreground", children: "Confirm Delete Admin" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 638,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground leading-relaxed", children: [
+        "Are you sure you want to permanently delete Admin account ",
+        /* @__PURE__ */ jsxDEV("strong", { children: selectedAdmin.name }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+          lineNumber: 640,
+          columnNumber: 73
+        }, this),
+        " (",
+        selectedAdmin.employeeId,
+        ")? This action will generate an Audit Log."
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 639,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-3 border-t border-border/30 pt-4", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowDeleteModal(false),
+            className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-all",
+            children: "Cancel"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 644,
+            columnNumber: 15
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: handleDeleteAdmin,
+            disabled: submitting,
+            className: "px-5 py-2 rounded-xl bg-rose-600 text-xs font-bold text-white hover:bg-rose-700 transition-all",
+            children: submitting ? "Deleting..." : "Delete Admin Account"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+            lineNumber: 651,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+        lineNumber: 643,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 637,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+      lineNumber: 636,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx",
+    lineNumber: 249,
+    columnNumber: 5
+  }, this);
+};
+_s(AdminManagement, "iLiPrfcRoC+XjniSZcnu+G3yefs=", false, function() {
+  return [useSearchParams, useCompanyScope];
+});
+_c = AdminManagement;
+export default AdminManagement;
+var _c;
+$RefreshReg$(_c, "AdminManagement");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/admins/AdminManagement.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBME9ZOzs7Ozs7Ozs7Ozs7Ozs7OztBQTFPWixPQUFPQSxTQUFTQyxVQUFVQyxpQkFBaUI7QUFDM0MsU0FBU0MsdUJBQXVCO0FBQ2hDO0FBQUEsRUFDRUM7QUFBQUEsRUFBV0M7QUFBQUEsRUFBTUM7QUFBQUEsRUFBUUM7QUFBQUEsRUFBT0M7QUFBQUEsRUFBUUM7QUFBQUEsRUFBYUM7QUFBQUEsRUFDckRDO0FBQUFBLEVBQUdDO0FBQUFBLEVBQWNDO0FBQUFBLEVBQWFDO0FBQUFBLEVBQVdDO0FBQUFBLEVBQU1DO0FBQUFBLEVBQU9DO0FBQUFBLE9BQ2pEO0FBQ1AsT0FBT0MsT0FBT0MsaUJBQWlCO0FBQy9CLE9BQU9DLGdCQUFnQjtBQUN2QixPQUFPQywwQkFBMEI7QUFDakMsU0FBU0MsaUJBQWlCQywwQkFBMEI7QUFFcEQsTUFBTUMsa0JBQWtCQSxNQUFNO0FBQUFDLEtBQUE7QUFDNUIsUUFBTSxDQUFDQyxZQUFZLElBQUl2QixnQkFBZ0I7QUFDdkMsUUFBTSxFQUFFd0IsZUFBZUMsaUJBQWlCQyxXQUFXQyxnQkFBZ0JDLGlCQUFpQixJQUFJVCxnQkFBZ0I7QUFDeEcsUUFBTSxDQUFDVSxRQUFRQyxTQUFTLElBQUloQyxTQUFTLEVBQUU7QUFDdkMsUUFBTSxDQUFDaUMsZUFBZUMsZ0JBQWdCLElBQUlsQyxTQUFTLEVBQUU7QUFDckQsUUFBTSxDQUFDbUMsU0FBU0MsVUFBVSxJQUFJcEMsU0FBUyxJQUFJO0FBQzNDLFFBQU0sQ0FBQ3FDLFlBQVlDLGFBQWEsSUFBSXRDLFNBQVMsRUFBRTtBQUcvQyxRQUFNLENBQUN1QyxpQkFBaUJDLGtCQUFrQixJQUFJeEMsU0FBUyxLQUFLO0FBQzVELFFBQU0sQ0FBQ3lDLGVBQWVDLGdCQUFnQixJQUFJMUMsU0FBUyxLQUFLO0FBQ3hELFFBQU0sQ0FBQzJDLGlCQUFpQkMsa0JBQWtCLElBQUk1QyxTQUFTLEtBQUs7QUFDNUQsUUFBTSxDQUFDNkMsZUFBZUMsZ0JBQWdCLElBQUk5QyxTQUFTLElBQUk7QUFHdkQsUUFBTSxDQUFDK0MsVUFBVUMsV0FBVyxJQUFJaEQsU0FBUztBQUFBLElBQ3ZDaUQsTUFBTTtBQUFBLElBQ05DLE9BQU87QUFBQSxJQUNQQyxPQUFPO0FBQUEsSUFDUEMsZ0JBQWdCO0FBQUEsSUFDaEJDLFVBQVU7QUFBQSxJQUNWQyxZQUFZO0FBQUEsSUFDWkMsYUFBYTtBQUFBLElBQ2JDLFFBQVE7QUFBQSxFQUNWLENBQUM7QUFFRCxRQUFNLENBQUNDLFlBQVlDLGFBQWEsSUFBSTFELFNBQVMsS0FBSztBQUNsRCxRQUFNLENBQUMyRCxPQUFPQyxRQUFRLElBQUk1RCxTQUFTLEVBQUU2RCxNQUFNLElBQUlDLE1BQU0sR0FBRyxDQUFDO0FBRXpELFFBQU1DLGNBQWMsWUFBWTtBQUM5QixRQUFJO0FBQ0YzQixpQkFBVyxJQUFJO0FBQ2YsWUFBTTRCLFNBQVN0QyxnQkFBZ0IsRUFBRTBCLGdCQUFnQjFCLGNBQWMsSUFBSSxDQUFDO0FBQ3BFLFlBQU11QyxNQUFNLE1BQU1oRCxJQUFJaUQsSUFBSSx1QkFBdUIsRUFBRUYsT0FBTyxDQUFDO0FBQzNEaEMsZ0JBQVVpQyxJQUFJRSxRQUFRLEVBQUU7QUFBQSxJQUMxQixTQUFTQyxLQUFLO0FBQ1pDLGNBQVFDLE1BQU0sK0JBQStCRixHQUFHO0FBQ2hERyxnQkFBVSxTQUFTLG9DQUFvQztBQUFBLElBQ3pELFVBQUM7QUFDQ25DLGlCQUFXLEtBQUs7QUFBQSxJQUNsQjtBQUFBLEVBQ0Y7QUFFQSxRQUFNb0MscUJBQXFCLFlBQVk7QUFDckMsUUFBSTtBQUNGLFlBQU1QLE1BQU0sTUFBTWhELElBQUlpRCxJQUFJLGdCQUFnQjtBQUMxQyxZQUFNTyxPQUFPbkQsbUJBQW1CMkMsSUFBSUUsSUFBSTtBQUN4Q2pDLHVCQUFpQndDLE1BQU1DLFFBQVFGLElBQUksSUFBSUEsT0FBTyxFQUFFO0FBQUEsSUFDbEQsU0FBU0wsS0FBSztBQUNaQyxjQUFRQyxNQUFNLGtDQUFrQ0YsR0FBRztBQUFBLElBQ3JEO0FBQUEsRUFDRjtBQUVBbkUsWUFBVSxNQUFNO0FBQ2Q4RCxnQkFBWTtBQUNaUyx1QkFBbUI7QUFDbkIsUUFBSS9DLGFBQWF5QyxJQUFJLFFBQVEsTUFBTSxPQUFPO0FBQ3hDVSw0QkFBc0I7QUFBQSxJQUN4QjtBQUFBLEVBQ0YsR0FBRyxDQUFDbEQsZUFBZUQsWUFBWSxDQUFDO0FBRWhDeEIsWUFBVSxNQUFNO0FBQ2QsUUFBSXlFLE1BQU1DLFFBQVE5QyxjQUFjLEtBQUtBLGVBQWVnRCxTQUFTLEdBQUc7QUFDOUQzQyx1QkFBaUJMLGNBQWM7QUFBQSxJQUNqQztBQUFBLEVBQ0YsR0FBRyxDQUFDQSxjQUFjLENBQUM7QUFFbkI1QixZQUFVLE1BQU07QUFDZCxVQUFNNkUsa0JBQWtCQSxNQUFNO0FBQzVCTix5QkFBbUI7QUFDbkJULGtCQUFZO0FBQ1osVUFBSWpDLGlCQUFrQkEsa0JBQWlCO0FBQUEsSUFDekM7QUFDQWlELFdBQU9DLGlCQUFpQix3QkFBd0JGLGVBQWU7QUFDL0QsVUFBTUcsU0FBUy9ELFVBQVU7QUFDekIsUUFBSStELFFBQVE7QUFDVkEsYUFBT0MsR0FBRyx3QkFBd0JKLGVBQWU7QUFDakRHLGFBQU9DLEdBQUcsd0JBQXdCSixlQUFlO0FBQ2pERyxhQUFPQyxHQUFHLHdCQUF3QkosZUFBZTtBQUFBLElBQ25EO0FBQ0EsV0FBTyxNQUFNO0FBQ1hDLGFBQU9JLG9CQUFvQix3QkFBd0JMLGVBQWU7QUFDbEUsVUFBSUcsUUFBUTtBQUNWQSxlQUFPRyxJQUFJLHdCQUF3Qk4sZUFBZTtBQUNsREcsZUFBT0csSUFBSSx3QkFBd0JOLGVBQWU7QUFDbERHLGVBQU9HLElBQUksd0JBQXdCTixlQUFlO0FBQUEsTUFDcEQ7QUFBQSxJQUNGO0FBQUEsRUFDRixHQUFHLENBQUNoRCxnQkFBZ0IsQ0FBQztBQUVyQixRQUFNeUMsWUFBWUEsQ0FBQ1YsTUFBTUMsU0FBUztBQUNoQ0YsYUFBUyxFQUFFQyxNQUFNQyxLQUFLLENBQUM7QUFDdkJ1QixlQUFXLE1BQU16QixTQUFTLEVBQUVDLE1BQU0sSUFBSUMsTUFBTSxHQUFHLENBQUMsR0FBRyxJQUFJO0FBQUEsRUFDekQ7QUFFQSxRQUFNYyx3QkFBd0JBLE1BQU07QUFDbEMsVUFBTVUsYUFBYXJELGNBQWM0QyxTQUFTLElBQUk1QyxnQkFBZ0JKLG1CQUFtQjtBQUNqRixVQUFNMEQsZUFBZ0I3RCxpQkFBaUJBLGtCQUFrQixTQUFTNEQsVUFBVUUsS0FBSyxDQUFBQyxNQUFLQSxFQUFFQyxPQUFPaEUsYUFBYSxJQUN4R0EsZ0JBQ0M0RCxVQUFVLENBQUMsR0FBR0ksTUFBTTtBQUV6QjFDLGdCQUFZO0FBQUEsTUFDVkMsTUFBTTtBQUFBLE1BQ05DLE9BQU87QUFBQSxNQUNQQyxPQUFPO0FBQUEsTUFDUEMsZ0JBQWdCbUM7QUFBQUEsTUFDaEJsQyxVQUFVO0FBQUEsTUFDVkMsWUFBWTtBQUFBLE1BQ1pDLGFBQWE7QUFBQSxNQUNiQyxRQUFRO0FBQUEsSUFDVixDQUFDO0FBQ0RoQix1QkFBbUIsSUFBSTtBQUFBLEVBQ3pCO0FBRUEsUUFBTW1ELHNCQUFzQkEsQ0FBQ0MsVUFBVTtBQUNyQzlDLHFCQUFpQjhDLEtBQUs7QUFDdEI1QyxnQkFBWTtBQUFBLE1BQ1ZDLE1BQU0yQyxNQUFNM0MsUUFBUTtBQUFBLE1BQ3BCQyxPQUFPMEMsTUFBTTFDLFNBQVM7QUFBQSxNQUN0QkMsT0FBT3lDLE1BQU16QyxTQUFTO0FBQUEsTUFDdEJDLGdCQUFnQndDLE1BQU14QyxrQkFBa0J3QyxNQUFNQyxjQUFjSCxNQUFNO0FBQUEsTUFDbEVyQyxVQUFVO0FBQUEsTUFDVkMsWUFBWXNDLE1BQU10QyxjQUFjO0FBQUEsTUFDaENDLGFBQWFxQyxNQUFNckMsZUFBZTtBQUFBLE1BQ2xDQyxRQUFRb0MsTUFBTXBDLFVBQVU7QUFBQSxJQUMxQixDQUFDO0FBQ0RkLHFCQUFpQixJQUFJO0FBQUEsRUFDdkI7QUFFQSxRQUFNb0Qsd0JBQXdCQSxDQUFDRixVQUFVO0FBQ3ZDOUMscUJBQWlCOEMsS0FBSztBQUN0QmhELHVCQUFtQixJQUFJO0FBQUEsRUFDekI7QUFFQSxRQUFNbUQsb0JBQW9CLE9BQU9DLE1BQU07QUFDckNBLE1BQUVDLGVBQWU7QUFDakIsUUFBSSxDQUFDbEQsU0FBU0UsUUFBUSxDQUFDRixTQUFTRyxTQUFTLENBQUNILFNBQVNNLFVBQVU7QUFDM0RrQixnQkFBVSxTQUFTLHFDQUFxQztBQUN4RDtBQUFBLElBQ0Y7QUFFQSxRQUFJLENBQUN4QixTQUFTSyxnQkFBZ0I7QUFDNUJtQixnQkFBVSxTQUFTLDBCQUEwQjtBQUM3QztBQUFBLElBQ0Y7QUFFQSxRQUFJO0FBQ0ZiLG9CQUFjLElBQUk7QUFDbEIsWUFBTU8sTUFBTSxNQUFNaEQsSUFBSWlGLEtBQUssdUJBQXVCbkQsUUFBUTtBQUMxRHdCLGdCQUFVLFdBQVcsMENBQTBDTixJQUFJRSxLQUFLbEIsSUFBSSxLQUFLZ0IsSUFBSUUsS0FBS2dDLFVBQVUsSUFBSTtBQUN4RzNELHlCQUFtQixLQUFLO0FBQ3hCdUIsa0JBQVk7QUFBQSxJQUNkLFNBQVNLLEtBQUs7QUFDWkMsY0FBUUMsTUFBTSwyQkFBMkJGLEdBQUc7QUFDNUNHLGdCQUFVLFNBQVNILElBQUlnQyxVQUFVakMsTUFBTWtDLFdBQVcsaUNBQWlDO0FBQUEsSUFDckYsVUFBQztBQUNDM0Msb0JBQWMsS0FBSztBQUFBLElBQ3JCO0FBQUEsRUFDRjtBQUVBLFFBQU00QyxvQkFBb0IsT0FBT04sTUFBTTtBQUNyQ0EsTUFBRUMsZUFBZTtBQUNqQixRQUFJO0FBQ0Z2QyxvQkFBYyxJQUFJO0FBQ2xCLFlBQU16QyxJQUFJc0YsSUFBSSx1QkFBdUIxRCxjQUFjNkMsRUFBRSxJQUFJM0MsUUFBUTtBQUNqRXdCLGdCQUFVLFdBQVcsNkJBQTZCeEIsU0FBU0UsSUFBSSxHQUFHO0FBQ2xFUCx1QkFBaUIsS0FBSztBQUN0QnFCLGtCQUFZO0FBQUEsSUFDZCxTQUFTSyxLQUFLO0FBQ1pDLGNBQVFDLE1BQU0sMkJBQTJCRixHQUFHO0FBQzVDRyxnQkFBVSxTQUFTSCxJQUFJZ0MsVUFBVWpDLE1BQU1rQyxXQUFXLGlDQUFpQztBQUFBLElBQ3JGLFVBQUM7QUFDQzNDLG9CQUFjLEtBQUs7QUFBQSxJQUNyQjtBQUFBLEVBQ0Y7QUFFQSxRQUFNOEMsb0JBQW9CLFlBQVk7QUFDcEMsUUFBSTtBQUNGOUMsb0JBQWMsSUFBSTtBQUNsQixZQUFNekMsSUFBSXdGLE9BQU8sdUJBQXVCNUQsY0FBYzZDLEVBQUUsRUFBRTtBQUMxRG5CLGdCQUFVLFdBQVcscUJBQXFCMUIsY0FBY0ksSUFBSSxXQUFXO0FBQ3ZFTCx5QkFBbUIsS0FBSztBQUN4Qm1CLGtCQUFZO0FBQUEsSUFDZCxTQUFTSyxLQUFLO0FBQ1pDLGNBQVFDLE1BQU0sMkJBQTJCRixHQUFHO0FBQzVDRyxnQkFBVSxTQUFTSCxJQUFJZ0MsVUFBVWpDLE1BQU1rQyxXQUFXLGlDQUFpQztBQUFBLElBQ3JGLFVBQUM7QUFDQzNDLG9CQUFjLEtBQUs7QUFBQSxJQUNyQjtBQUFBLEVBQ0Y7QUFFQSxRQUFNZ0QscUJBQXFCLE9BQU9kLFVBQVU7QUFDMUMsVUFBTWUsYUFBYWYsTUFBTXBDLFdBQVcsV0FBVyxhQUFhO0FBQzVELFFBQUk7QUFDRixZQUFNdkMsSUFBSXNGLElBQUksdUJBQXVCWCxNQUFNRixFQUFFLElBQUksRUFBRWxDLFFBQVFtRCxXQUFXLENBQUM7QUFDdkVwQyxnQkFBVSxXQUFXLFNBQVNxQixNQUFNM0MsSUFBSSxrQkFBa0IwRCxVQUFVLEdBQUc7QUFDdkU1QyxrQkFBWTtBQUFBLElBQ2QsU0FBU0ssS0FBSztBQUNaQyxjQUFRQyxNQUFNLGtDQUFrQ0YsR0FBRztBQUNuREcsZ0JBQVUsU0FBUyxnQ0FBZ0M7QUFBQSxJQUNyRDtBQUFBLEVBQ0Y7QUFFQSxRQUFNcUMsaUJBQWlCN0UsT0FBTzhFLE9BQU8sQ0FBQ2pCLFVBQVU7QUFDOUMsVUFBTWtCLE9BQU96RSxXQUFXMEUsS0FBSyxFQUFFQyxZQUFZO0FBQzNDLFFBQUksQ0FBQ0YsS0FBTSxRQUFPO0FBQ2xCLFdBQ0dsQixNQUFNM0MsUUFBUTJDLE1BQU0zQyxLQUFLK0QsWUFBWSxFQUFFQyxTQUFTSCxJQUFJLEtBQ3BEbEIsTUFBTTFDLFNBQVMwQyxNQUFNMUMsTUFBTThELFlBQVksRUFBRUMsU0FBU0gsSUFBSSxLQUN0RGxCLE1BQU1PLGNBQWNQLE1BQU1PLFdBQVdhLFlBQVksRUFBRUMsU0FBU0gsSUFBSSxLQUNoRWxCLE1BQU10QyxjQUFjc0MsTUFBTXRDLFdBQVcwRCxZQUFZLEVBQUVDLFNBQVNILElBQUksS0FDaEVsQixNQUFNckMsZUFBZXFDLE1BQU1yQyxZQUFZeUQsWUFBWSxFQUFFQyxTQUFTSCxJQUFJLEtBQ2xFbEIsTUFBTUMsY0FBYzVDLFFBQVEyQyxNQUFNQyxhQUFhNUMsS0FBSytELFlBQVksRUFBRUMsU0FBU0gsSUFBSSxLQUMvRWxCLE1BQU1DLGNBQWNxQixlQUFldEIsTUFBTUMsYUFBYXFCLFlBQVlGLFlBQVksRUFBRUMsU0FBU0gsSUFBSTtBQUFBLEVBRWxHLENBQUM7QUFFRCxTQUNFLHVCQUFDLFNBQUksV0FBVSx1QkFFYjtBQUFBLDJCQUFDLFNBQUksV0FBVSxxR0FDYjtBQUFBLDZCQUFDLFNBQ0M7QUFBQSwrQkFBQyxTQUFJLFdBQVUsb0lBQ2I7QUFBQSxpQ0FBQyxhQUFVLFdBQVUsaUJBQXJCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBQWtDO0FBQUEsVUFDbEMsdUJBQUMsVUFBSywrQ0FBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFxQztBQUFBLGFBRnZDO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFHQTtBQUFBLFFBQ0EsdUJBQUMsUUFBRyxXQUFVLDBEQUF5RCx5Q0FBdkU7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUVBO0FBQUEsUUFDQSx1QkFBQyxPQUFFLFdBQVUsaUNBQWdDLDRIQUE3QztBQUFBO0FBQUE7QUFBQTtBQUFBLGVBRUE7QUFBQSxXQVZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFXQTtBQUFBLE1BRUE7QUFBQSxRQUFDO0FBQUE7QUFBQSxVQUNDLFNBQVNsQztBQUFBQSxVQUNULFdBQVU7QUFBQSxVQUVWO0FBQUEsbUNBQUMsUUFBSyxXQUFVLGFBQWhCO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXlCO0FBQUEsWUFDekIsdUJBQUMsVUFBSyxtQ0FBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUF5QjtBQUFBO0FBQUE7QUFBQSxRQUwzQjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsTUFNQTtBQUFBLFNBcEJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FxQkE7QUFBQSxJQUdBLHVCQUFDLHdCQUFxQixtQkFBbUIsUUFBekM7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUE4QztBQUFBLElBRTdDakIsTUFBTUcsUUFDTCx1QkFBQyxTQUFJLFdBQVcsNERBQTRESCxNQUFNRSxTQUFTLFlBQVksd0RBQXdELHFEQUFxRCxJQUNqTkY7QUFBQUEsWUFBTUUsU0FBUyxZQUFZLHVCQUFDLGdCQUFhLFdBQVUsc0JBQXhCO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFBMEMsSUFBTSx1QkFBQyxlQUFZLFdBQVUsc0JBQXZCO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFBeUM7QUFBQSxNQUNySCx1QkFBQyxVQUFNRixnQkFBTUcsUUFBYjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBQWtCO0FBQUEsU0FGcEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUdBO0FBQUEsSUFJRix1QkFBQyxTQUFJLFdBQVUsNkRBQ2IsaUNBQUMsU0FBSSxXQUFVLDBCQUNiO0FBQUEsNkJBQUMsVUFBTyxXQUFVLDhFQUFsQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBQTRGO0FBQUEsTUFDNUY7QUFBQSxRQUFDO0FBQUE7QUFBQSxVQUNDLE1BQUs7QUFBQSxVQUNMLGFBQVk7QUFBQSxVQUNaLE9BQU96QjtBQUFBQSxVQUNQLFVBQVUsQ0FBQzJELE1BQU0xRCxjQUFjMEQsRUFBRW1CLE9BQU9DLEtBQUs7QUFBQSxVQUM3QyxXQUFVO0FBQUE7QUFBQSxRQUxaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxNQUsrSztBQUFBLFNBUGpMO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FTQSxLQVZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FXQTtBQUFBLElBR0EsdUJBQUMsU0FBSSxXQUFVLHdGQUNiLGlDQUFDLFdBQU0sV0FBVSwwREFDZjtBQUFBLDZCQUFDLFdBQ0MsaUNBQUMsUUFBRyxXQUFVLGlIQUNaO0FBQUEsK0JBQUMsUUFBRyxXQUFVLCtCQUE4Qiw2QkFBNUM7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUF5RDtBQUFBLFFBQ3pELHVCQUFDLFFBQUcsV0FBVSwrQkFBOEIsdUJBQTVDO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFBbUQ7QUFBQSxRQUNuRCx1QkFBQyxRQUFHLFdBQVUsK0JBQThCLHdDQUE1QztBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQW9FO0FBQUEsUUFDcEUsdUJBQUMsUUFBRyxXQUFVLCtCQUE4QixzQkFBNUM7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUFrRDtBQUFBLFFBQ2xELHVCQUFDLFFBQUcsV0FBVSwrQkFBOEIsNEJBQTVDO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFBd0Q7QUFBQSxRQUN4RCx1QkFBQyxRQUFHLFdBQVUsMENBQXlDLHVCQUF2RDtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQThEO0FBQUEsV0FOaEU7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQU9BLEtBUkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVNBO0FBQUEsTUFDQSx1QkFBQyxXQUFNLFdBQVUscUNBQ2RqRixvQkFDQyx1QkFBQyxRQUNDLGlDQUFDLFFBQUcsU0FBUyxHQUFHLFdBQVUsZ0RBQ3hCLGlDQUFDLFNBQUksV0FBVSwwQ0FDYjtBQUFBLCtCQUFDLGFBQVUsV0FBVSx1Q0FBckI7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUF3RDtBQUFBLFFBQ3hELHVCQUFDLFVBQUsseUNBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUErQjtBQUFBLFdBRmpDO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFHQSxLQUpGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFLQSxLQU5GO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFPQSxJQUNFeUUsZUFBZS9CLFdBQVcsSUFDNUIsdUJBQUMsUUFDQyxpQ0FBQyxRQUFHLFNBQVMsR0FBRyxXQUFVLGdEQUN2QnhDLHVCQUNHLG9DQUFvQ0EsVUFBVSxPQUM5Qyx1Q0FBdUNWLGlCQUFpQnNCLFFBQVEsY0FBYyxPQUhwRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBSUEsS0FMRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBTUEsSUFFQTJELGVBQWVTO0FBQUFBLFFBQUksQ0FBQ3pCLFVBQ2xCLHVCQUFDLFFBQWtCLFdBQVUsc0RBQzNCO0FBQUEsaUNBQUMsUUFBRyxXQUFVLCtCQUNaLGlDQUFDLFNBQUksV0FBVSwyQkFDYjtBQUFBLG1DQUFDLGNBQVcsTUFBTUEsT0FBTyxXQUFVLHNCQUFuQztBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFxRDtBQUFBLFlBQ3JELHVCQUFDLFNBQ0M7QUFBQSxxQ0FBQyxPQUFFLFdBQVUscUNBQXFDQSxnQkFBTTNDLFFBQXhEO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQTZEO0FBQUEsY0FDN0QsdUJBQUMsT0FBRSxXQUFVLCtDQUErQzJDO0FBQUFBLHNCQUFNMUM7QUFBQUEsZ0JBQU07QUFBQSxnQkFBSTBDLE1BQU1PO0FBQUFBLG1CQUFsRjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUE2RjtBQUFBLGlCQUYvRjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUdBO0FBQUEsZUFMRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQU1BLEtBUEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFRQTtBQUFBLFVBQ0EsdUJBQUMsUUFBRyxXQUFVLCtCQUNYUCxnQkFBTUMsY0FBYzVDLE9BQ25CLHVCQUFDLFVBQUssV0FBVSxvTEFDZDtBQUFBLG1DQUFDLGFBQVUsV0FBVSx1Q0FBckI7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBd0Q7QUFBQSxZQUN4RCx1QkFBQyxVQUFNMkMsZ0JBQU1DLGFBQWE1QyxRQUExQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUErQjtBQUFBLGVBRmpDO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBR0EsSUFFQSx1QkFBQyxVQUFLLFdBQVUscUNBQW9DLGlCQUFwRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFxRCxLQVB6RDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQVNBO0FBQUEsVUFDQSx1QkFBQyxRQUFHLFdBQVUsK0JBQ1o7QUFBQSxtQ0FBQyxPQUFFLFdBQVUsaUNBQWlDMkMsZ0JBQU10QyxjQUFjLG9CQUFsRTtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFtRjtBQUFBLFlBQ25GLHVCQUFDLE9BQUUsV0FBVSxxQ0FBcUNzQyxnQkFBTXJDLGVBQWUsMEJBQXZFO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQThGO0FBQUEsZUFGaEc7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFHQTtBQUFBLFVBQ0EsdUJBQUMsUUFBRyxXQUFVLCtCQUNaLGlDQUFDLFVBQUssV0FBVyw2RkFBNkZxQyxNQUFNcEMsV0FBVyxXQUFXLCtCQUErQiw4QkFBOEIsSUFDck07QUFBQSxtQ0FBQyxVQUFLLFdBQVcsNEJBQTRCb0MsTUFBTXBDLFdBQVcsV0FBVyxlQUFlLGFBQWEsTUFBckc7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBd0c7QUFBQSxZQUN2R29DLE1BQU1wQztBQUFBQSxlQUZUO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBR0EsS0FKRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUtBO0FBQUEsVUFDQSx1QkFBQyxRQUFHLFdBQVUscURBQ1gsY0FBSThELEtBQUsxQixNQUFNMkIsU0FBUyxFQUFFQyxtQkFBbUIsS0FEaEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFFQTtBQUFBLFVBQ0EsdUJBQUMsUUFBRyxXQUFVLDBDQUNaLGlDQUFDLFNBQUksV0FBVSx5Q0FDYjtBQUFBO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsU0FBUyxNQUFNN0Isb0JBQW9CQyxLQUFLO0FBQUEsZ0JBQ3hDLFdBQVU7QUFBQSxnQkFDVixPQUFNO0FBQUEsZ0JBRU4saUNBQUMsU0FBTSxXQUFVLGFBQWpCO0FBQUE7QUFBQTtBQUFBO0FBQUEsdUJBQTBCO0FBQUE7QUFBQSxjQUw1QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsWUFNQTtBQUFBLFlBRUE7QUFBQSxjQUFDO0FBQUE7QUFBQSxnQkFDQyxTQUFTLE1BQU1jLG1CQUFtQmQsS0FBSztBQUFBLGdCQUN2QyxXQUFXLG1DQUFtQ0EsTUFBTXBDLFdBQVcsV0FBVyxtRUFBbUUsOERBQThEO0FBQUEsZ0JBQzNNLE9BQU9vQyxNQUFNcEMsV0FBVyxXQUFXLGtCQUFrQjtBQUFBLGdCQUVwRG9DLGdCQUFNcEMsV0FBVyxXQUFXLHVCQUFDLFNBQU0sV0FBVSxhQUFqQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUEwQixJQUFNLHVCQUFDLGFBQVUsV0FBVSxhQUFyQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUE4QjtBQUFBO0FBQUEsY0FMN0Y7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFlBTUE7QUFBQSxZQUVBO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsU0FBUyxNQUFNc0Msc0JBQXNCRixLQUFLO0FBQUEsZ0JBQzFDLFdBQVU7QUFBQSxnQkFDVixPQUFNO0FBQUEsZ0JBRU4saUNBQUMsVUFBTyxXQUFVLGFBQWxCO0FBQUE7QUFBQTtBQUFBO0FBQUEsdUJBQTJCO0FBQUE7QUFBQSxjQUw3QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsWUFNQTtBQUFBLGVBdkJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBd0JBLEtBekJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBMEJBO0FBQUEsYUEzRE9BLE1BQU1GLElBQWY7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQTREQTtBQUFBLE1BQ0QsS0FqRkw7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQW1GQTtBQUFBLFNBOUZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0ErRkEsS0FoR0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQWlHQTtBQUFBLElBR0NuRCxtQkFDQyx1QkFBQyxTQUFJLFdBQVUsd0ZBQ2IsaUNBQUMsVUFBSyxVQUFVd0QsbUJBQW1CLFdBQVUsa0dBQzNDO0FBQUEsNkJBQUMsU0FBSSxXQUFVLG9FQUNiO0FBQUEsK0JBQUMsUUFBRyxXQUFVLHVDQUFzQywyQ0FBcEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUErRTtBQUFBLFFBQy9FO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDQyxNQUFLO0FBQUEsWUFDTCxTQUFTLE1BQU12RCxtQkFBbUIsS0FBSztBQUFBLFlBQ3ZDLFdBQVU7QUFBQSxZQUVWLGlDQUFDLEtBQUUsV0FBVSxhQUFiO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXNCO0FBQUE7QUFBQSxVQUx4QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsUUFNQTtBQUFBLFdBUkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVNBO0FBQUEsTUFFQSx1QkFBQyxTQUFJLFdBQVUseUNBQ2I7QUFBQSwrQkFBQyxTQUFJLFdBQVUsNkJBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDO0FBQUE7QUFBQSxZQUMvQyx1QkFBQyxVQUFLLFdBQVUsZ0JBQWUsaUJBQS9CO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQWdDO0FBQUEsZUFENUM7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFFQTtBQUFBLFVBQ0E7QUFBQSxZQUFDO0FBQUE7QUFBQSxjQUNDLE1BQUs7QUFBQSxjQUNMLE9BQU9PLFNBQVNFO0FBQUFBLGNBQ2hCLFVBQVUsQ0FBQytDLE1BQU1oRCxZQUFZLEVBQUUsR0FBR0QsVUFBVUUsTUFBTStDLEVBQUVtQixPQUFPQyxNQUFNLENBQUM7QUFBQSxjQUNsRSxhQUFZO0FBQUEsY0FDWixXQUFVO0FBQUEsY0FDVixVQUFRO0FBQUE7QUFBQSxZQU5WO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxVQU1VO0FBQUEsYUFWWjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBWUE7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSxlQUNiO0FBQUEsaUNBQUMsV0FBTSxXQUFVLDJDQUEwQztBQUFBO0FBQUEsWUFDM0MsdUJBQUMsVUFBSyxXQUFVLGdCQUFlLGlCQUEvQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFnQztBQUFBLGVBRGhEO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBRUE7QUFBQSxVQUNBO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxNQUFLO0FBQUEsY0FDTCxPQUFPckUsU0FBU0c7QUFBQUEsY0FDaEIsVUFBVSxDQUFDOEMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVRyxPQUFPOEMsRUFBRW1CLE9BQU9DLE1BQU0sQ0FBQztBQUFBLGNBQ25FLGFBQVk7QUFBQSxjQUNaLFdBQVU7QUFBQSxjQUNWLFVBQVE7QUFBQTtBQUFBLFlBTlY7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBTVU7QUFBQSxhQVZaO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFZQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLGVBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDLDRCQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUVBO0FBQUEsVUFDQTtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0MsTUFBSztBQUFBLGNBQ0wsT0FBT3JFLFNBQVNJO0FBQUFBLGNBQ2hCLFVBQVUsQ0FBQzZDLE1BQU1oRCxZQUFZLEVBQUUsR0FBR0QsVUFBVUksT0FBTzZDLEVBQUVtQixPQUFPQyxNQUFNLENBQUM7QUFBQSxjQUNuRSxhQUFZO0FBQUEsY0FDWixXQUFVO0FBQUE7QUFBQSxZQUxaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxVQUsySztBQUFBLGFBVDdLO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFXQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLDZCQUNiO0FBQUEsaUNBQUMsV0FBTSxXQUFVLDJDQUEwQztBQUFBO0FBQUEsWUFDbEMsdUJBQUMsVUFBSyxXQUFVLGdCQUFlLGlCQUEvQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFnQztBQUFBLGVBRHpEO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBRUE7QUFBQSxVQUNBO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxPQUFPckUsU0FBU0s7QUFBQUEsY0FDaEIsVUFBVSxDQUFDNEMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVSyxnQkFBZ0I0QyxFQUFFbUIsT0FBT0MsTUFBTSxDQUFDO0FBQUEsY0FDNUUsV0FBVTtBQUFBLGNBQ1YsVUFBUTtBQUFBLGNBRVI7QUFBQSx1Q0FBQyxZQUFPLE9BQU0sSUFBRyxvQ0FBakI7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBcUM7QUFBQSxnQkFDcENuRixjQUFjb0Y7QUFBQUEsa0JBQUksQ0FBQ0ksUUFDbEIsdUJBQUMsWUFBb0IsT0FBT0EsSUFBSS9CLElBQzdCK0I7QUFBQUEsd0JBQUl4RTtBQUFBQSxvQkFBSztBQUFBLG9CQUFFd0UsSUFBSVAsY0FBYyxJQUFJTyxJQUFJUCxXQUFXLE1BQU07QUFBQSx1QkFENUNPLElBQUkvQixJQUFqQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHlCQUVBO0FBQUEsZ0JBQ0Q7QUFBQTtBQUFBO0FBQUEsWUFYSDtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsVUFZQTtBQUFBLGFBaEJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFpQkE7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSw2QkFDYjtBQUFBLGlDQUFDLFdBQU0sV0FBVSwyQ0FBMEM7QUFBQTtBQUFBLFlBQ3hDLHVCQUFDLFVBQUssV0FBVSxnQkFBZSxpQkFBL0I7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBZ0M7QUFBQSxlQURuRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUVBO0FBQUEsVUFDQTtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0MsTUFBSztBQUFBLGNBQ0wsT0FBTzNDLFNBQVNNO0FBQUFBLGNBQ2hCLFVBQVUsQ0FBQzJDLE1BQU1oRCxZQUFZLEVBQUUsR0FBR0QsVUFBVU0sVUFBVTJDLEVBQUVtQixPQUFPQyxNQUFNLENBQUM7QUFBQSxjQUN0RSxhQUFZO0FBQUEsY0FDWixXQUFVO0FBQUEsY0FDVixVQUFRO0FBQUE7QUFBQSxZQU5WO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxVQU1VO0FBQUEsYUFWWjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBWUE7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSxlQUNiO0FBQUEsaUNBQUMsV0FBTSxXQUFVLDJDQUEwQywwQkFBM0Q7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBcUU7QUFBQSxVQUNyRTtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0MsTUFBSztBQUFBLGNBQ0wsT0FBT3JFLFNBQVNPO0FBQUFBLGNBQ2hCLFVBQVUsQ0FBQzBDLE1BQU1oRCxZQUFZLEVBQUUsR0FBR0QsVUFBVU8sWUFBWTBDLEVBQUVtQixPQUFPQyxNQUFNLENBQUM7QUFBQSxjQUN4RSxXQUFVO0FBQUE7QUFBQSxZQUpaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxVQUkySztBQUFBLGFBTjdLO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFRQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLGVBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDLDJCQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFzRTtBQUFBLFVBQ3RFO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxNQUFLO0FBQUEsY0FDTCxPQUFPckUsU0FBU1E7QUFBQUEsY0FDaEIsVUFBVSxDQUFDeUMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVUSxhQUFheUMsRUFBRW1CLE9BQU9DLE1BQU0sQ0FBQztBQUFBLGNBQ3pFLFdBQVU7QUFBQTtBQUFBLFlBSlo7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBSTJLO0FBQUEsYUFON0s7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQVFBO0FBQUEsV0E3RkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQThGQTtBQUFBLE1BRUEsdUJBQUMsU0FBSSxXQUFVLHlEQUNiO0FBQUE7QUFBQSxVQUFDO0FBQUE7QUFBQSxZQUNDLE1BQUs7QUFBQSxZQUNMLFNBQVMsTUFBTTVFLG1CQUFtQixLQUFLO0FBQUEsWUFDdkMsV0FBVTtBQUFBLFlBQTRGO0FBQUE7QUFBQSxVQUh4RztBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsUUFNQTtBQUFBLFFBQ0E7QUFBQSxVQUFDO0FBQUE7QUFBQSxZQUNDLE1BQUs7QUFBQSxZQUNMLFVBQVVpQjtBQUFBQSxZQUNWLFdBQVU7QUFBQSxZQUVUQSx1QkFBYSxnQkFBZ0I7QUFBQTtBQUFBLFVBTGhDO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQU1BO0FBQUEsV0FkRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBZUE7QUFBQSxTQTNIRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBNEhBLEtBN0hGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0E4SEE7QUFBQSxJQUlEaEIsaUJBQWlCSSxpQkFDaEIsdUJBQUMsU0FBSSxXQUFVLHdGQUNiLGlDQUFDLFVBQUssVUFBVXlELG1CQUFtQixXQUFVLGtHQUMzQztBQUFBLDZCQUFDLFNBQUksV0FBVSxvRUFDYjtBQUFBLCtCQUFDLFFBQUcsV0FBVSx1Q0FBc0M7QUFBQTtBQUFBLFVBQWF6RCxjQUFjc0Q7QUFBQUEsVUFBVztBQUFBLGFBQTFGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFBMkY7QUFBQSxRQUMzRjtBQUFBLFVBQUM7QUFBQTtBQUFBLFlBQ0MsTUFBSztBQUFBLFlBQ0wsU0FBUyxNQUFNekQsaUJBQWlCLEtBQUs7QUFBQSxZQUNyQyxXQUFVO0FBQUEsWUFFVixpQ0FBQyxLQUFFLFdBQVUsYUFBYjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFzQjtBQUFBO0FBQUEsVUFMeEI7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFFBTUE7QUFBQSxXQVJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFTQTtBQUFBLE1BRUEsdUJBQUMsU0FBSSxXQUFVLHlDQUNiO0FBQUEsK0JBQUMsU0FBSSxXQUFVLDZCQUNiO0FBQUEsaUNBQUMsV0FBTSxXQUFVLDJDQUEwQyx5QkFBM0Q7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBb0U7QUFBQSxVQUNwRTtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0MsTUFBSztBQUFBLGNBQ0wsT0FBT0ssU0FBU0U7QUFBQUEsY0FDaEIsVUFBVSxDQUFDK0MsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVRSxNQUFNK0MsRUFBRW1CLE9BQU9DLE1BQU0sQ0FBQztBQUFBLGNBQ2xFLFdBQVU7QUFBQSxjQUNWLFVBQVE7QUFBQTtBQUFBLFlBTFY7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBS1U7QUFBQSxhQVBaO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFTQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLGVBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDLDZCQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUF3RTtBQUFBLFVBQ3hFO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxNQUFLO0FBQUEsY0FDTCxPQUFPckUsU0FBU0c7QUFBQUEsY0FDaEIsVUFBVSxDQUFDOEMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVRyxPQUFPOEMsRUFBRW1CLE9BQU9DLE1BQU0sQ0FBQztBQUFBLGNBQ25FLFdBQVU7QUFBQSxjQUNWLFVBQVE7QUFBQTtBQUFBLFlBTFY7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBS1U7QUFBQSxhQVBaO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFTQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLGVBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDLHFCQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFnRTtBQUFBLFVBQ2hFO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxNQUFLO0FBQUEsY0FDTCxPQUFPckUsU0FBU0k7QUFBQUEsY0FDaEIsVUFBVSxDQUFDNkMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVSSxPQUFPNkMsRUFBRW1CLE9BQU9DLE1BQU0sQ0FBQztBQUFBLGNBQ25FLFdBQVU7QUFBQTtBQUFBLFlBSlo7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBSTJLO0FBQUEsYUFON0s7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQVFBO0FBQUEsUUFFQSx1QkFBQyxTQUFJLFdBQVUsNkJBQ2I7QUFBQSxpQ0FBQyxXQUFNLFdBQVUsMkNBQTBDLHNDQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFpRjtBQUFBLFVBQ2pGO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxPQUFPckUsU0FBU0s7QUFBQUEsY0FDaEIsVUFBVSxDQUFDNEMsTUFBTWhELFlBQVksRUFBRSxHQUFHRCxVQUFVSyxnQkFBZ0I0QyxFQUFFbUIsT0FBT0MsTUFBTSxDQUFDO0FBQUEsY0FDNUUsV0FBVTtBQUFBLGNBRVY7QUFBQSx1Q0FBQyxZQUFPLE9BQU0sSUFBRyxvQ0FBakI7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBcUM7QUFBQSxnQkFDcENuRixjQUFjb0Y7QUFBQUEsa0JBQUksQ0FBQ0ksUUFDbEIsdUJBQUMsWUFBb0IsT0FBT0EsSUFBSS9CLElBQzdCK0I7QUFBQUEsd0JBQUl4RTtBQUFBQSxvQkFBSztBQUFBLG9CQUFFd0UsSUFBSVAsY0FBYyxJQUFJTyxJQUFJUCxXQUFXLE1BQU07QUFBQSx1QkFENUNPLElBQUkvQixJQUFqQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHlCQUVBO0FBQUEsZ0JBQ0Q7QUFBQTtBQUFBO0FBQUEsWUFWSDtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsVUFXQTtBQUFBLGFBYkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQWNBO0FBQUEsUUFFQSx1QkFBQyxTQUFJLFdBQVUsZUFDYjtBQUFBLGlDQUFDLFdBQU0sV0FBVSwyQ0FBMEMsMEJBQTNEO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBQXFFO0FBQUEsVUFDckU7QUFBQSxZQUFDO0FBQUE7QUFBQSxjQUNDLE1BQUs7QUFBQSxjQUNMLE9BQU8zQyxTQUFTTztBQUFBQSxjQUNoQixVQUFVLENBQUMwQyxNQUFNaEQsWUFBWSxFQUFFLEdBQUdELFVBQVVPLFlBQVkwQyxFQUFFbUIsT0FBT0MsTUFBTSxDQUFDO0FBQUEsY0FDeEUsV0FBVTtBQUFBO0FBQUEsWUFKWjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsVUFJMks7QUFBQSxhQU43SztBQUFBO0FBQUE7QUFBQTtBQUFBLGVBUUE7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSxlQUNiO0FBQUEsaUNBQUMsV0FBTSxXQUFVLDJDQUEwQywyQkFBM0Q7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBc0U7QUFBQSxVQUN0RTtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0MsTUFBSztBQUFBLGNBQ0wsT0FBT3JFLFNBQVNRO0FBQUFBLGNBQ2hCLFVBQVUsQ0FBQ3lDLE1BQU1oRCxZQUFZLEVBQUUsR0FBR0QsVUFBVVEsYUFBYXlDLEVBQUVtQixPQUFPQyxNQUFNLENBQUM7QUFBQSxjQUN6RSxXQUFVO0FBQUE7QUFBQSxZQUpaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxVQUkySztBQUFBLGFBTjdLO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFRQTtBQUFBLFdBbkVGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFvRUE7QUFBQSxNQUVBLHVCQUFDLFNBQUksV0FBVSx5REFDYjtBQUFBO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDQyxNQUFLO0FBQUEsWUFDTCxTQUFTLE1BQU0xRSxpQkFBaUIsS0FBSztBQUFBLFlBQ3JDLFdBQVU7QUFBQSxZQUE0RjtBQUFBO0FBQUEsVUFIeEc7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFFBTUE7QUFBQSxRQUNBO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDQyxNQUFLO0FBQUEsWUFDTCxVQUFVZTtBQUFBQSxZQUNWLFdBQVU7QUFBQSxZQUVUQSx1QkFBYSxjQUFjO0FBQUE7QUFBQSxVQUw5QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsUUFNQTtBQUFBLFdBZEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQWVBO0FBQUEsU0FqR0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQWtHQSxLQW5HRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBb0dBO0FBQUEsSUFJRGQsbUJBQW1CRSxpQkFDbEIsdUJBQUMsU0FBSSxXQUFVLHdGQUNiLGlDQUFDLFNBQUksV0FBVSxrR0FDYjtBQUFBLDZCQUFDLFFBQUcsV0FBVSx1Q0FBc0Msb0NBQXBEO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFBd0U7QUFBQSxNQUN4RSx1QkFBQyxPQUFFLFdBQVUsaURBQWdEO0FBQUE7QUFBQSxRQUNELHVCQUFDLFlBQVFBLHdCQUFjSSxRQUF2QjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQTRCO0FBQUEsUUFBUztBQUFBLFFBQUdKLGNBQWNzRDtBQUFBQSxRQUFXO0FBQUEsV0FEN0g7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUVBO0FBQUEsTUFFQSx1QkFBQyxTQUFJLFdBQVUseURBQ2I7QUFBQTtBQUFBLFVBQUM7QUFBQTtBQUFBLFlBQ0MsTUFBSztBQUFBLFlBQ0wsU0FBUyxNQUFNdkQsbUJBQW1CLEtBQUs7QUFBQSxZQUN2QyxXQUFVO0FBQUEsWUFBNEY7QUFBQTtBQUFBLFVBSHhHO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQU1BO0FBQUEsUUFDQTtBQUFBLFVBQUM7QUFBQTtBQUFBLFlBQ0MsTUFBSztBQUFBLFlBQ0wsU0FBUzREO0FBQUFBLFlBQ1QsVUFBVS9DO0FBQUFBLFlBQ1YsV0FBVTtBQUFBLFlBRVRBLHVCQUFhLGdCQUFnQjtBQUFBO0FBQUEsVUFOaEM7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFFBT0E7QUFBQSxXQWZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFnQkE7QUFBQSxTQXRCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBdUJBLEtBeEJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0F5QkE7QUFBQSxPQTVaSjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBOFpBO0FBRUo7QUFBRWpDLEdBMW5CSUQsaUJBQWU7QUFBQSxVQUNJckIsaUJBQ2lFbUIsZUFBZTtBQUFBO0FBQUEsS0FGbkdFO0FBNG5CTixlQUFlQTtBQUFnQixJQUFBbUc7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsInVzZVNlYXJjaFBhcmFtcyIsIlVzZXJDaGVjayIsIlBsdXMiLCJTZWFyY2giLCJFZGl0MyIsIlRyYXNoMiIsIlNoaWVsZENoZWNrIiwiS2V5IiwiWCIsIkNoZWNrQ2lyY2xlMiIsIkFsZXJ0Q2lyY2xlIiwiUmVmcmVzaEN3IiwiTG9jayIsIlVzZXJYIiwiQnVpbGRpbmcyIiwiYXBpIiwiZ2V0U29ja2V0IiwiVXNlckF2YXRhciIsIkNvbXBhbnlTY29wZVNlbGVjdG9yIiwidXNlQ29tcGFueVNjb3BlIiwiZXh0cmFjdENvbXBhbnlMaXN0IiwiQWRtaW5NYW5hZ2VtZW50IiwiX3MiLCJzZWFyY2hQYXJhbXMiLCJzZWxlY3RlZE9yZ0lkIiwic2VsZWN0ZWRDb21wYW55IiwiY29tcGFuaWVzIiwic2NvcGVDb21wYW5pZXMiLCJyZWZldGNoQ29tcGFuaWVzIiwiYWRtaW5zIiwic2V0QWRtaW5zIiwib3JnYW5pemF0aW9ucyIsInNldE9yZ2FuaXphdGlvbnMiLCJsb2FkaW5nIiwic2V0TG9hZGluZyIsInNlYXJjaFRlcm0iLCJzZXRTZWFyY2hUZXJtIiwic2hvd0NyZWF0ZU1vZGFsIiwic2V0U2hvd0NyZWF0ZU1vZGFsIiwic2hvd0VkaXRNb2RhbCIsInNldFNob3dFZGl0TW9kYWwiLCJzaG93RGVsZXRlTW9kYWwiLCJzZXRTaG93RGVsZXRlTW9kYWwiLCJzZWxlY3RlZEFkbWluIiwic2V0U2VsZWN0ZWRBZG1pbiIsImZvcm1EYXRhIiwic2V0Rm9ybURhdGEiLCJuYW1lIiwiZW1haWwiLCJwaG9uZSIsIm9yZ2FuaXphdGlvbklkIiwicGFzc3dvcmQiLCJkZXBhcnRtZW50IiwiZGVzaWduYXRpb24iLCJzdGF0dXMiLCJzdWJtaXR0aW5nIiwic2V0U3VibWl0dGluZyIsInRvYXN0Iiwic2V0VG9hc3QiLCJ0eXBlIiwidGV4dCIsImZldGNoQWRtaW5zIiwicGFyYW1zIiwicmVzIiwiZ2V0IiwiZGF0YSIsImVyciIsImNvbnNvbGUiLCJlcnJvciIsInNob3dUb2FzdCIsImZldGNoT3JnYW5pemF0aW9ucyIsImxpc3QiLCJBcnJheSIsImlzQXJyYXkiLCJoYW5kbGVPcGVuQ3JlYXRlTW9kYWwiLCJsZW5ndGgiLCJoYW5kbGVPcmdVcGRhdGUiLCJ3aW5kb3ciLCJhZGRFdmVudExpc3RlbmVyIiwic29ja2V0Iiwib24iLCJyZW1vdmVFdmVudExpc3RlbmVyIiwib2ZmIiwic2V0VGltZW91dCIsInZhbGlkT3JncyIsImRlZmF1bHRPcmdJZCIsInNvbWUiLCJvIiwiaWQiLCJoYW5kbGVPcGVuRWRpdE1vZGFsIiwiYWRtaW4iLCJvcmdhbml6YXRpb24iLCJoYW5kbGVPcGVuRGVsZXRlTW9kYWwiLCJoYW5kbGVDcmVhdGVBZG1pbiIsImUiLCJwcmV2ZW50RGVmYXVsdCIsInBvc3QiLCJlbXBsb3llZUlkIiwicmVzcG9uc2UiLCJtZXNzYWdlIiwiaGFuZGxlVXBkYXRlQWRtaW4iLCJwdXQiLCJoYW5kbGVEZWxldGVBZG1pbiIsImRlbGV0ZSIsImhhbmRsZVRvZ2dsZVN0YXR1cyIsIm5leHRTdGF0dXMiLCJmaWx0ZXJlZEFkbWlucyIsImZpbHRlciIsInRlcm0iLCJ0cmltIiwidG9Mb3dlckNhc2UiLCJpbmNsdWRlcyIsImNvbXBhbnlDb2RlIiwidGFyZ2V0IiwidmFsdWUiLCJtYXAiLCJEYXRlIiwiY3JlYXRlZEF0IiwidG9Mb2NhbGVEYXRlU3RyaW5nIiwib3JnIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiQWRtaW5NYW5hZ2VtZW50LmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUsIHVzZUVmZmVjdCB9IGZyb20gJ3JlYWN0JztcclxuaW1wb3J0IHsgdXNlU2VhcmNoUGFyYW1zIH0gZnJvbSAncmVhY3Qtcm91dGVyLWRvbSc7XHJcbmltcG9ydCB7XHJcbiAgVXNlckNoZWNrLCBQbHVzLCBTZWFyY2gsIEVkaXQzLCBUcmFzaDIsIFNoaWVsZENoZWNrLCBLZXksXHJcbiAgWCwgQ2hlY2tDaXJjbGUyLCBBbGVydENpcmNsZSwgUmVmcmVzaEN3LCBMb2NrLCBVc2VyWCwgQnVpbGRpbmcyXHJcbn0gZnJvbSAnbHVjaWRlLXJlYWN0JztcclxuaW1wb3J0IGFwaSwgeyBnZXRTb2NrZXQgfSBmcm9tICcuLi8uLi8uLi9zZXJ2aWNlcy9hcGknO1xyXG5pbXBvcnQgVXNlckF2YXRhciBmcm9tICcuLi8uLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Vc2VyQXZhdGFyJztcclxuaW1wb3J0IENvbXBhbnlTY29wZVNlbGVjdG9yIGZyb20gJy4uLy4uLy4uL2NvbXBvbmVudHMvY29tbW9uL0NvbXBhbnlTY29wZVNlbGVjdG9yJztcclxuaW1wb3J0IHsgdXNlQ29tcGFueVNjb3BlLCBleHRyYWN0Q29tcGFueUxpc3QgfSBmcm9tICcuLi8uLi8uLi9jb250ZXh0L0NvbXBhbnlTY29wZUNvbnRleHQnO1xyXG5cclxuY29uc3QgQWRtaW5NYW5hZ2VtZW50ID0gKCkgPT4ge1xyXG4gIGNvbnN0IFtzZWFyY2hQYXJhbXNdID0gdXNlU2VhcmNoUGFyYW1zKCk7XHJcbiAgY29uc3QgeyBzZWxlY3RlZE9yZ0lkLCBzZWxlY3RlZENvbXBhbnksIGNvbXBhbmllczogc2NvcGVDb21wYW5pZXMsIHJlZmV0Y2hDb21wYW5pZXMgfSA9IHVzZUNvbXBhbnlTY29wZSgpO1xyXG4gIGNvbnN0IFthZG1pbnMsIHNldEFkbWluc10gPSB1c2VTdGF0ZShbXSk7XHJcbiAgY29uc3QgW29yZ2FuaXphdGlvbnMsIHNldE9yZ2FuaXphdGlvbnNdID0gdXNlU3RhdGUoW10pO1xyXG4gIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKHRydWUpO1xyXG4gIGNvbnN0IFtzZWFyY2hUZXJtLCBzZXRTZWFyY2hUZXJtXSA9IHVzZVN0YXRlKCcnKTtcclxuXHJcbiAgLy8gTW9kYWwgU3RhdGVzXHJcbiAgY29uc3QgW3Nob3dDcmVhdGVNb2RhbCwgc2V0U2hvd0NyZWF0ZU1vZGFsXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuICBjb25zdCBbc2hvd0VkaXRNb2RhbCwgc2V0U2hvd0VkaXRNb2RhbF0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcbiAgY29uc3QgW3Nob3dEZWxldGVNb2RhbCwgc2V0U2hvd0RlbGV0ZU1vZGFsXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuICBjb25zdCBbc2VsZWN0ZWRBZG1pbiwgc2V0U2VsZWN0ZWRBZG1pbl0gPSB1c2VTdGF0ZShudWxsKTtcclxuXHJcbiAgLy8gRm9ybSBGaWVsZHMgZm9yIENyZWF0ZSAvIEVkaXRcclxuICBjb25zdCBbZm9ybURhdGEsIHNldEZvcm1EYXRhXSA9IHVzZVN0YXRlKHtcclxuICAgIG5hbWU6ICcnLFxyXG4gICAgZW1haWw6ICcnLFxyXG4gICAgcGhvbmU6ICcnLFxyXG4gICAgb3JnYW5pemF0aW9uSWQ6ICcnLFxyXG4gICAgcGFzc3dvcmQ6ICcnLFxyXG4gICAgZGVwYXJ0bWVudDogJ0FkbWluaXN0cmF0aW9uJyxcclxuICAgIGRlc2lnbmF0aW9uOiAnU3lzdGVtIEFkbWluaXN0cmF0b3InLFxyXG4gICAgc3RhdHVzOiAnQUNUSVZFJ1xyXG4gIH0pO1xyXG5cclxuICBjb25zdCBbc3VibWl0dGluZywgc2V0U3VibWl0dGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XHJcbiAgY29uc3QgW3RvYXN0LCBzZXRUb2FzdF0gPSB1c2VTdGF0ZSh7IHR5cGU6ICcnLCB0ZXh0OiAnJyB9KTtcclxuXHJcbiAgY29uc3QgZmV0Y2hBZG1pbnMgPSBhc3luYyAoKSA9PiB7XHJcbiAgICB0cnkge1xyXG4gICAgICBzZXRMb2FkaW5nKHRydWUpO1xyXG4gICAgICBjb25zdCBwYXJhbXMgPSBzZWxlY3RlZE9yZ0lkID8geyBvcmdhbml6YXRpb25JZDogc2VsZWN0ZWRPcmdJZCB9IDoge307XHJcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5nZXQoJy9zdXBlci1hZG1pbi9hZG1pbnMnLCB7IHBhcmFtcyB9KTtcclxuICAgICAgc2V0QWRtaW5zKHJlcy5kYXRhIHx8IFtdKTtcclxuICAgIH0gY2F0Y2ggKGVycikge1xyXG4gICAgICBjb25zb2xlLmVycm9yKCdGYWlsZWQgdG8gZmV0Y2ggYWRtaW4gbGlzdDonLCBlcnIpO1xyXG4gICAgICBzaG93VG9hc3QoJ2Vycm9yJywgJ0ZhaWxlZCB0byByZXRyaWV2ZSBhZG1pbiBhY2NvdW50cy4nKTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGZldGNoT3JnYW5pemF0aW9ucyA9IGFzeW5jICgpID0+IHtcclxuICAgIHRyeSB7XHJcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5nZXQoJy9vcmdhbml6YXRpb25zJyk7XHJcbiAgICAgIGNvbnN0IGxpc3QgPSBleHRyYWN0Q29tcGFueUxpc3QocmVzLmRhdGEpO1xyXG4gICAgICBzZXRPcmdhbml6YXRpb25zKEFycmF5LmlzQXJyYXkobGlzdCkgPyBsaXN0IDogW10pO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0ZhaWxlZCB0byBmZXRjaCBvcmdhbml6YXRpb25zOicsIGVycik7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgdXNlRWZmZWN0KCgpID0+IHtcclxuICAgIGZldGNoQWRtaW5zKCk7XHJcbiAgICBmZXRjaE9yZ2FuaXphdGlvbnMoKTtcclxuICAgIGlmIChzZWFyY2hQYXJhbXMuZ2V0KCdhY3Rpb24nKSA9PT0gJ25ldycpIHtcclxuICAgICAgaGFuZGxlT3BlbkNyZWF0ZU1vZGFsKCk7XHJcbiAgICB9XHJcbiAgfSwgW3NlbGVjdGVkT3JnSWQsIHNlYXJjaFBhcmFtc10pO1xyXG5cclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgaWYgKEFycmF5LmlzQXJyYXkoc2NvcGVDb21wYW5pZXMpICYmIHNjb3BlQ29tcGFuaWVzLmxlbmd0aCA+IDApIHtcclxuICAgICAgc2V0T3JnYW5pemF0aW9ucyhzY29wZUNvbXBhbmllcyk7XHJcbiAgICB9XHJcbiAgfSwgW3Njb3BlQ29tcGFuaWVzXSk7XHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICBjb25zdCBoYW5kbGVPcmdVcGRhdGUgPSAoKSA9PiB7XHJcbiAgICAgIGZldGNoT3JnYW5pemF0aW9ucygpO1xyXG4gICAgICBmZXRjaEFkbWlucygpO1xyXG4gICAgICBpZiAocmVmZXRjaENvbXBhbmllcykgcmVmZXRjaENvbXBhbmllcygpO1xyXG4gICAgfTtcclxuICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdvcmdhbml6YXRpb24tdXBkYXRlZCcsIGhhbmRsZU9yZ1VwZGF0ZSk7XHJcbiAgICBjb25zdCBzb2NrZXQgPSBnZXRTb2NrZXQoKTtcclxuICAgIGlmIChzb2NrZXQpIHtcclxuICAgICAgc29ja2V0Lm9uKCdvcmdhbml6YXRpb25fZGVsZXRlZCcsIGhhbmRsZU9yZ1VwZGF0ZSk7XHJcbiAgICAgIHNvY2tldC5vbignb3JnYW5pemF0aW9uX2NyZWF0ZWQnLCBoYW5kbGVPcmdVcGRhdGUpO1xyXG4gICAgICBzb2NrZXQub24oJ29yZ2FuaXphdGlvbl91cGRhdGVkJywgaGFuZGxlT3JnVXBkYXRlKTtcclxuICAgIH1cclxuICAgIHJldHVybiAoKSA9PiB7XHJcbiAgICAgIHdpbmRvdy5yZW1vdmVFdmVudExpc3RlbmVyKCdvcmdhbml6YXRpb24tdXBkYXRlZCcsIGhhbmRsZU9yZ1VwZGF0ZSk7XHJcbiAgICAgIGlmIChzb2NrZXQpIHtcclxuICAgICAgICBzb2NrZXQub2ZmKCdvcmdhbml6YXRpb25fZGVsZXRlZCcsIGhhbmRsZU9yZ1VwZGF0ZSk7XHJcbiAgICAgICAgc29ja2V0Lm9mZignb3JnYW5pemF0aW9uX2NyZWF0ZWQnLCBoYW5kbGVPcmdVcGRhdGUpO1xyXG4gICAgICAgIHNvY2tldC5vZmYoJ29yZ2FuaXphdGlvbl91cGRhdGVkJywgaGFuZGxlT3JnVXBkYXRlKTtcclxuICAgICAgfVxyXG4gICAgfTtcclxuICB9LCBbcmVmZXRjaENvbXBhbmllc10pO1xyXG5cclxuICBjb25zdCBzaG93VG9hc3QgPSAodHlwZSwgdGV4dCkgPT4ge1xyXG4gICAgc2V0VG9hc3QoeyB0eXBlLCB0ZXh0IH0pO1xyXG4gICAgc2V0VGltZW91dCgoKSA9PiBzZXRUb2FzdCh7IHR5cGU6ICcnLCB0ZXh0OiAnJyB9KSwgMzUwMCk7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgaGFuZGxlT3BlbkNyZWF0ZU1vZGFsID0gKCkgPT4ge1xyXG4gICAgY29uc3QgdmFsaWRPcmdzID0gKG9yZ2FuaXphdGlvbnMubGVuZ3RoID4gMCA/IG9yZ2FuaXphdGlvbnMgOiBzY29wZUNvbXBhbmllcykgfHwgW107XHJcbiAgICBjb25zdCBkZWZhdWx0T3JnSWQgPSAoc2VsZWN0ZWRPcmdJZCAmJiBzZWxlY3RlZE9yZ0lkICE9PSAnYWxsJyAmJiB2YWxpZE9yZ3Muc29tZShvID0+IG8uaWQgPT09IHNlbGVjdGVkT3JnSWQpKVxyXG4gICAgICA/IHNlbGVjdGVkT3JnSWRcclxuICAgICAgOiAodmFsaWRPcmdzWzBdPy5pZCB8fCAnJyk7XHJcblxyXG4gICAgc2V0Rm9ybURhdGEoe1xyXG4gICAgICBuYW1lOiAnJyxcclxuICAgICAgZW1haWw6ICcnLFxyXG4gICAgICBwaG9uZTogJycsXHJcbiAgICAgIG9yZ2FuaXphdGlvbklkOiBkZWZhdWx0T3JnSWQsXHJcbiAgICAgIHBhc3N3b3JkOiAnQWRtaW5QYXNzd29yZEAxMjMnLFxyXG4gICAgICBkZXBhcnRtZW50OiAnQWRtaW5pc3RyYXRpb24nLFxyXG4gICAgICBkZXNpZ25hdGlvbjogJ1N5c3RlbSBBZG1pbmlzdHJhdG9yJyxcclxuICAgICAgc3RhdHVzOiAnQUNUSVZFJ1xyXG4gICAgfSk7XHJcbiAgICBzZXRTaG93Q3JlYXRlTW9kYWwodHJ1ZSk7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgaGFuZGxlT3BlbkVkaXRNb2RhbCA9IChhZG1pbikgPT4ge1xyXG4gICAgc2V0U2VsZWN0ZWRBZG1pbihhZG1pbik7XHJcbiAgICBzZXRGb3JtRGF0YSh7XHJcbiAgICAgIG5hbWU6IGFkbWluLm5hbWUgfHwgJycsXHJcbiAgICAgIGVtYWlsOiBhZG1pbi5lbWFpbCB8fCAnJyxcclxuICAgICAgcGhvbmU6IGFkbWluLnBob25lIHx8ICcnLFxyXG4gICAgICBvcmdhbml6YXRpb25JZDogYWRtaW4ub3JnYW5pemF0aW9uSWQgfHwgYWRtaW4ub3JnYW5pemF0aW9uPy5pZCB8fCAnJyxcclxuICAgICAgcGFzc3dvcmQ6ICcnLFxyXG4gICAgICBkZXBhcnRtZW50OiBhZG1pbi5kZXBhcnRtZW50IHx8ICdBZG1pbmlzdHJhdGlvbicsXHJcbiAgICAgIGRlc2lnbmF0aW9uOiBhZG1pbi5kZXNpZ25hdGlvbiB8fCAnU3lzdGVtIEFkbWluaXN0cmF0b3InLFxyXG4gICAgICBzdGF0dXM6IGFkbWluLnN0YXR1cyB8fCAnQUNUSVZFJ1xyXG4gICAgfSk7XHJcbiAgICBzZXRTaG93RWRpdE1vZGFsKHRydWUpO1xyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZU9wZW5EZWxldGVNb2RhbCA9IChhZG1pbikgPT4ge1xyXG4gICAgc2V0U2VsZWN0ZWRBZG1pbihhZG1pbik7XHJcbiAgICBzZXRTaG93RGVsZXRlTW9kYWwodHJ1ZSk7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgaGFuZGxlQ3JlYXRlQWRtaW4gPSBhc3luYyAoZSkgPT4ge1xyXG4gICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xyXG4gICAgaWYgKCFmb3JtRGF0YS5uYW1lIHx8ICFmb3JtRGF0YS5lbWFpbCB8fCAhZm9ybURhdGEucGFzc3dvcmQpIHtcclxuICAgICAgc2hvd1RvYXN0KCdlcnJvcicsICdQbGVhc2UgZmlsbCBpbiBhbGwgcmVxdWlyZWQgZmllbGRzLicpO1xyXG4gICAgICByZXR1cm47XHJcbiAgICB9XHJcblxyXG4gICAgaWYgKCFmb3JtRGF0YS5vcmdhbml6YXRpb25JZCkge1xyXG4gICAgICBzaG93VG9hc3QoJ2Vycm9yJywgJ1BsZWFzZSBzZWxlY3QgYSBjb21wYW55LicpO1xyXG4gICAgICByZXR1cm47XHJcbiAgICB9XHJcblxyXG4gICAgdHJ5IHtcclxuICAgICAgc2V0U3VibWl0dGluZyh0cnVlKTtcclxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnBvc3QoJy9zdXBlci1hZG1pbi9hZG1pbnMnLCBmb3JtRGF0YSk7XHJcbiAgICAgIHNob3dUb2FzdCgnc3VjY2VzcycsIGBBZG1pbiBhY2NvdW50IGNyZWF0ZWQgc3VjY2Vzc2Z1bGx5IGZvciAke3Jlcy5kYXRhLm5hbWV9ICgke3Jlcy5kYXRhLmVtcGxveWVlSWR9KSFgKTtcclxuICAgICAgc2V0U2hvd0NyZWF0ZU1vZGFsKGZhbHNlKTtcclxuICAgICAgZmV0Y2hBZG1pbnMoKTtcclxuICAgIH0gY2F0Y2ggKGVycikge1xyXG4gICAgICBjb25zb2xlLmVycm9yKCdGYWlsZWQgdG8gY3JlYXRlIGFkbWluOicsIGVycik7XHJcbiAgICAgIHNob3dUb2FzdCgnZXJyb3InLCBlcnIucmVzcG9uc2U/LmRhdGE/Lm1lc3NhZ2UgfHwgJ0ZhaWxlZCB0byBjcmVhdGUgYWRtaW4gYWNjb3VudC4nKTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldFN1Ym1pdHRpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVVwZGF0ZUFkbWluID0gYXN5bmMgKGUpID0+IHtcclxuICAgIGUucHJldmVudERlZmF1bHQoKTtcclxuICAgIHRyeSB7XHJcbiAgICAgIHNldFN1Ym1pdHRpbmcodHJ1ZSk7XHJcbiAgICAgIGF3YWl0IGFwaS5wdXQoYC9zdXBlci1hZG1pbi9hZG1pbnMvJHtzZWxlY3RlZEFkbWluLmlkfWAsIGZvcm1EYXRhKTtcclxuICAgICAgc2hvd1RvYXN0KCdzdWNjZXNzJywgYFVwZGF0ZWQgQWRtaW4gYWNjb3VudCBmb3IgJHtmb3JtRGF0YS5uYW1lfS5gKTtcclxuICAgICAgc2V0U2hvd0VkaXRNb2RhbChmYWxzZSk7XHJcbiAgICAgIGZldGNoQWRtaW5zKCk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIHVwZGF0ZSBhZG1pbjonLCBlcnIpO1xyXG4gICAgICBzaG93VG9hc3QoJ2Vycm9yJywgZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gdXBkYXRlIGFkbWluIGFjY291bnQuJyk7XHJcbiAgICB9IGZpbmFsbHkge1xyXG4gICAgICBzZXRTdWJtaXR0aW5nKGZhbHNlKTtcclxuICAgIH1cclxuICB9O1xyXG5cclxuICBjb25zdCBoYW5kbGVEZWxldGVBZG1pbiA9IGFzeW5jICgpID0+IHtcclxuICAgIHRyeSB7XHJcbiAgICAgIHNldFN1Ym1pdHRpbmcodHJ1ZSk7XHJcbiAgICAgIGF3YWl0IGFwaS5kZWxldGUoYC9zdXBlci1hZG1pbi9hZG1pbnMvJHtzZWxlY3RlZEFkbWluLmlkfWApO1xyXG4gICAgICBzaG93VG9hc3QoJ3N1Y2Nlc3MnLCBgQWRtaW4gYWNjb3VudCBmb3IgJHtzZWxlY3RlZEFkbWluLm5hbWV9IGRlbGV0ZWQuYCk7XHJcbiAgICAgIHNldFNob3dEZWxldGVNb2RhbChmYWxzZSk7XHJcbiAgICAgIGZldGNoQWRtaW5zKCk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIGRlbGV0ZSBhZG1pbjonLCBlcnIpO1xyXG4gICAgICBzaG93VG9hc3QoJ2Vycm9yJywgZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gZGVsZXRlIGFkbWluIGFjY291bnQuJyk7XHJcbiAgICB9IGZpbmFsbHkge1xyXG4gICAgICBzZXRTdWJtaXR0aW5nKGZhbHNlKTtcclxuICAgIH1cclxuICB9O1xyXG5cclxuICBjb25zdCBoYW5kbGVUb2dnbGVTdGF0dXMgPSBhc3luYyAoYWRtaW4pID0+IHtcclxuICAgIGNvbnN0IG5leHRTdGF0dXMgPSBhZG1pbi5zdGF0dXMgPT09ICdBQ1RJVkUnID8gJ0lOQUNUSVZFJyA6ICdBQ1RJVkUnO1xyXG4gICAgdHJ5IHtcclxuICAgICAgYXdhaXQgYXBpLnB1dChgL3N1cGVyLWFkbWluL2FkbWlucy8ke2FkbWluLmlkfWAsIHsgc3RhdHVzOiBuZXh0U3RhdHVzIH0pO1xyXG4gICAgICBzaG93VG9hc3QoJ3N1Y2Nlc3MnLCBgQWRtaW4gJHthZG1pbi5uYW1lfSBzdGF0dXMgc2V0IHRvICR7bmV4dFN0YXR1c30uYCk7XHJcbiAgICAgIGZldGNoQWRtaW5zKCk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIHRvZ2dsZSBhZG1pbiBzdGF0dXM6JywgZXJyKTtcclxuICAgICAgc2hvd1RvYXN0KCdlcnJvcicsICdGYWlsZWQgdG8gdXBkYXRlIGFkbWluIHN0YXR1cy4nKTtcclxuICAgIH1cclxuICB9O1xyXG5cclxuICBjb25zdCBmaWx0ZXJlZEFkbWlucyA9IGFkbWlucy5maWx0ZXIoKGFkbWluKSA9PiB7XHJcbiAgICBjb25zdCB0ZXJtID0gc2VhcmNoVGVybS50cmltKCkudG9Mb3dlckNhc2UoKTtcclxuICAgIGlmICghdGVybSkgcmV0dXJuIHRydWU7XHJcbiAgICByZXR1cm4gKFxyXG4gICAgICAoYWRtaW4ubmFtZSAmJiBhZG1pbi5uYW1lLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXModGVybSkpIHx8XHJcbiAgICAgIChhZG1pbi5lbWFpbCAmJiBhZG1pbi5lbWFpbC50b0xvd2VyQ2FzZSgpLmluY2x1ZGVzKHRlcm0pKSB8fFxyXG4gICAgICAoYWRtaW4uZW1wbG95ZWVJZCAmJiBhZG1pbi5lbXBsb3llZUlkLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXModGVybSkpIHx8XHJcbiAgICAgIChhZG1pbi5kZXBhcnRtZW50ICYmIGFkbWluLmRlcGFydG1lbnQudG9Mb3dlckNhc2UoKS5pbmNsdWRlcyh0ZXJtKSkgfHxcclxuICAgICAgKGFkbWluLmRlc2lnbmF0aW9uICYmIGFkbWluLmRlc2lnbmF0aW9uLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXModGVybSkpIHx8XHJcbiAgICAgIChhZG1pbi5vcmdhbml6YXRpb24/Lm5hbWUgJiYgYWRtaW4ub3JnYW5pemF0aW9uLm5hbWUudG9Mb3dlckNhc2UoKS5pbmNsdWRlcyh0ZXJtKSkgfHxcclxuICAgICAgKGFkbWluLm9yZ2FuaXphdGlvbj8uY29tcGFueUNvZGUgJiYgYWRtaW4ub3JnYW5pemF0aW9uLmNvbXBhbnlDb2RlLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXModGVybSkpXHJcbiAgICApO1xyXG4gIH0pO1xyXG5cclxuICByZXR1cm4gKFxyXG4gICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTYgdGV4dC1sZWZ0XCI+XHJcbiAgICAgIHsvKiBIZWFkZXIgKi99XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBmbGV4LWNvbCBzbTpmbGV4LXJvdyBzbTppdGVtcy1jZW50ZXIgc206anVzdGlmeS1iZXR3ZWVuIGdhcC00IGJvcmRlci1iIGJvcmRlci1ib3JkZXIvMzAgcGItNFwiPlxyXG4gICAgICAgIDxkaXY+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiByb3VuZGVkLWZ1bGwgYmctcHJpbWFyeS8xMCBweC0zIHB5LTEgdGV4dC14cyBmb250LWJvbGQgdGV4dC1wcmltYXJ5IGJvcmRlciBib3JkZXItcHJpbWFyeS8yMCBtYi0yXCI+XHJcbiAgICAgICAgICAgIDxVc2VyQ2hlY2sgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjVcIiAvPlxyXG4gICAgICAgICAgICA8c3Bhbj5BZG1pbmlzdHJhdG9yIE1hbmFnZW1lbnQgTW9kdWxlPC9zcGFuPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8aDEgY2xhc3NOYW1lPVwidGV4dC0yeGwgZm9udC1leHRyYWJvbGQgdGV4dC1mb3JlZ3JvdW5kIHRyYWNraW5nLXRpZ2h0XCI+XHJcbiAgICAgICAgICAgIEFkbWluIEFjY291bnRzIE1hbmFnZW1lbnRcclxuICAgICAgICAgIDwvaDE+XHJcbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxyXG4gICAgICAgICAgICBQcm92aXNpb24sIHVwZGF0ZSwgZGlzYWJsZSwgZGVsZXRlLCBhbmQgbWFuYWdlIHN5c3RlbSBBZG1pbmlzdHJhdG9yIGFjY291bnRzLiBBbGwgYWN0aW9ucyBsb2cgYXVkaXQgZW50cmllcy5cclxuICAgICAgICAgIDwvcD5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgb25DbGljaz17aGFuZGxlT3BlbkNyZWF0ZU1vZGFsfVxyXG4gICAgICAgICAgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgcm91bmRlZC14bCBiZy1wcmltYXJ5IHB4LTUgcHktMi41IHRleHQteHMgZm9udC1ib2xkIHRleHQtd2hpdGUgaG92ZXI6YmctcHJpbWFyeS1ob3ZlciBzaGFkb3ctbWQgdHJhbnNpdGlvbi1hbGwgc2hyaW5rLTBcIlxyXG4gICAgICAgID5cclxuICAgICAgICAgIDxQbHVzIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgPHNwYW4+UHJvdmlzaW9uIE5ldyBBZG1pbjwvc3Bhbj5cclxuICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgPC9kaXY+XHJcblxyXG4gICAgICB7LyogU2hhcmVkIENvbXBhbnkgU2NvcGUgU2VsZWN0b3IgQmFyICovfVxyXG4gICAgICA8Q29tcGFueVNjb3BlU2VsZWN0b3IgYWxsb3dBbGxDb21wYW5pZXM9e3RydWV9IC8+XHJcblxyXG4gICAgICB7dG9hc3QudGV4dCAmJiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9e2BwLTQgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiAke3RvYXN0LnR5cGUgPT09ICdzdWNjZXNzJyA/ICdiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeSBib3JkZXIgYm9yZGVyLXByaW1hcnkvMzAnIDogJ2JnLXJlZC01MDAvMTAgdGV4dC1yZWQtNTAwIGJvcmRlciBib3JkZXItcmVkLTUwMC8zMCd9YH0+XHJcbiAgICAgICAgICB7dG9hc3QudHlwZSA9PT0gJ3N1Y2Nlc3MnID8gPENoZWNrQ2lyY2xlMiBjbGFzc05hbWU9XCJoLTQgdy00IHNocmluay0wXCIgLz4gOiA8QWxlcnRDaXJjbGUgY2xhc3NOYW1lPVwiaC00IHctNCBzaHJpbmstMFwiIC8+fVxyXG4gICAgICAgICAgPHNwYW4+e3RvYXN0LnRleHR9PC9zcGFuPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICApfVxyXG5cclxuICAgICAgey8qIEZpbHRlciAvIFNlYXJjaCBDb250cm9scyAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJyb3VuZGVkLTJ4bCBib3JkZXIgYm9yZGVyLWJvcmRlci80MCBiZy1jYXJkIHAtNCBzaGFkb3ctc21cIj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIGZsZXgtMSB3LWZ1bGxcIj5cclxuICAgICAgICAgIDxTZWFyY2ggY2xhc3NOYW1lPVwiYWJzb2x1dGUgbGVmdC0zLjUgdG9wLTEvMiAtdHJhbnNsYXRlLXktMS8yIGgtNCB3LTQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCIgLz5cclxuICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiU2VhcmNoIGFkbWlucyBieSBuYW1lLCBlbWFpbCwgZW1wbG95ZWUgSUQsIGRlcGFydG1lbnQuLi5cIlxyXG4gICAgICAgICAgICB2YWx1ZT17c2VhcmNoVGVybX1cclxuICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRTZWFyY2hUZXJtKGUudGFyZ2V0LnZhbHVlKX1cclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctYmFja2dyb3VuZCBwbC0xMCBwci00IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgLz5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgPC9kaXY+XHJcblxyXG4gICAgICB7LyogQWRtaW4gVXNlcnMgVGFibGUgKi99XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy1mdWxsIG1pbi13LTAgb3ZlcmZsb3cteC1hdXRvIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzQwIGJnLWNhcmQgc2hhZG93LXNtXCI+XHJcbiAgICAgICAgPHRhYmxlIGNsYXNzTmFtZT1cInctZnVsbCBtaW4tdy1bOTAwcHhdIHRleHQtc20gYm9yZGVyLWNvbGxhcHNlIHRleHQtbGVmdFwiPlxyXG4gICAgICAgICAgPHRoZWFkPlxyXG4gICAgICAgICAgICA8dHIgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCB1cHBlcmNhc2UgYm9yZGVyLWIgYm9yZGVyLWJvcmRlci8zMCBiZy1tdXRlZC8yMCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxyXG4gICAgICAgICAgICAgIDx0aCBjbGFzc05hbWU9XCJweC02IHB5LTQgd2hpdGVzcGFjZS1ub3dyYXBcIj5BZG1pbiBQcm9maWxlPC90aD5cclxuICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicHgtNiBweS00IHdoaXRlc3BhY2Utbm93cmFwXCI+Q29tcGFueTwvdGg+XHJcbiAgICAgICAgICAgICAgPHRoIGNsYXNzTmFtZT1cInB4LTYgcHktNCB3aGl0ZXNwYWNlLW5vd3JhcFwiPkRlcGFydG1lbnQgJiBEZXNpZ25hdGlvbjwvdGg+XHJcbiAgICAgICAgICAgICAgPHRoIGNsYXNzTmFtZT1cInB4LTYgcHktNCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlN0YXR1czwvdGg+XHJcbiAgICAgICAgICAgICAgPHRoIGNsYXNzTmFtZT1cInB4LTYgcHktNCB3aGl0ZXNwYWNlLW5vd3JhcFwiPkNyZWF0ZWQgRGF0ZTwvdGg+XHJcbiAgICAgICAgICAgICAgPHRoIGNsYXNzTmFtZT1cInB4LTYgcHktNCB0ZXh0LXJpZ2h0IHdoaXRlc3BhY2Utbm93cmFwXCI+QWN0aW9uczwvdGg+XHJcbiAgICAgICAgICAgIDwvdHI+XHJcbiAgICAgICAgICA8L3RoZWFkPlxyXG4gICAgICAgICAgPHRib2R5IGNsYXNzTmFtZT1cImRpdmlkZS15IGRpdmlkZS1ib3JkZXIvMjAgdGV4dC14c1wiPlxyXG4gICAgICAgICAgICB7bG9hZGluZyA/IChcclxuICAgICAgICAgICAgICA8dHI+XHJcbiAgICAgICAgICAgICAgICA8dGQgY29sU3Bhbj17Nn0gY2xhc3NOYW1lPVwicHgtNiBweS0xMiB0ZXh0LWNlbnRlciB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMlwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPVwiaC00IHctNCBhbmltYXRlLXNwaW4gdGV4dC1wcmltYXJ5XCIgLz5cclxuICAgICAgICAgICAgICAgICAgICA8c3Bhbj5Mb2FkaW5nIGFkbWluIGFjY291bnRzLi4uPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgPC90cj5cclxuICAgICAgICAgICAgKSA6IGZpbHRlcmVkQWRtaW5zLmxlbmd0aCA9PT0gMCA/IChcclxuICAgICAgICAgICAgICA8dHI+XHJcbiAgICAgICAgICAgICAgICA8dGQgY29sU3Bhbj17Nn0gY2xhc3NOYW1lPVwicHgtNiBweS0xMCB0ZXh0LWNlbnRlciB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cclxuICAgICAgICAgICAgICAgICAge3NlYXJjaFRlcm1cclxuICAgICAgICAgICAgICAgICAgICA/IGBObyBhZG1pbmlzdHJhdG9yIGFjY291bnRzIG1hdGNoIFwiJHtzZWFyY2hUZXJtfVwiLmBcclxuICAgICAgICAgICAgICAgICAgICA6IGBObyBhZG1pbmlzdHJhdG9yIGFjY291bnRzIGZvdW5kIGZvciAke3NlbGVjdGVkQ29tcGFueT8ubmFtZSB8fCAndGhpcyBjb21wYW55J30uYH1cclxuICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgPC90cj5cclxuICAgICAgICAgICAgKSA6IChcclxuICAgICAgICAgICAgICBmaWx0ZXJlZEFkbWlucy5tYXAoKGFkbWluKSA9PiAoXHJcbiAgICAgICAgICAgICAgICA8dHIga2V5PXthZG1pbi5pZH0gY2xhc3NOYW1lPVwiaG92ZXI6YmctbXV0ZWQvMTAgdHJhbnNpdGlvbi1hbGwgd2hpdGVzcGFjZS1ub3dyYXBcIj5cclxuICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cInB4LTYgcHktNCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTNcIj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxVc2VyQXZhdGFyIHVzZXI9e2FkbWlufSBjbGFzc05hbWU9XCJoLTkgdy05IHNocmluay0wXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgdGV4dC14c1wiPnthZG1pbi5uYW1lfTwvcD5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPnthZG1pbi5lbWFpbH0g4oCiIHthZG1pbi5lbXBsb3llZUlkfTwvcD5cclxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8L3RkPlxyXG4gICAgICAgICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwicHgtNiBweS00IHdoaXRlc3BhY2Utbm93cmFwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAge2FkbWluLm9yZ2FuaXphdGlvbj8ubmFtZSA/IChcclxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHB4LTIuNSBweS0xIHJvdW5kZWQtZnVsbCBiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeSBib3JkZXIgYm9yZGVyLXByaW1hcnkvMjAgdGV4dC1bMTFweF0gZm9udC1ib2xkIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciBzaHJpbmstMCBzaGFkb3ctMnhzXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxCdWlsZGluZzIgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1wcmltYXJ5IHNocmluay0wXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4+e2FkbWluLm9yZ2FuaXphdGlvbi5uYW1lfTwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICApIDogKFxyXG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbWVkaXVtXCI+4oCUPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJweC02IHB5LTQgd2hpdGVzcGFjZS1ub3dyYXBcIj5cclxuICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtZm9yZWdyb3VuZFwiPnthZG1pbi5kZXBhcnRtZW50IHx8ICdBZG1pbmlzdHJhdGlvbid9PC9wPlxyXG4gICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPnthZG1pbi5kZXNpZ25hdGlvbiB8fCAnU3lzdGVtIEFkbWluaXN0cmF0b3InfTwvcD5cclxuICAgICAgICAgICAgICAgICAgPC90ZD5cclxuICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cInB4LTYgcHktNCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT17YGlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSByb3VuZGVkLWZ1bGwgcHgtMi41IHB5LTAuNSB0ZXh0LVsxMHB4XSBmb250LWJvbGQgdXBwZXJjYXNlICR7YWRtaW4uc3RhdHVzID09PSAnQUNUSVZFJyA/ICdiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeScgOiAnYmctcm9zZS01MDAvMTAgdGV4dC1yb3NlLTYwMCd9YH0+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9e2BoLTEuNSB3LTEuNSByb3VuZGVkLWZ1bGwgJHthZG1pbi5zdGF0dXMgPT09ICdBQ1RJVkUnID8gJ2JnLXByaW1hcnknIDogJ2JnLXJvc2UtNTAwJ31gfSAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAge2FkbWluLnN0YXR1c31cclxuICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJweC02IHB5LTQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIHdoaXRlc3BhY2Utbm93cmFwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAge25ldyBEYXRlKGFkbWluLmNyZWF0ZWRBdCkudG9Mb2NhbGVEYXRlU3RyaW5nKCl9XHJcbiAgICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJweC02IHB5LTQgdGV4dC1yaWdodCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1lbmQgZ2FwLTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVPcGVuRWRpdE1vZGFsKGFkbWluKX1cclxuICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicC0xLjUgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtcHJpbWFyeSBob3ZlcjpiZy1wcmltYXJ5LzEwIHJvdW5kZWQtbGcgdHJhbnNpdGlvbi1hbGxcIlxyXG4gICAgICAgICAgICAgICAgICAgICAgICB0aXRsZT1cIkVkaXQgQWRtaW4gQWNjb3VudFwiXHJcbiAgICAgICAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxFZGl0MyBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz5cclxuICAgICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG5cclxuICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gaGFuZGxlVG9nZ2xlU3RhdHVzKGFkbWluKX1cclxuICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgcC0xLjUgcm91bmRlZC1sZyB0cmFuc2l0aW9uLWFsbCAke2FkbWluLnN0YXR1cyA9PT0gJ0FDVElWRScgPyAndGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtcm9zZS02MDAgaG92ZXI6Ymctcm9zZS01MDAvMTAnIDogJ3RleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3Zlcjp0ZXh0LXByaW1hcnkgaG92ZXI6YmctcHJpbWFyeS8xMCd9YH1cclxuICAgICAgICAgICAgICAgICAgICAgICAgdGl0bGU9e2FkbWluLnN0YXR1cyA9PT0gJ0FDVElWRScgPyAnRGlzYWJsZSBBZG1pbicgOiAnQWN0aXZhdGUgQWRtaW4nfVxyXG4gICAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICB7YWRtaW4uc3RhdHVzID09PSAnQUNUSVZFJyA/IDxVc2VyWCBjbGFzc05hbWU9XCJoLTQgdy00XCIgLz4gOiA8VXNlckNoZWNrIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPn1cclxuICAgICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG5cclxuICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gaGFuZGxlT3BlbkRlbGV0ZU1vZGFsKGFkbWluKX1cclxuICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicC0xLjUgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtcm9zZS02MDAgaG92ZXI6Ymctcm9zZS01MDAvMTAgcm91bmRlZC1sZyB0cmFuc2l0aW9uLWFsbFwiXHJcbiAgICAgICAgICAgICAgICAgICAgICAgIHRpdGxlPVwiRGVsZXRlIEFkbWluIEFjY291bnRcIlxyXG4gICAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8VHJhc2gyIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgICA8L3RyPlxyXG4gICAgICAgICAgICAgICkpXHJcbiAgICAgICAgICAgICl9XHJcbiAgICAgICAgICA8L3Rib2R5PlxyXG4gICAgICAgIDwvdGFibGU+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgey8qIENyZWF0ZSBBZG1pbiBNb2RhbCAqL31cclxuICAgICAge3Nob3dDcmVhdGVNb2RhbCAmJiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmaXhlZCBpbnNldC0wIHotNTAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgYmctYmxhY2svNjAgYmFja2Ryb3AtYmx1ci14cyBwLTRcIj5cclxuICAgICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVDcmVhdGVBZG1pbn0gY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LWxnIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzQwIGJnLWNhcmQgcC02IHNoYWRvdy0yeGwgc3BhY2UteS00IHRleHQtbGVmdFwiPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBib3JkZXItYiBib3JkZXItYm9yZGVyLzMwIHBiLTNcIj5cclxuICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5Qcm92aXNpb24gTmV3IEFkbWluIEFjY291bnQ8L2gzPlxyXG4gICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxyXG4gICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0U2hvd0NyZWF0ZU1vZGFsKGZhbHNlKX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMSB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kIHJvdW5kZWQtbGdcIlxyXG4gICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgIDxYIGNsYXNzTmFtZT1cImgtNSB3LTVcIiAvPlxyXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtNFwiPlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjUgc206Y29sLXNwYW4tMlwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlxyXG4gICAgICAgICAgICAgICAgICBGdWxsIE5hbWUgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1yZWQtNTAwXCI+Kjwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEubmFtZX1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBuYW1lOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJlLmcuIEFsZXhhbmRlciBQaWVyY2VcIlxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBiZy1iYWNrZ3JvdW5kIHB4LTMuNSBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gdGV4dC1mb3JlZ3JvdW5kIGZvY3VzOm91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1wcmltYXJ5LzQwXCJcclxuICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcclxuICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjVcIj5cclxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5cclxuICAgICAgICAgICAgICAgICAgRW1haWwgQWRkcmVzcyA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXJlZC01MDBcIj4qPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICB0eXBlPVwiZW1haWxcIlxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEuZW1haWx9XHJcbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgZW1haWw6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cImFkbWluQGNvbXBhbnkuY29tXCJcclxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctYmFja2dyb3VuZCBweC0zLjUgcHktMiB0ZXh0LXhzIGZvbnQtbWVkaXVtIHRleHQtZm9yZWdyb3VuZCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS80MFwiXHJcbiAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMS41XCI+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+XHJcbiAgICAgICAgICAgICAgICAgIFBob25lIE51bWJlclxyXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5waG9uZX1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBwaG9uZTogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiKzkxIDk4NzY1NDMyMTBcIlxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBiZy1iYWNrZ3JvdW5kIHB4LTMuNSBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gdGV4dC1mb3JlZ3JvdW5kIGZvY3VzOm91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1wcmltYXJ5LzQwXCJcclxuICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjUgc206Y29sLXNwYW4tMlwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlxyXG4gICAgICAgICAgICAgICAgICBDb21wYW55IChPcmdhbml6YXRpb24pIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtcmVkLTUwMFwiPio8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPHNlbGVjdFxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEub3JnYW5pemF0aW9uSWR9XHJcbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgb3JnYW5pemF0aW9uSWQ6IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBiZy1iYWNrZ3JvdW5kIHB4LTMuNSBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gdGV4dC1mb3JlZ3JvdW5kIGZvY3VzOm91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1wcmltYXJ5LzQwIGN1cnNvci1wb2ludGVyXCJcclxuICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcclxuICAgICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlwiPi0tIFNlbGVjdCBDb21wYW55IC0tPC9vcHRpb24+XHJcbiAgICAgICAgICAgICAgICAgIHtvcmdhbml6YXRpb25zLm1hcCgob3JnKSA9PiAoXHJcbiAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiBrZXk9e29yZy5pZH0gdmFsdWU9e29yZy5pZH0+XHJcbiAgICAgICAgICAgICAgICAgICAgICB7b3JnLm5hbWV9IHtvcmcuY29tcGFueUNvZGUgPyBgKCR7b3JnLmNvbXBhbnlDb2RlfSlgIDogJyd9XHJcbiAgICAgICAgICAgICAgICAgICAgPC9vcHRpb24+XHJcbiAgICAgICAgICAgICAgICAgICkpfVxyXG4gICAgICAgICAgICAgICAgPC9zZWxlY3Q+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjUgc206Y29sLXNwYW4tMlwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlxyXG4gICAgICAgICAgICAgICAgICBJbml0aWFsIFBhc3N3b3JkIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtcmVkLTUwMFwiPio8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnBhc3N3b3JkfVxyXG4gICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIHBhc3N3b3JkOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJFbnRlciBpbml0aWFsIHBhc3N3b3JkXCJcclxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctYmFja2dyb3VuZCBweC0zLjUgcHktMiB0ZXh0LXhzIGZvbnQtbWVkaXVtIHRleHQtZm9yZWdyb3VuZCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS80MFwiXHJcbiAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMS41XCI+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+RGVwYXJ0bWVudDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEuZGVwYXJ0bWVudH1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBkZXBhcnRtZW50OiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctYmFja2dyb3VuZCBweC0zLjUgcHktMiB0ZXh0LXhzIGZvbnQtbWVkaXVtIHRleHQtZm9yZWdyb3VuZCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS80MFwiXHJcbiAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMS41XCI+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+RGVzaWduYXRpb248L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLmRlc2lnbmF0aW9ufVxyXG4gICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIGRlc2lnbmF0aW9uOiBlLnRhcmdldC52YWx1ZSB9KX1cclxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctYmFja2dyb3VuZCBweC0zLjUgcHktMiB0ZXh0LXhzIGZvbnQtbWVkaXVtIHRleHQtZm9yZWdyb3VuZCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS80MFwiXHJcbiAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWVuZCBnYXAtMyBib3JkZXItdCBib3JkZXItYm9yZGVyLzMwIHB0LTRcIj5cclxuICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldFNob3dDcmVhdGVNb2RhbChmYWxzZSl9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC00IHB5LTIgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgdHJhbnNpdGlvbi1hbGxcIlxyXG4gICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgIENhbmNlbFxyXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgIHR5cGU9XCJzdWJtaXRcIlxyXG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC01IHB5LTIgcm91bmRlZC14bCBiZy1wcmltYXJ5IHRleHQteHMgZm9udC1ib2xkIHRleHQtd2hpdGUgaG92ZXI6YmctcHJpbWFyeS1ob3ZlciB0cmFuc2l0aW9uLWFsbFwiXHJcbiAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAge3N1Ym1pdHRpbmcgPyAnQ3JlYXRpbmcuLi4nIDogJ1Byb3Zpc2lvbiBBZG1pbiBBY2NvdW50J31cclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8L2Zvcm0+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgICl9XHJcblxyXG4gICAgICB7LyogRWRpdCBBZG1pbiBNb2RhbCAqL31cclxuICAgICAge3Nob3dFZGl0TW9kYWwgJiYgc2VsZWN0ZWRBZG1pbiAmJiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmaXhlZCBpbnNldC0wIHotNTAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgYmctYmxhY2svNjAgYmFja2Ryb3AtYmx1ci14cyBwLTRcIj5cclxuICAgICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVVcGRhdGVBZG1pbn0gY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LWxnIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzQwIGJnLWNhcmQgcC02IHNoYWRvdy0yeGwgc3BhY2UteS00IHRleHQtbGVmdFwiPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBib3JkZXItYiBib3JkZXItYm9yZGVyLzMwIHBiLTNcIj5cclxuICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5FZGl0IEFkbWluICh7c2VsZWN0ZWRBZG1pbi5lbXBsb3llZUlkfSk8L2gzPlxyXG4gICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxyXG4gICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0U2hvd0VkaXRNb2RhbChmYWxzZSl9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJwLTEgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZm9yZWdyb3VuZCByb3VuZGVkLWxnXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICA8WCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMS41IHNtOmNvbC1zcGFuLTJcIj5cclxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5GdWxsIE5hbWU8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLm5hbWV9XHJcbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgbmFtZTogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPkVtYWlsIEFkZHJlc3M8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJlbWFpbFwiXHJcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5lbWFpbH1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBlbWFpbDogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlBob25lPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5waG9uZX1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBwaG9uZTogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNSBzbTpjb2wtc3Bhbi0yXCI+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+Q29tcGFueSAoT3JnYW5pemF0aW9uKTwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c2VsZWN0XHJcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5vcmdhbml6YXRpb25JZH1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBvcmdhbml6YXRpb25JZDogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDAgY3Vyc29yLXBvaW50ZXJcIlxyXG4gICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiXCI+LS0gU2VsZWN0IENvbXBhbnkgLS08L29wdGlvbj5cclxuICAgICAgICAgICAgICAgICAge29yZ2FuaXphdGlvbnMubWFwKChvcmcpID0+IChcclxuICAgICAgICAgICAgICAgICAgICA8b3B0aW9uIGtleT17b3JnLmlkfSB2YWx1ZT17b3JnLmlkfT5cclxuICAgICAgICAgICAgICAgICAgICAgIHtvcmcubmFtZX0ge29yZy5jb21wYW55Q29kZSA/IGAoJHtvcmcuY29tcGFueUNvZGV9KWAgOiAnJ31cclxuICAgICAgICAgICAgICAgICAgICA8L29wdGlvbj5cclxuICAgICAgICAgICAgICAgICAgKSl9XHJcbiAgICAgICAgICAgICAgICA8L3NlbGVjdD5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPkRlcGFydG1lbnQ8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLmRlcGFydG1lbnR9XHJcbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgZGVwYXJ0bWVudDogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPkRlc2lnbmF0aW9uPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5kZXNpZ25hdGlvbn1cclxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBkZXNpZ25hdGlvbjogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLWJhY2tncm91bmQgcHgtMy41IHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDBcIlxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1lbmQgZ2FwLTMgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci8zMCBwdC00XCI+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRTaG93RWRpdE1vZGFsKGZhbHNlKX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTQgcHktMiByb3VuZGVkLXhsIHRleHQteHMgZm9udC1ib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZCB0cmFuc2l0aW9uLWFsbFwiXHJcbiAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgQ2FuY2VsXHJcbiAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgdHlwZT1cInN1Ym1pdFwiXHJcbiAgICAgICAgICAgICAgICBkaXNhYmxlZD17c3VibWl0dGluZ31cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTUgcHktMiByb3VuZGVkLXhsIGJnLXByaW1hcnkgdGV4dC14cyBmb250LWJvbGQgdGV4dC13aGl0ZSBob3ZlcjpiZy1wcmltYXJ5LWhvdmVyIHRyYW5zaXRpb24tYWxsXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICB7c3VibWl0dGluZyA/ICdTYXZpbmcuLi4nIDogJ1NhdmUgQ2hhbmdlcyd9XHJcbiAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9mb3JtPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICApfVxyXG5cclxuICAgICAgey8qIERlbGV0ZSBBZG1pbiBDb25maXJtYXRpb24gTW9kYWwgKi99XHJcbiAgICAgIHtzaG93RGVsZXRlTW9kYWwgJiYgc2VsZWN0ZWRBZG1pbiAmJiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmaXhlZCBpbnNldC0wIHotNTAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgYmctYmxhY2svNjAgYmFja2Ryb3AtYmx1ci14cyBwLTRcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LW1kIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzQwIGJnLWNhcmQgcC02IHNoYWRvdy0yeGwgc3BhY2UteS00IHRleHQtbGVmdFwiPlxyXG4gICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5Db25maXJtIERlbGV0ZSBBZG1pbjwvaDM+XHJcbiAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGxlYWRpbmctcmVsYXhlZFwiPlxyXG4gICAgICAgICAgICAgIEFyZSB5b3Ugc3VyZSB5b3Ugd2FudCB0byBwZXJtYW5lbnRseSBkZWxldGUgQWRtaW4gYWNjb3VudCA8c3Ryb25nPntzZWxlY3RlZEFkbWluLm5hbWV9PC9zdHJvbmc+ICh7c2VsZWN0ZWRBZG1pbi5lbXBsb3llZUlkfSk/IFRoaXMgYWN0aW9uIHdpbGwgZ2VuZXJhdGUgYW4gQXVkaXQgTG9nLlxyXG4gICAgICAgICAgICA8L3A+XHJcblxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1lbmQgZ2FwLTMgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci8zMCBwdC00XCI+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRTaG93RGVsZXRlTW9kYWwoZmFsc2UpfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtNCBweS0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOmJnLW11dGVkIHRyYW5zaXRpb24tYWxsXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICBDYW5jZWxcclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZURlbGV0ZUFkbWlufVxyXG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC01IHB5LTIgcm91bmRlZC14bCBiZy1yb3NlLTYwMCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LXdoaXRlIGhvdmVyOmJnLXJvc2UtNzAwIHRyYW5zaXRpb24tYWxsXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICB7c3VibWl0dGluZyA/ICdEZWxldGluZy4uLicgOiAnRGVsZXRlIEFkbWluIEFjY291bnQnfVxyXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICApfVxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxufTtcclxuXHJcbmV4cG9ydCBkZWZhdWx0IEFkbWluTWFuYWdlbWVudDtcclxuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL3BhZ2VzL3N1cGVyLWFkbWluL2FkbWlucy9BZG1pbk1hbmFnZW1lbnQuanN4In0=

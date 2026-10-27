@@ -1,0 +1,428 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/worklog/WorkLogAttachmentUploader.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useRef = __vite__cjsImport3_react["useRef"]; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import {
+  Upload,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Film,
+  Music,
+  Archive,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const ALLOWED_EXTENSIONS = [
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "mp4",
+  "mov",
+  "mp3",
+  "wav",
+  "pdf",
+  "docx",
+  "xlsx",
+  "zip"
+];
+export const WorkLogAttachmentUploader = ({ attachments = [], onChange, disabled = false }) => {
+  _s();
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
+  const getFileIcon = (fileType = "", fileName = "") => {
+    const ext = fileName.split(".").pop().toLowerCase();
+    const type = fileType.toLowerCase();
+    if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext) || type.startsWith("image/")) {
+      return /* @__PURE__ */ jsxDEV(ImageIcon, { className: "w-5 h-5 text-sky-500" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 54,
+        columnNumber: 14
+      }, this);
+    }
+    if (["mp4", "mov"].includes(ext) || type.startsWith("video/")) {
+      return /* @__PURE__ */ jsxDEV(Film, { className: "w-5 h-5 text-purple-500" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 57,
+        columnNumber: 14
+      }, this);
+    }
+    if (["mp3", "wav"].includes(ext) || type.startsWith("audio/")) {
+      return /* @__PURE__ */ jsxDEV(Music, { className: "w-5 h-5 text-pink-500" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 60,
+        columnNumber: 14
+      }, this);
+    }
+    if (["xlsx", "csv"].includes(ext) || type.includes("spreadsheet") || type.includes("excel")) {
+      return /* @__PURE__ */ jsxDEV(FileSpreadsheet, { className: "w-5 h-5 text-emerald-500" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 63,
+        columnNumber: 14
+      }, this);
+    }
+    if (["zip", "rar", "7z"].includes(ext) || type.includes("zip") || type.includes("compressed")) {
+      return /* @__PURE__ */ jsxDEV(Archive, { className: "w-5 h-5 text-amber-500" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 66,
+        columnNumber: 14
+      }, this);
+    }
+    return /* @__PURE__ */ jsxDEV(FileText, { className: "w-5 h-5 text-primary" }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+      lineNumber: 68,
+      columnNumber: 12
+    }, this);
+  };
+  const formatFileSize = (bytes = 0) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+  const uploadFile = async (file) => {
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      setUploadError(`File format .${ext} is not supported. Supported: PNG, JPG, WEBP, GIF, MP4, MOV, MP3, WAV, PDF, DOCX, XLSX, ZIP.`);
+      return;
+    }
+    setUploadError("");
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/worklogs/upload-attachment", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      const newAttachment = {
+        id: res.data.id || `temp-${Date.now()}-${Math.random()}`,
+        fileName: res.data.fileName || file.name,
+        fileType: res.data.fileType || file.type,
+        fileSize: res.data.fileSize || file.size,
+        filePath: res.data.filePath,
+        uploadedAt: res.data.uploadedAt || (/* @__PURE__ */ new Date()).toISOString()
+      };
+      onChange([...attachments, newAttachment]);
+    } catch (err) {
+      console.error("Attachment upload failed:", err);
+      setUploadError(err.response?.data?.message || "Failed to upload attachment.");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const handleFiles = (files) => {
+    if (!files || files.length === 0 || disabled) return;
+    Array.from(files).forEach((file) => {
+      uploadFile(file);
+    });
+  };
+  useEffect(() => {
+    const handlePaste = (e) => {
+      if (disabled) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) {
+            let fileName = file.name;
+            if (fileName === "image.png" || fileName === "blob") {
+              const ext = file.type.split("/")[1] || "png";
+              fileName = `screenshot_${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-")}.${ext}`;
+            }
+            const renamedFile = new File([file], fileName, { type: file.type });
+            uploadFile(renamedFile);
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [attachments, disabled]);
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (!disabled) setIsDragging(true);
+  };
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (!disabled && e.dataTransfer.files) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+  const handleRemove = (index) => {
+    if (disabled) return;
+    const updated = attachments.filter((_, i) => i !== index);
+    onChange(updated);
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-3 text-left", children: [
+    /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxDEV("span", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ jsxDEV(Paperclip, { className: "w-4 h-4 text-primary" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+          lineNumber: 180,
+          columnNumber: 11
+        }, this),
+        " Attachments"
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 179,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-medium text-muted-foreground", children: "PNG, JPG, WEBP, GIF, MP4, MOV, MP3, WAV, PDF, DOCX, XLSX, ZIP" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 182,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+      lineNumber: 178,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(
+      "div",
+      {
+        onDragOver: handleDragOver,
+        onDragLeave: handleDragLeave,
+        onDrop: handleDrop,
+        onClick: () => !disabled && fileInputRef.current?.click(),
+        className: `relative border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 ${isDragging ? "border-primary bg-primary/10 shadow-md scale-[1.01]" : "border-border/80 hover:border-primary/60 hover:bg-muted/30 bg-background/50"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+        children: [
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "file",
+              ref: fileInputRef,
+              onChange: (e) => handleFiles(e.target.files),
+              multiple: true,
+              className: "hidden",
+              disabled
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+              lineNumber: 199,
+              columnNumber: 9
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col items-center justify-center space-y-1.5", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary", children: /* @__PURE__ */ jsxDEV(Upload, { className: "w-5 h-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+              lineNumber: 210,
+              columnNumber: 13
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+              lineNumber: 209,
+              columnNumber: 11
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-bold text-foreground", children: "Drag & Drop Files Here" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                lineNumber: 213,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground mt-0.5", children: [
+                "Or click to upload • Press ",
+                /* @__PURE__ */ jsxDEV("kbd", { className: "px-1.5 py-0.5 text-[10px] font-mono font-bold bg-muted border rounded shadow-xs text-foreground", children: "Ctrl+V" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                  lineNumber: 217,
+                  columnNumber: 42
+                }, this),
+                " anywhere to paste screenshots or copied files."
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                lineNumber: 216,
+                columnNumber: 13
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+              lineNumber: 212,
+              columnNumber: 11
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+            lineNumber: 208,
+            columnNumber: 9
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 188,
+        columnNumber: 7
+      },
+      this
+    ),
+    uploadError && /* @__PURE__ */ jsxDEV("div", { className: "bg-destructive/10 border border-destructive/30 text-destructive text-xs p-2.5 rounded-xl flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxDEV("span", { className: "flex items-center gap-1.5 font-medium", children: [
+        /* @__PURE__ */ jsxDEV(AlertCircle, { className: "w-4 h-4 flex-shrink-0" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+          lineNumber: 227,
+          columnNumber: 13
+        }, this),
+        " ",
+        uploadError
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 226,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("button", { onClick: () => setUploadError(""), className: "text-destructive hover:opacity-70", children: /* @__PURE__ */ jsxDEV(X, { className: "w-4 h-4" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 230,
+        columnNumber: 13
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 229,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+      lineNumber: 225,
+      columnNumber: 7
+    }, this),
+    uploading && /* @__PURE__ */ jsxDEV("div", { className: "text-xs text-primary font-bold animate-pulse flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+        lineNumber: 238,
+        columnNumber: 11
+      }, this),
+      "Uploading file attachment..."
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+      lineNumber: 237,
+      columnNumber: 7
+    }, this),
+    attachments.length > 0 && /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1", children: attachments.map(
+      (file, idx) => /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          className: "flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/70 shadow-xs hover:border-border transition-all",
+          children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5 min-w-0 flex-1", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "p-2 rounded-lg bg-muted/60 flex-shrink-0", children: getFileIcon(file.fileType, file.fileName) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                lineNumber: 252,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "min-w-0 flex-1", children: [
+                /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-bold text-foreground truncate", title: file.fileName, children: file.fileName }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                  lineNumber: 256,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground", children: formatFileSize(file.fileSize) }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                  lineNumber: 259,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                lineNumber: 255,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+              lineNumber: 251,
+              columnNumber: 15
+            }, this),
+            !disabled && /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "button",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  handleRemove(idx);
+                },
+                className: "p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-2",
+                title: "Remove attachment",
+                children: /* @__PURE__ */ jsxDEV(X, { className: "w-4 h-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                  lineNumber: 275,
+                  columnNumber: 19
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+                lineNumber: 266,
+                columnNumber: 11
+              },
+              this
+            )
+          ]
+        },
+        file.id || idx,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+          lineNumber: 247,
+          columnNumber: 9
+        },
+        this
+      )
+    ) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+      lineNumber: 245,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx",
+    lineNumber: 177,
+    columnNumber: 5
+  }, this);
+};
+_s(WorkLogAttachmentUploader, "FvHS3++d5fMnzIdbrOiAF4QgI1k=");
+_c = WorkLogAttachmentUploader;
+export default WorkLogAttachmentUploader;
+var _c;
+$RefreshReg$(_c, "WorkLogAttachmentUploader");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/worklog/WorkLogAttachmentUploader.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUVBO0FBQUEsZ0JBQ0EsdUJBQUMsT0FBRSxXQUFVLHFDQUNWUSx5QkFBZVksS0FBS2MsUUFBUSxLQUQvQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUVBO0FBQUEsbUJBTkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFPQTtBQUFBLGlCQVhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBWUE7QUFBQSxZQUVDLENBQUM3QyxZQUNBO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsTUFBSztBQUFBLGdCQUNMLFNBQVMsQ0FBQzhELE1BQU07QUFDZEEsb0JBQUUyQixnQkFBZ0I7QUFDbEJWLCtCQUFhUyxHQUFHO0FBQUEsZ0JBQ2xCO0FBQUEsZ0JBQ0EsV0FBVTtBQUFBLGdCQUNWLE9BQU07QUFBQSxnQkFFTixpQ0FBQyxLQUFFLFdBQVUsYUFBYjtBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUFzQjtBQUFBO0FBQUEsY0FUeEI7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFlBVUE7QUFBQTtBQUFBO0FBQUEsUUE1Qkd6RCxLQUFLUyxNQUFNZ0Q7QUFBQUEsUUFEbEI7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxNQStCQTtBQUFBLElBQ0QsS0FsQ0g7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQW1DQTtBQUFBLE9BdkdKO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0F5R0E7QUFFSjtBQUFFdkYsR0FqUFdKLDJCQUF5QjtBQUFBLEtBQXpCQTtBQW1QYixlQUFlQTtBQUEwQixJQUFBNkY7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VSZWYiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsIlVwbG9hZCIsIlBhcGVyY2xpcCIsIlgiLCJGaWxlVGV4dCIsIkltYWdlIiwiSW1hZ2VJY29uIiwiRmlsbSIsIk11c2ljIiwiQXJjaGl2ZSIsIkZpbGVTcHJlYWRzaGVldCIsIkNoZWNrQ2lyY2xlMiIsIkFsZXJ0Q2lyY2xlIiwiYXBpIiwiQUxMT1dFRF9FWFRFTlNJT05TIiwiV29ya0xvZ0F0dGFjaG1lbnRVcGxvYWRlciIsImF0dGFjaG1lbnRzIiwib25DaGFuZ2UiLCJkaXNhYmxlZCIsIl9zIiwiaXNEcmFnZ2luZyIsInNldElzRHJhZ2dpbmciLCJ1cGxvYWRpbmciLCJzZXRVcGxvYWRpbmciLCJ1cGxvYWRFcnJvciIsInNldFVwbG9hZEVycm9yIiwiZmlsZUlucHV0UmVmIiwiZ2V0RmlsZUljb24iLCJmaWxlVHlwZSIsImZpbGVOYW1lIiwiZXh0Iiwic3BsaXQiLCJwb3AiLCJ0b0xvd2VyQ2FzZSIsInR5cGUiLCJpbmNsdWRlcyIsInN0YXJ0c1dpdGgiLCJmb3JtYXRGaWxlU2l6ZSIsImJ5dGVzIiwiayIsInNpemVzIiwiaSIsIk1hdGgiLCJmbG9vciIsImxvZyIsInBhcnNlRmxvYXQiLCJwb3ciLCJ0b0ZpeGVkIiwidXBsb2FkRmlsZSIsImZpbGUiLCJuYW1lIiwiZm9ybURhdGEiLCJGb3JtRGF0YSIsImFwcGVuZCIsInJlcyIsInBvc3QiLCJoZWFkZXJzIiwibmV3QXR0YWNobWVudCIsImlkIiwiZGF0YSIsIkRhdGUiLCJub3ciLCJyYW5kb20iLCJmaWxlU2l6ZSIsInNpemUiLCJmaWxlUGF0aCIsInVwbG9hZGVkQXQiLCJ0b0lTT1N0cmluZyIsImVyciIsImNvbnNvbGUiLCJlcnJvciIsInJlc3BvbnNlIiwibWVzc2FnZSIsImhhbmRsZUZpbGVzIiwiZmlsZXMiLCJsZW5ndGgiLCJBcnJheSIsImZyb20iLCJmb3JFYWNoIiwiaGFuZGxlUGFzdGUiLCJlIiwiaXRlbXMiLCJjbGlwYm9hcmREYXRhIiwiaXRlbSIsImtpbmQiLCJnZXRBc0ZpbGUiLCJyZXBsYWNlIiwicmVuYW1lZEZpbGUiLCJGaWxlIiwicHJldmVudERlZmF1bHQiLCJ3aW5kb3ciLCJhZGRFdmVudExpc3RlbmVyIiwicmVtb3ZlRXZlbnRMaXN0ZW5lciIsImhhbmRsZURyYWdPdmVyIiwiaGFuZGxlRHJhZ0xlYXZlIiwiaGFuZGxlRHJvcCIsImRhdGFUcmFuc2ZlciIsImhhbmRsZVJlbW92ZSIsImluZGV4IiwidXBkYXRlZCIsImZpbHRlciIsIl8iLCJjdXJyZW50IiwiY2xpY2siLCJ0YXJnZXQiLCJtYXAiLCJpZHgiLCJzdG9wUHJvcGFnYXRpb24iLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJXb3JrTG9nQXR0YWNobWVudFVwbG9hZGVyLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlUmVmLCB1c2VTdGF0ZSwgdXNlRWZmZWN0IH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IHtcbiAgVXBsb2FkLFxuICBQYXBlcmNsaXAsXG4gIFgsXG4gIEZpbGVUZXh0LFxuICBJbWFnZSBhcyBJbWFnZUljb24sXG4gIEZpbG0sXG4gIE11c2ljLFxuICBBcmNoaXZlLFxuICBGaWxlU3ByZWFkc2hlZXQsXG4gIENoZWNrQ2lyY2xlMixcbiAgQWxlcnRDaXJjbGVcbn0gZnJvbSAnbHVjaWRlLXJlYWN0JztcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcblxuY29uc3QgQUxMT1dFRF9FWFRFTlNJT05TID0gW1xuICAncG5nJywgJ2pwZycsICdqcGVnJywgJ3dlYnAnLCAnZ2lmJyxcbiAgJ21wNCcsICdtb3YnLFxuICAnbXAzJywgJ3dhdicsXG4gICdwZGYnLCAnZG9jeCcsICd4bHN4JywgJ3ppcCdcbl07XG5cbmV4cG9ydCBjb25zdCBXb3JrTG9nQXR0YWNobWVudFVwbG9hZGVyID0gKHsgYXR0YWNobWVudHMgPSBbXSwgb25DaGFuZ2UsIGRpc2FibGVkID0gZmFsc2UgfSkgPT4ge1xuICBjb25zdCBbaXNEcmFnZ2luZywgc2V0SXNEcmFnZ2luZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFt1cGxvYWRpbmcsIHNldFVwbG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFt1cGxvYWRFcnJvciwgc2V0VXBsb2FkRXJyb3JdID0gdXNlU3RhdGUoJycpO1xuICBjb25zdCBmaWxlSW5wdXRSZWYgPSB1c2VSZWYobnVsbCk7XG5cbiAgY29uc3QgZ2V0RmlsZUljb24gPSAoZmlsZVR5cGUgPSAnJywgZmlsZU5hbWUgPSAnJykgPT4ge1xuICAgIGNvbnN0IGV4dCA9IGZpbGVOYW1lLnNwbGl0KCcuJykucG9wKCkudG9Mb3dlckNhc2UoKTtcbiAgICBjb25zdCB0eXBlID0gZmlsZVR5cGUudG9Mb3dlckNhc2UoKTtcblxuICAgIGlmIChbJ3BuZycsICdqcGcnLCAnanBlZycsICd3ZWJwJywgJ2dpZiddLmluY2x1ZGVzKGV4dCkgfHwgdHlwZS5zdGFydHNXaXRoKCdpbWFnZS8nKSkge1xuICAgICAgcmV0dXJuIDxJbWFnZUljb24gY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXNreS01MDBcIiAvPjtcbiAgICB9XG4gICAgaWYgKFsnbXA0JywgJ21vdiddLmluY2x1ZGVzKGV4dCkgfHwgdHlwZS5zdGFydHNXaXRoKCd2aWRlby8nKSkge1xuICAgICAgcmV0dXJuIDxGaWxtIGNsYXNzTmFtZT1cInctNSBoLTUgdGV4dC1wdXJwbGUtNTAwXCIgLz47XG4gICAgfVxuICAgIGlmIChbJ21wMycsICd3YXYnXS5pbmNsdWRlcyhleHQpIHx8IHR5cGUuc3RhcnRzV2l0aCgnYXVkaW8vJykpIHtcbiAgICAgIHJldHVybiA8TXVzaWMgY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXBpbmstNTAwXCIgLz47XG4gICAgfVxuICAgIGlmIChbJ3hsc3gnLCAnY3N2J10uaW5jbHVkZXMoZXh0KSB8fCB0eXBlLmluY2x1ZGVzKCdzcHJlYWRzaGVldCcpIHx8IHR5cGUuaW5jbHVkZXMoJ2V4Y2VsJykpIHtcbiAgICAgIHJldHVybiA8RmlsZVNwcmVhZHNoZWV0IGNsYXNzTmFtZT1cInctNSBoLTUgdGV4dC1lbWVyYWxkLTUwMFwiIC8+O1xuICAgIH1cbiAgICBpZiAoWyd6aXAnLCAncmFyJywgJzd6J10uaW5jbHVkZXMoZXh0KSB8fCB0eXBlLmluY2x1ZGVzKCd6aXAnKSB8fCB0eXBlLmluY2x1ZGVzKCdjb21wcmVzc2VkJykpIHtcbiAgICAgIHJldHVybiA8QXJjaGl2ZSBjbGFzc05hbWU9XCJ3LTUgaC01IHRleHQtYW1iZXItNTAwXCIgLz47XG4gICAgfVxuICAgIHJldHVybiA8RmlsZVRleHQgY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXByaW1hcnlcIiAvPjtcbiAgfTtcblxuICBjb25zdCBmb3JtYXRGaWxlU2l6ZSA9IChieXRlcyA9IDApID0+IHtcbiAgICBpZiAoYnl0ZXMgPT09IDApIHJldHVybiAnMCBCJztcbiAgICBjb25zdCBrID0gMTAyNDtcbiAgICBjb25zdCBzaXplcyA9IFsnQicsICdLQicsICdNQicsICdHQiddO1xuICAgIGNvbnN0IGkgPSBNYXRoLmZsb29yKE1hdGgubG9nKGJ5dGVzKSAvIE1hdGgubG9nKGspKTtcbiAgICByZXR1cm4gcGFyc2VGbG9hdCgoYnl0ZXMgLyBNYXRoLnBvdyhrLCBpKSkudG9GaXhlZCgxKSkgKyAnICcgKyBzaXplc1tpXTtcbiAgfTtcblxuICBjb25zdCB1cGxvYWRGaWxlID0gYXN5bmMgKGZpbGUpID0+IHtcbiAgICBjb25zdCBleHQgPSBmaWxlLm5hbWUuc3BsaXQoJy4nKS5wb3AoKS50b0xvd2VyQ2FzZSgpO1xuICAgIGlmICghQUxMT1dFRF9FWFRFTlNJT05TLmluY2x1ZGVzKGV4dCkpIHtcbiAgICAgIHNldFVwbG9hZEVycm9yKGBGaWxlIGZvcm1hdCAuJHtleHR9IGlzIG5vdCBzdXBwb3J0ZWQuIFN1cHBvcnRlZDogUE5HLCBKUEcsIFdFQlAsIEdJRiwgTVA0LCBNT1YsIE1QMywgV0FWLCBQREYsIERPQ1gsIFhMU1gsIFpJUC5gKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG5cbiAgICBzZXRVcGxvYWRFcnJvcignJyk7XG4gICAgc2V0VXBsb2FkaW5nKHRydWUpO1xuXG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IGZvcm1EYXRhID0gbmV3IEZvcm1EYXRhKCk7XG4gICAgICBmb3JtRGF0YS5hcHBlbmQoJ2ZpbGUnLCBmaWxlKTtcblxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnBvc3QoJy93b3JrbG9ncy91cGxvYWQtYXR0YWNobWVudCcsIGZvcm1EYXRhLCB7XG4gICAgICAgIGhlYWRlcnM6IHsgJ0NvbnRlbnQtVHlwZSc6ICdtdWx0aXBhcnQvZm9ybS1kYXRhJyB9XG4gICAgICB9KTtcblxuICAgICAgY29uc3QgbmV3QXR0YWNobWVudCA9IHtcbiAgICAgICAgaWQ6IHJlcy5kYXRhLmlkIHx8IGB0ZW1wLSR7RGF0ZS5ub3coKX0tJHtNYXRoLnJhbmRvbSgpfWAsXG4gICAgICAgIGZpbGVOYW1lOiByZXMuZGF0YS5maWxlTmFtZSB8fCBmaWxlLm5hbWUsXG4gICAgICAgIGZpbGVUeXBlOiByZXMuZGF0YS5maWxlVHlwZSB8fCBmaWxlLnR5cGUsXG4gICAgICAgIGZpbGVTaXplOiByZXMuZGF0YS5maWxlU2l6ZSB8fCBmaWxlLnNpemUsXG4gICAgICAgIGZpbGVQYXRoOiByZXMuZGF0YS5maWxlUGF0aCxcbiAgICAgICAgdXBsb2FkZWRBdDogcmVzLmRhdGEudXBsb2FkZWRBdCB8fCBuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKClcbiAgICAgIH07XG5cbiAgICAgIG9uQ2hhbmdlKFsuLi5hdHRhY2htZW50cywgbmV3QXR0YWNobWVudF0pO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgY29uc29sZS5lcnJvcignQXR0YWNobWVudCB1cGxvYWQgZmFpbGVkOicsIGVycik7XG4gICAgICBzZXRVcGxvYWRFcnJvcihlcnIucmVzcG9uc2U/LmRhdGE/Lm1lc3NhZ2UgfHwgJ0ZhaWxlZCB0byB1cGxvYWQgYXR0YWNobWVudC4nKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0VXBsb2FkaW5nKGZhbHNlKTtcbiAgICB9XG4gIH07XG5cbiAgY29uc3QgaGFuZGxlRmlsZXMgPSAoZmlsZXMpID0+IHtcbiAgICBpZiAoIWZpbGVzIHx8IGZpbGVzLmxlbmd0aCA9PT0gMCB8fCBkaXNhYmxlZCkgcmV0dXJuO1xuICAgIEFycmF5LmZyb20oZmlsZXMpLmZvckVhY2goZmlsZSA9PiB7XG4gICAgICB1cGxvYWRGaWxlKGZpbGUpO1xuICAgIH0pO1xuICB9O1xuXG4gIC8vIENsaXBib2FyZCBDdHJsK1YgUGFzdGUgRXZlbnQgTGlzdGVuZXJcbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBjb25zdCBoYW5kbGVQYXN0ZSA9IChlKSA9PiB7XG4gICAgICBpZiAoZGlzYWJsZWQpIHJldHVybjtcbiAgICAgIGNvbnN0IGl0ZW1zID0gZS5jbGlwYm9hcmREYXRhPy5pdGVtcztcbiAgICAgIGlmICghaXRlbXMpIHJldHVybjtcblxuICAgICAgZm9yIChsZXQgaSA9IDA7IGkgPCBpdGVtcy5sZW5ndGg7IGkrKykge1xuICAgICAgICBjb25zdCBpdGVtID0gaXRlbXNbaV07XG4gICAgICAgIGlmIChpdGVtLmtpbmQgPT09ICdmaWxlJykge1xuICAgICAgICAgIGNvbnN0IGZpbGUgPSBpdGVtLmdldEFzRmlsZSgpO1xuICAgICAgICAgIGlmIChmaWxlKSB7XG4gICAgICAgICAgICAvLyBSZW5hbWUgcGFzdGVkIGltYWdlIHNjcmVlbnNob3QgaWYgZGVmYXVsdCBuYW1lXG4gICAgICAgICAgICBsZXQgZmlsZU5hbWUgPSBmaWxlLm5hbWU7XG4gICAgICAgICAgICBpZiAoZmlsZU5hbWUgPT09ICdpbWFnZS5wbmcnIHx8IGZpbGVOYW1lID09PSAnYmxvYicpIHtcbiAgICAgICAgICAgICAgY29uc3QgZXh0ID0gZmlsZS50eXBlLnNwbGl0KCcvJylbMV0gfHwgJ3BuZyc7XG4gICAgICAgICAgICAgIGZpbGVOYW1lID0gYHNjcmVlbnNob3RfJHtuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCkucmVwbGFjZSgvWzouXS9nLCAnLScpfS4ke2V4dH1gO1xuICAgICAgICAgICAgfVxuICAgICAgICAgICAgY29uc3QgcmVuYW1lZEZpbGUgPSBuZXcgRmlsZShbZmlsZV0sIGZpbGVOYW1lLCB7IHR5cGU6IGZpbGUudHlwZSB9KTtcbiAgICAgICAgICAgIHVwbG9hZEZpbGUocmVuYW1lZEZpbGUpO1xuICAgICAgICAgICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xuICAgICAgICAgIH1cbiAgICAgICAgfVxuICAgICAgfVxuICAgIH07XG5cbiAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigncGFzdGUnLCBoYW5kbGVQYXN0ZSk7XG4gICAgcmV0dXJuICgpID0+IHdpbmRvdy5yZW1vdmVFdmVudExpc3RlbmVyKCdwYXN0ZScsIGhhbmRsZVBhc3RlKTtcbiAgfSwgW2F0dGFjaG1lbnRzLCBkaXNhYmxlZF0pO1xuXG4gIGNvbnN0IGhhbmRsZURyYWdPdmVyID0gKGUpID0+IHtcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XG4gICAgaWYgKCFkaXNhYmxlZCkgc2V0SXNEcmFnZ2luZyh0cnVlKTtcbiAgfTtcblxuICBjb25zdCBoYW5kbGVEcmFnTGVhdmUgPSAoZSkgPT4ge1xuICAgIGUucHJldmVudERlZmF1bHQoKTtcbiAgICBzZXRJc0RyYWdnaW5nKGZhbHNlKTtcbiAgfTtcblxuICBjb25zdCBoYW5kbGVEcm9wID0gKGUpID0+IHtcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XG4gICAgc2V0SXNEcmFnZ2luZyhmYWxzZSk7XG4gICAgaWYgKCFkaXNhYmxlZCAmJiBlLmRhdGFUcmFuc2Zlci5maWxlcykge1xuICAgICAgaGFuZGxlRmlsZXMoZS5kYXRhVHJhbnNmZXIuZmlsZXMpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBoYW5kbGVSZW1vdmUgPSAoaW5kZXgpID0+IHtcbiAgICBpZiAoZGlzYWJsZWQpIHJldHVybjtcbiAgICBjb25zdCB1cGRhdGVkID0gYXR0YWNobWVudHMuZmlsdGVyKChfLCBpKSA9PiBpICE9PSBpbmRleCk7XG4gICAgb25DaGFuZ2UodXBkYXRlZCk7XG4gIH07XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMyB0ZXh0LWxlZnRcIj5cbiAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuXCI+XG4gICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICA8UGFwZXJjbGlwIGNsYXNzTmFtZT1cInctNCBoLTQgdGV4dC1wcmltYXJ5XCIgLz4gQXR0YWNobWVudHNcbiAgICAgICAgPC9zcGFuPlxuICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LW1lZGl1bSB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cbiAgICAgICAgICBQTkcsIEpQRywgV0VCUCwgR0lGLCBNUDQsIE1PViwgTVAzLCBXQVYsIFBERiwgRE9DWCwgWExTWCwgWklQXG4gICAgICAgIDwvc3Bhbj5cbiAgICAgIDwvbGFiZWw+XG5cbiAgICAgIHsvKiBEcmFnICYgRHJvcCBCb3ggKi99XG4gICAgICA8ZGl2XG4gICAgICAgIG9uRHJhZ092ZXI9e2hhbmRsZURyYWdPdmVyfVxuICAgICAgICBvbkRyYWdMZWF2ZT17aGFuZGxlRHJhZ0xlYXZlfVxuICAgICAgICBvbkRyb3A9e2hhbmRsZURyb3B9XG4gICAgICAgIG9uQ2xpY2s9eygpID0+ICFkaXNhYmxlZCAmJiBmaWxlSW5wdXRSZWYuY3VycmVudD8uY2xpY2soKX1cbiAgICAgICAgY2xhc3NOYW1lPXtgcmVsYXRpdmUgYm9yZGVyLTIgYm9yZGVyLWRhc2hlZCByb3VuZGVkLTJ4bCBwLTQgdGV4dC1jZW50ZXIgY3Vyc29yLXBvaW50ZXIgdHJhbnNpdGlvbi1hbGwgZHVyYXRpb24tMjAwICR7XG4gICAgICAgICAgaXNEcmFnZ2luZ1xuICAgICAgICAgICAgPyAnYm9yZGVyLXByaW1hcnkgYmctcHJpbWFyeS8xMCBzaGFkb3ctbWQgc2NhbGUtWzEuMDFdJ1xuICAgICAgICAgICAgOiAnYm9yZGVyLWJvcmRlci84MCBob3Zlcjpib3JkZXItcHJpbWFyeS82MCBob3ZlcjpiZy1tdXRlZC8zMCBiZy1iYWNrZ3JvdW5kLzUwJ1xuICAgICAgICB9ICR7ZGlzYWJsZWQgPyAnb3BhY2l0eS01MCBjdXJzb3Itbm90LWFsbG93ZWQnIDogJyd9YH1cbiAgICAgID5cbiAgICAgICAgPGlucHV0XG4gICAgICAgICAgdHlwZT1cImZpbGVcIlxuICAgICAgICAgIHJlZj17ZmlsZUlucHV0UmVmfVxuICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gaGFuZGxlRmlsZXMoZS50YXJnZXQuZmlsZXMpfVxuICAgICAgICAgIG11bHRpcGxlXG4gICAgICAgICAgY2xhc3NOYW1lPVwiaGlkZGVuXCJcbiAgICAgICAgICBkaXNhYmxlZD17ZGlzYWJsZWR9XG4gICAgICAgIC8+XG5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBzcGFjZS15LTEuNVwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy0xMCBoLTEwIHJvdW5kZWQtZnVsbCBiZy1wcmltYXJ5LzEwIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHRleHQtcHJpbWFyeVwiPlxuICAgICAgICAgICAgPFVwbG9hZCBjbGFzc05hbWU9XCJ3LTUgaC01XCIgLz5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgIERyYWcgJiBEcm9wIEZpbGVzIEhlcmVcbiAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0wLjVcIj5cbiAgICAgICAgICAgICAgT3IgY2xpY2sgdG8gdXBsb2FkIOKAoiBQcmVzcyA8a2JkIGNsYXNzTmFtZT1cInB4LTEuNSBweS0wLjUgdGV4dC1bMTBweF0gZm9udC1tb25vIGZvbnQtYm9sZCBiZy1tdXRlZCBib3JkZXIgcm91bmRlZCBzaGFkb3cteHMgdGV4dC1mb3JlZ3JvdW5kXCI+Q3RybCtWPC9rYmQ+IGFueXdoZXJlIHRvIHBhc3RlIHNjcmVlbnNob3RzIG9yIGNvcGllZCBmaWxlcy5cbiAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cblxuICAgICAgey8qIEVycm9yIEJhbm5lciAqL31cbiAgICAgIHt1cGxvYWRFcnJvciAmJiAoXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctZGVzdHJ1Y3RpdmUvMTAgYm9yZGVyIGJvcmRlci1kZXN0cnVjdGl2ZS8zMCB0ZXh0LWRlc3RydWN0aXZlIHRleHQteHMgcC0yLjUgcm91bmRlZC14bCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICA8QWxlcnRDaXJjbGUgY2xhc3NOYW1lPVwidy00IGgtNCBmbGV4LXNocmluay0wXCIgLz4ge3VwbG9hZEVycm9yfVxuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9eygpID0+IHNldFVwbG9hZEVycm9yKCcnKX0gY2xhc3NOYW1lPVwidGV4dC1kZXN0cnVjdGl2ZSBob3ZlcjpvcGFjaXR5LTcwXCI+XG4gICAgICAgICAgICA8WCBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgPC9kaXY+XG4gICAgICApfVxuXG4gICAgICB7LyogVXBsb2FkaW5nIEluZGljYXRvciAqL31cbiAgICAgIHt1cGxvYWRpbmcgJiYgKFxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1wcmltYXJ5IGZvbnQtYm9sZCBhbmltYXRlLXB1bHNlIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3LTMgaC0zIGJvcmRlci0yIGJvcmRlci1wcmltYXJ5IGJvcmRlci10LXRyYW5zcGFyZW50IHJvdW5kZWQtZnVsbCBhbmltYXRlLXNwaW5cIj48L2Rpdj5cbiAgICAgICAgICBVcGxvYWRpbmcgZmlsZSBhdHRhY2htZW50Li4uXG4gICAgICAgIDwvZGl2PlxuICAgICAgKX1cblxuICAgICAgey8qIEF0dGFjaG1lbnQgUHJldmlld3MgKi99XG4gICAgICB7YXR0YWNobWVudHMubGVuZ3RoID4gMCAmJiAoXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtMiBwdC0xXCI+XG4gICAgICAgICAge2F0dGFjaG1lbnRzLm1hcCgoZmlsZSwgaWR4KSA9PiAoXG4gICAgICAgICAgICA8ZGl2XG4gICAgICAgICAgICAgIGtleT17ZmlsZS5pZCB8fCBpZHh9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBwLTIuNSByb3VuZGVkLXhsIGJnLWNhcmQgYm9yZGVyIGJvcmRlci1ib3JkZXIvNzAgc2hhZG93LXhzIGhvdmVyOmJvcmRlci1ib3JkZXIgdHJhbnNpdGlvbi1hbGxcIlxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjUgbWluLXctMCBmbGV4LTFcIj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMiByb3VuZGVkLWxnIGJnLW11dGVkLzYwIGZsZXgtc2hyaW5rLTBcIj5cbiAgICAgICAgICAgICAgICAgIHtnZXRGaWxlSWNvbihmaWxlLmZpbGVUeXBlLCBmaWxlLmZpbGVOYW1lKX1cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1pbi13LTAgZmxleC0xXCI+XG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgdHJ1bmNhdGVcIiB0aXRsZT17ZmlsZS5maWxlTmFtZX0+XG4gICAgICAgICAgICAgICAgICAgIHtmaWxlLmZpbGVOYW1lfVxuICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgICAgICAgIHtmb3JtYXRGaWxlU2l6ZShmaWxlLmZpbGVTaXplKX1cbiAgICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgeyFkaXNhYmxlZCAmJiAoXG4gICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoZSkgPT4ge1xuICAgICAgICAgICAgICAgICAgICBlLnN0b3BQcm9wYWdhdGlvbigpO1xuICAgICAgICAgICAgICAgICAgICBoYW5kbGVSZW1vdmUoaWR4KTtcbiAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJwLTEgcm91bmRlZC1sZyB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1kZXN0cnVjdGl2ZSBob3ZlcjpiZy1kZXN0cnVjdGl2ZS8xMCB0cmFuc2l0aW9uLWNvbG9ycyBtbC0yXCJcbiAgICAgICAgICAgICAgICAgIHRpdGxlPVwiUmVtb3ZlIGF0dGFjaG1lbnRcIlxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxYIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPlxuICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKSl9XG4gICAgICAgIDwvZGl2PlxuICAgICAgKX1cbiAgICA8L2Rpdj5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IFdvcmtMb2dBdHRhY2htZW50VXBsb2FkZXI7XG4iXSwiZmlsZSI6IkQ6L1AgUiBPIEogRSBDIFQgUy9XZWIvTVJGLWNybS9mcm9udGVuZC9zcmMvY29tcG9uZW50cy93b3JrbG9nL1dvcmtMb2dBdHRhY2htZW50VXBsb2FkZXIuanN4In0=

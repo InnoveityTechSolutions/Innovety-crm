@@ -36,7 +36,7 @@ const getDailyAttendanceReport = async (req, res) => {
 const getWeeklyAttendanceReport = async (req, res) => {
   try {
     const organizationId = getEffectiveOrgId(req);
-    const { week, year, date, teamId, role, employeeName, status } = req.query;
+    const { week, year, date, teamId, role, employeeName, status, userIds } = req.query;
 
     const data = await getWeeklyAttendanceData({
       organizationId,
@@ -46,7 +46,8 @@ const getWeeklyAttendanceReport = async (req, res) => {
       teamId,
       role,
       employeeName,
-      status
+      status,
+      userIds
     });
 
     return res.json({
@@ -65,7 +66,7 @@ const getWeeklyAttendanceReport = async (req, res) => {
 const getMonthlyAttendanceReport = async (req, res) => {
   try {
     const organizationId = getEffectiveOrgId(req);
-    const { month, year, teamId, role, employeeName, status } = req.query;
+    const { month, year, teamId, role, employeeName, status, userIds } = req.query;
 
     const data = await getMonthlyAttendanceData({
       organizationId,
@@ -74,7 +75,8 @@ const getMonthlyAttendanceReport = async (req, res) => {
       teamId,
       role,
       employeeName,
-      status
+      status,
+      userIds
     });
 
     return res.json({

@@ -17,11 +17,10 @@ const { authenticate, requireRole } = require('../middleware/auth');
 router.get('/balances/:userId?', authenticate, getUserLeaveBalances);
 
 router.get('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), getGlobalLeavePolicy);
+router.put('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), updateGlobalLeavePolicy);
 
-// Super Admin ONLY Policy Management Routes (modifications)
+// Super Admin ONLY Policy Type Management & System Reset Routes
 router.use(authenticate, requireRole(['SUPER_ADMIN']));
-
-router.put('/', updateGlobalLeavePolicy);
 router.post('/types', createLeaveType);
 router.put('/types/:id', updateLeaveType);
 router.put('/types/:id/status', toggleLeaveTypeStatus);

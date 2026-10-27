@@ -50,6 +50,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getProjectStageProgress } from '../utils/projectProgress';
 
 import { useCompanyScope } from '../context/CompanyScopeContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../config/crmModules';
 
 const extractCompanyList = (responseData) => {
   if (Array.isArray(responseData)) return responseData;
@@ -61,7 +63,9 @@ const extractCompanyList = (responseData) => {
 
 const Projects = () => {
   const { user } = useAuth();
+  const { canEdit } = usePermissions();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canEditProjects = isSuperAdmin || canEdit(CRM_MODULE_KEYS.PROJECTS);
   const { selectedOrgId, effectiveOrgId, companies: scopeCompanies } = useCompanyScope();
   const navigate = useNavigate();
   const location = useLocation();
@@ -619,7 +623,7 @@ const Projects = () => {
             />
           </div>
 
-          {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TEAM_LEADER') && (
+          {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TEAM_LEADER') && canEditProjects && (
             <button
               onClick={openCreateModal}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer whitespace-nowrap shrink-0"
@@ -1385,7 +1389,7 @@ const Projects = () => {
 
               {/* Delete & Close Buttons */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {user?.role === 'ADMIN' && (
+                {(user?.role === 'ADMIN' || isSuperAdmin) && canEditProjects && (
                   <button
                     onClick={() => confirmDeleteProject(selectedProject.id)}
                     className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"

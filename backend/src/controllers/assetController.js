@@ -2,12 +2,11 @@ const prisma = require('../utils/db');
 const { logActivity } = require('../utils/activityLogger');
 const { getEffectiveOrgId } = require('../utils/organizationScope');
 
-// Helper to auto-generate asset ID (e.g. AST-1001)
-const generateAssetId = async () => {
-  const count = await prisma.asset.count();
-  const number = 1001 + count;
-  return `AST-${number}`;
-};
+const {
+  generateNextAssetId,
+  generateNextAssetIds,
+  previewNextAssetId
+} = require('../utils/assetIdGenerator');
 
 // Helper to derive serial number prefix from Asset Name -> Model -> Category
 const getSerialPrefix = (name, model, category) => {
@@ -59,6 +58,8 @@ const createAsset = async (req, res) => {
       return res.status(400).json({ message: 'Asset name and category are required.' });
     }
 
+    const trimmedCategory = typeof category === 'string' ? category.trim() : category;
+
     const qty = quantity !== undefined && quantity !== null && quantity !== '' ? parseInt(quantity, 10) : 1;
 
     if (isNaN(qty) || qty < 1 || qty > 500) {
@@ -70,35 +71,59 @@ const createAsset = async (req, res) => {
     const parsedCost = cost ? parseFloat(cost) : null;
     const uploadedBillPhoto = billPhoto || (req.file ? `/uploads/attachments/${req.file.filename}` : null);
 
+    // Parse serialNumbers from body (handles JSON array, JSON string from FormData, or single string)
+    let serialNumbersList = [];
+    if (req.body.serialNumbers) {
+      if (Array.isArray(req.body.serialNumbers)) {
+        serialNumbersList = req.body.serialNumbers;
+      } else if (typeof req.body.serialNumbers === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.serialNumbers);
+          if (Array.isArray(parsed)) {
+            serialNumbersList = parsed;
+          } else {
+            serialNumbersList = [req.body.serialNumbers];
+          }
+        } catch {
+          serialNumbersList = req.body.serialNumbers.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+      }
+    }
+
     if (qty === 1) {
-      if (serialNumber) {
-        const existingSn = await prisma.asset.findUnique({ where: { serialNumber } });
+      const singleSn = (serialNumbersList[0] || serialNumber || '').trim() || null;
+      if (singleSn) {
+        const existingSn = await prisma.asset.findUnique({ where: { serialNumber: singleSn } });
         if (existingSn) {
-          return res.status(400).json({ message: 'An asset with this serial number already exists.' });
+          return res.status(400).json({ message: `Serial number "${singleSn}" already exists.` });
         }
       }
 
-      const assetId = await generateAssetId();
+      const { newAsset, assetId } = await prisma.$transaction(async (tx) => {
+        const generatedId = await generateNextAssetId(targetOrgId, tx);
 
-      const newAsset = await prisma.asset.create({
-        data: {
-          assetId,
-          name,
-          category: category || 'LAPTOP',
-          brand: brand || null,
-          model: model || null,
-          serialNumber: serialNumber || null,
-          purchaseDate: parsedPurchaseDate,
-          warrantyExpiry: parsedWarrantyExpiry,
-          cost: parsedCost,
-          vendor: vendor || null,
-          location: location || null,
-          billPhoto: uploadedBillPhoto,
-          status: status || 'AVAILABLE',
-          description: description || null,
-          quantity: 1,
-          organizationId: targetOrgId
-        }
+        const created = await tx.asset.create({
+          data: {
+            assetId: generatedId,
+            name,
+            category: trimmedCategory || 'LAPTOP',
+            brand: brand || null,
+            model: model || null,
+            serialNumber: singleSn,
+            purchaseDate: parsedPurchaseDate,
+            warrantyExpiry: parsedWarrantyExpiry,
+            cost: parsedCost,
+            vendor: vendor || null,
+            location: location || null,
+            billPhoto: uploadedBillPhoto,
+            status: status || 'AVAILABLE',
+            description: description || null,
+            quantity: 1,
+            organizationId: targetOrgId
+          }
+        });
+
+        return { newAsset: created, assetId: generatedId };
       });
 
       await logActivity({
@@ -115,33 +140,61 @@ const createAsset = async (req, res) => {
       });
     }
 
-    // Bulk creation (qty > 1)
-    const prefix = getSerialPrefix(name, model, category);
+    // Bulk creation (qty >= 2)
+    // 1. Validate serial numbers count matches qty
+    if (!serialNumbersList || serialNumbersList.length !== qty) {
+      return res.status(400).json({
+        message: `Please provide exactly ${qty} serial numbers for bulk creation (received ${serialNumbersList ? serialNumbersList.length : 0}).`
+      });
+    }
 
+    // 2. Trim and check for empty serial numbers
+    const trimmedSerialNumbers = serialNumbersList.map((sn) => (typeof sn === 'string' ? sn.trim() : ''));
+    const emptyIndex = trimmedSerialNumbers.findIndex((sn) => !sn);
+    if (emptyIndex !== -1) {
+      return res.status(400).json({
+        message: `Serial number ${emptyIndex + 1} is required.`
+      });
+    }
+
+    // 3. Check for duplicates within the submission
+    const seen = new Set();
+    for (const sn of trimmedSerialNumbers) {
+      if (seen.has(sn)) {
+        return res.status(400).json({
+          message: 'Serial numbers must be unique within the submission.'
+        });
+      }
+      seen.add(sn);
+    }
+
+    // 4. Check for duplicates already in the database
+    const existingAssets = await prisma.asset.findMany({
+      where: { serialNumber: { in: trimmedSerialNumbers } },
+      select: { serialNumber: true }
+    });
+    if (existingAssets.length > 0) {
+      return res.status(400).json({
+        message: `Serial number "${existingAssets[0].serialNumber}" already exists.`
+      });
+    }
+
+    // 5. Transactional bulk creation with sequential Asset IDs
     const createdAssets = await prisma.$transaction(async (tx) => {
-      const baseCount = await tx.asset.count();
+      const reservedIds = await generateNextAssetIds(targetOrgId, qty, tx);
       const assetsToCreate = [];
 
-      let seq = 1;
-      while (true) {
-        const testSn = `AUTO-${prefix}-${String(seq).padStart(3, '0')}`;
-        const existing = await tx.asset.findUnique({ where: { serialNumber: testSn } });
-        if (!existing) break;
-        seq++;
-      }
-
       for (let i = 0; i < qty; i++) {
-        const currentNum = 1001 + baseCount + i;
-        const assetId = `AST-${currentNum}`;
-        const autoSn = `AUTO-${prefix}-${String(seq + i).padStart(3, '0')}`;
+        const assetId = reservedIds[i];
+        const sn = trimmedSerialNumbers[i];
 
         const assetData = {
           assetId,
           name,
-          category: category || 'LAPTOP',
+          category: trimmedCategory || 'LAPTOP',
           brand: brand || null,
           model: model || null,
-          serialNumber: autoSn,
+          serialNumber: sn,
           purchaseDate: parsedPurchaseDate,
           warrantyExpiry: parsedWarrantyExpiry,
           cost: parsedCost,
@@ -238,7 +291,14 @@ const getAllAssets = async (req, res) => {
       }
     }
 
-    const [assets, totalCount] = await Promise.all([
+    const tenantFilter = targetOrgId ? {
+      OR: [
+        { organizationId: targetOrgId },
+        { organizationId: null, assignedTo: { organizationId: targetOrgId } }
+      ]
+    } : {};
+
+    const [assets, totalCount, distinctCategories] = await Promise.all([
       prisma.asset.findMany({
         where,
         skip,
@@ -258,7 +318,12 @@ const getAllAssets = async (req, res) => {
           }
         }
       }),
-      prisma.asset.count({ where })
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where: tenantFilter,
+        select: { category: true },
+        distinct: ['category']
+      })
     ]);
 
     res.json({
@@ -266,8 +331,10 @@ const getAllAssets = async (req, res) => {
       meta: {
         totalCount,
         page: pageNum,
-        totalPages: Math.ceil(totalCount / limitNum)
-      }
+        totalPages: Math.ceil(totalCount / limitNum),
+        limit: limitNum
+      },
+      categories: distinctCategories.map((c) => c.category).filter(Boolean)
     });
   } catch (error) {
     console.error('Get all assets error:', error);
@@ -362,11 +429,15 @@ const updateAsset = async (req, res) => {
       }
     }
 
+    const updatedCategory = category !== undefined
+      ? ((typeof category === 'string' ? category.trim() : category) || existingAsset.category)
+      : existingAsset.category;
+
     const updatedAsset = await prisma.asset.update({
       where: { id },
       data: {
         name: name || existingAsset.name,
-        category: category || existingAsset.category,
+        category: updatedCategory,
         brand: brand !== undefined ? brand : existingAsset.brand,
         model: model !== undefined ? model : existingAsset.model,
         serialNumber: serialNumber !== undefined ? serialNumber : existingAsset.serialNumber,
@@ -662,10 +733,23 @@ const deleteBillPhoto = async (req, res) => {
   }
 };
 
+// Preview next asset ID for current organization
+const getNextAssetIdPreview = async (req, res) => {
+  try {
+    const targetOrgId = getEffectiveOrgId(req);
+    const nextAssetId = await previewNextAssetId(targetOrgId);
+    res.json({ nextAssetId });
+  } catch (error) {
+    console.error('Get next asset id error:', error);
+    res.status(500).json({ message: 'Failed to preview next asset ID.' });
+  }
+};
+
 module.exports = {
   createAsset,
   getAllAssets,
   getAssetById,
+  getNextAssetIdPreview,
   updateAsset,
   assignAsset,
   returnAsset,

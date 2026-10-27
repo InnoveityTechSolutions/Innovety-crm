@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../services/api';
 import { useCompanyScope } from '../../context/CompanyScopeContext';
 import {
@@ -25,12 +25,64 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const getSelectionStorageKey = (orgId) =>
-  orgId ? `attendance_audit_selected_members_${orgId}` : 'attendance_audit_selected_members';
+const resolveTargetOrgId = (selectedOrgId, effectiveOrgId, user, selectedCompany) => {
+  if (selectedOrgId && selectedOrgId !== '') return String(selectedOrgId).trim();
+  if (effectiveOrgId && effectiveOrgId !== '') return String(effectiveOrgId).trim();
+  if (user?.organizationId) return String(user.organizationId).trim();
+  if (user?.organization?.id) return String(user.organization.id).trim();
+  if (selectedCompany?.id && selectedCompany.id !== 'all') return String(selectedCompany.id).trim();
+
+  try {
+    const storedScope = localStorage.getItem('mrf_selected_company_id');
+    if (storedScope && storedScope !== '') return String(storedScope).trim();
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const u = JSON.parse(storedUser);
+      if (u?.organizationId) return String(u.organizationId).trim();
+      if (u?.organization?.id) return String(u.organization.id).trim();
+    }
+  } catch (e) {
+    // quiet
+  }
+
+  return 'default';
+};
+
+const getSelectionStorageKey = (orgId) => {
+  const cleanId = (orgId || '').trim() || 'default';
+  return `attendance_audit_selected_members_${cleanId}`;
+};
+
+const readSavedSelection = (orgId) => {
+  try {
+    const key = getSelectionStorageKey(orgId);
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null; // First visit / uninitialized
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return Array.from(new Set(parsed.map((id) => String(id).trim()).filter(Boolean)));
+    }
+  } catch (e) {
+    console.error(`[AttendanceAudit] Error reading saved selection for ${orgId}:`, e);
+  }
+  return null;
+};
+
+const writeSavedSelection = (orgId, ids) => {
+  try {
+    const key = getSelectionStorageKey(orgId);
+    const normalized = Array.from(
+      new Set((ids || []).map((id) => String(id).trim()).filter(Boolean))
+    );
+    localStorage.setItem(key, JSON.stringify(normalized));
+  } catch (e) {
+    console.error(`[AttendanceAudit] Error saving selection to localStorage for ${orgId}:`, e);
+  }
+};
 
 export default function AttendanceReportSection({ user, onClose }) {
   const { selectedOrgId, effectiveOrgId, selectedCompany } = useCompanyScope();
-  const targetOrgId = selectedOrgId || effectiveOrgId || user?.organizationId;
+  const targetOrgId = resolveTargetOrgId(selectedOrgId, effectiveOrgId, user, selectedCompany);
 
   // Report Type: 'daily' | 'weekly' | 'monthly'
   const [reportType, setReportType] = useState('daily');
@@ -70,82 +122,103 @@ export default function AttendanceReportSection({ user, onClose }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Member selection state (remembered in browser localStorage by organization/company)
+  // Member selection state (remembered in browser localStorage per organization)
   const [selectedUserIds, setSelectedUserIds] = useState(() => {
-    try {
-      const key = getSelectionStorageKey(targetOrgId);
-      const saved = localStorage.getItem(key);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to load selected members from localStorage:', e);
-    }
-    return null; // null indicates uninitialized (first visit)
+    return readSavedSelection(targetOrgId); // returns string[] or null (null indicates uninitialized / first visit)
   });
 
-  // Re-sync selection if organization/company changes
+  // Track the organization ID to handle switches between companies
+  const prevOrgIdRef = useRef(targetOrgId);
+  const initializedOrgRef = useRef({});
+
+  // When target organization changes, load that organization's saved selection
   useEffect(() => {
-    try {
-      const key = getSelectionStorageKey(targetOrgId);
-      const saved = localStorage.getItem(key);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setSelectedUserIds(parsed);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load selected members on org change:', e);
+    if (prevOrgIdRef.current !== targetOrgId) {
+      prevOrgIdRef.current = targetOrgId;
+      const saved = readSavedSelection(targetOrgId);
+      setSelectedUserIds(saved);
     }
-    setSelectedUserIds(null);
   }, [targetOrgId]);
 
-  // If first visit for this company, default to selecting all members once records load
+  // Reconcile selection when reportData records load
   useEffect(() => {
-    if (!reportData?.records || reportData.records.length === 0) return;
-    if (selectedUserIds === null) {
-      const allIds = reportData.records.map((r) => r.userId).filter(Boolean);
-      setSelectedUserIds(allIds);
-      try {
-        const key = getSelectionStorageKey(targetOrgId);
-        localStorage.setItem(key, JSON.stringify(allIds));
-      } catch (e) {
-        console.error('Failed to save default member selection to localStorage:', e);
+    const records = reportData?.records;
+    if (!records || records.length === 0) return;
+
+    const currentMemberIds = Array.from(
+      new Set(records.map((r) => String(r.userId).trim()).filter(Boolean))
+    );
+    if (currentMemberIds.length === 0) return;
+
+    const saved = readSavedSelection(targetOrgId);
+
+    if (saved === null) {
+      // FIRST VISIT BEHAVIOR:
+      // If there is no saved selection for that organization, select all currently displayed members by default.
+      setSelectedUserIds(currentMemberIds);
+      writeSavedSelection(targetOrgId, currentMemberIds);
+      initializedOrgRef.current[targetOrgId] = true;
+    } else {
+      // SUBSEQUENT VISITS:
+      // A saved selection exists. Restore only IDs that still exist in the current member list,
+      // but only on the first reconciliation pass for this organization when viewing unfiltered data.
+      if (!initializedOrgRef.current[targetOrgId]) {
+        initializedOrgRef.current[targetOrgId] = true;
+        const isUnfiltered =
+          teamFilter === 'ALL' &&
+          roleFilter === 'ALL' &&
+          !employeeSearch.trim() &&
+          statusFilter === 'ALL';
+
+        if (isUnfiltered) {
+          const currentSet = new Set(currentMemberIds);
+          const restoredIds = saved.filter((id) => currentSet.has(id));
+          setSelectedUserIds(restoredIds);
+          if (restoredIds.length !== saved.length) {
+            writeSavedSelection(targetOrgId, restoredIds);
+          }
+        } else {
+          setSelectedUserIds(saved);
+        }
       }
     }
-  }, [reportData?.records, selectedUserIds, targetOrgId]);
+  }, [reportData?.records, targetOrgId, teamFilter, roleFilter, employeeSearch, statusFilter]);
 
   const displayedRecords = reportData?.records || [];
-  const displayedUserIds = displayedRecords.map((r) => r.userId).filter(Boolean);
+  const displayedUserIds = displayedRecords
+    .map((r) => (r.userId ? String(r.userId).trim() : ''))
+    .filter(Boolean);
   const currentSelectedIds = selectedUserIds || [];
-
-  const isAllSelected =
-    displayedUserIds.length > 0 &&
-    displayedUserIds.every((id) => currentSelectedIds.includes(id));
 
   const selectedInDisplayCount = displayedUserIds.filter((id) =>
     currentSelectedIds.includes(id)
   ).length;
 
+  const isAllSelected =
+    displayedUserIds.length > 0 &&
+    selectedInDisplayCount === displayedUserIds.length;
+
+  const isIndeterminate =
+    selectedInDisplayCount > 0 &&
+    selectedInDisplayCount < displayedUserIds.length;
+
   const saveSelection = (newIds) => {
-    setSelectedUserIds(newIds);
-    try {
-      const key = getSelectionStorageKey(targetOrgId);
-      localStorage.setItem(key, JSON.stringify(newIds));
-    } catch (e) {
-      console.error('Failed to save selected members to localStorage:', e);
+    const normalized = Array.from(
+      new Set((newIds || []).map((id) => String(id).trim()).filter(Boolean))
+    );
+    setSelectedUserIds(normalized);
+    if (targetOrgId) {
+      writeSavedSelection(targetOrgId, normalized);
     }
   };
 
   const handleToggleSelectAll = () => {
+    if (displayedUserIds.length === 0) return;
+
     if (isAllSelected) {
       // Unselect all currently displayed members
-      const newSelection = currentSelectedIds.filter(
-        (id) => !displayedUserIds.includes(id)
-      );
+      const displayedSet = new Set(displayedUserIds);
+      const newSelection = currentSelectedIds.filter((id) => !displayedSet.has(id));
       saveSelection(newSelection);
     } else {
       // Select all currently displayed members
@@ -158,11 +231,12 @@ export default function AttendanceReportSection({ user, onClose }) {
 
   const handleToggleMember = (userId) => {
     if (!userId) return;
+    const strId = String(userId).trim();
     let newSelection;
-    if (currentSelectedIds.includes(userId)) {
-      newSelection = currentSelectedIds.filter((id) => id !== userId);
+    if (currentSelectedIds.includes(strId)) {
+      newSelection = currentSelectedIds.filter((id) => id !== strId);
     } else {
-      newSelection = [...currentSelectedIds, userId];
+      newSelection = [...currentSelectedIds, strId];
     }
     saveSelection(newSelection);
   };
@@ -563,7 +637,8 @@ export default function AttendanceReportSection({ user, onClose }) {
             <option value="LATE">Late</option>
             <option value="ABSENT">Absent</option>
             <option value="WFH">WFH</option>
-            {reportType === 'monthly' && <option value="LEAVE">On Leave</option>}
+            <option value="LEAVE">On Leave</option>
+            <option value="LOP">Loss of Pay (LOP)</option>
           </select>
         </div>
 
@@ -586,36 +661,7 @@ export default function AttendanceReportSection({ user, onClose }) {
       </div>
 
       {/* Row 3: Summary Metrics Bar (For Weekly & Monthly Reports) */}
-      {reportType === 'weekly' && reportData?.summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 text-center">
-            <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider block">
-              Total Members
-            </span>
-            <span className="text-xl font-black text-foreground mt-0.5 block">
-              {reportData.summary.totalEmployees}
-            </span>
-          </div>
-          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-center">
-            <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider block">
-              Average Attendance
-            </span>
-            <span className="text-xl font-black text-primary mt-0.5 block">
-              {reportData.summary.averageAttendance}
-            </span>
-          </div>
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
-            <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider block">
-              Total Late Count
-            </span>
-            <span className="text-xl font-black text-amber-600 mt-0.5 block">
-              {reportData.summary.totalLateCount}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {reportType === 'monthly' && reportData?.summary && (
+      {(reportType === 'weekly' || reportType === 'monthly') && reportData?.summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 text-center">
             <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider block">
@@ -630,7 +676,7 @@ export default function AttendanceReportSection({ user, onClose }) {
               Average Attendance %
             </span>
             <span className="text-xl font-black text-primary mt-0.5 block">
-              {reportData.summary.averageAttendancePercent}
+              {reportData.summary.averageAttendancePercent || reportData.summary.averageAttendance}
             </span>
           </div>
           <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
@@ -659,14 +705,19 @@ export default function AttendanceReportSection({ user, onClose }) {
         </div>
 
         {(() => {
-          const dynamicLeaveTypes = reportData?.leaveTypes && reportData.leaveTypes.length > 0
+          const rawLeaveTypes = reportData?.leaveTypes && reportData.leaveTypes.length > 0
             ? reportData.leaveTypes
             : [
                 { id: 'cl', name: 'Casual Leave', code: 'CL' },
                 { id: 'sl', name: 'Sick Leave', code: 'SL' },
-                { id: 'wfh', name: 'WFH', code: 'WFH' }
+                { id: 'comp_off', name: 'Compensatory Off', code: 'COMP_OFF' }
               ];
-          const monthlyColSpan = 5 + dynamicLeaveTypes.length;
+          const dynamicLeaveTypes = rawLeaveTypes.filter(
+            (lt) => !['WFH', 'WORK_FROM_HOME'].includes((lt.code || '').toUpperCase()) &&
+                    !lt.name?.toUpperCase().includes('WFH') &&
+                    !lt.name?.toUpperCase().includes('WORK FROM HOME')
+          );
+          const periodicColSpan = 6 + dynamicLeaveTypes.length;
 
           return (
             <div className="w-full min-w-0 overflow-x-auto rounded-2xl border border-border/50 bg-card shadow-xs">
@@ -679,6 +730,9 @@ export default function AttendanceReportSection({ user, onClose }) {
                       <input
                         type="checkbox"
                         id="select-all-daily"
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate;
+                        }}
                         checked={isAllSelected}
                         onChange={handleToggleSelectAll}
                         disabled={displayedRecords.length === 0}
@@ -694,37 +748,16 @@ export default function AttendanceReportSection({ user, onClose }) {
                 </tr>
               )}
 
-              {reportType === 'weekly' && (
+              {(reportType === 'weekly' || reportType === 'monthly') && (
                 <tr className="border-b border-border/40 bg-muted/30 text-muted-foreground font-black uppercase text-[10px] tracking-wider whitespace-nowrap">
                   <th className="px-5 py-3 text-left">
                     <div className="flex items-center gap-2.5">
                       <input
                         type="checkbox"
-                        id="select-all-weekly"
-                        checked={isAllSelected}
-                        onChange={handleToggleSelectAll}
-                        disabled={displayedRecords.length === 0}
-                        className="h-4 w-4 rounded border-border/80 text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:opacity-40"
-                        title={isAllSelected ? "Unselect all displayed members" : "Select all displayed members"}
-                      />
-                      <span>Members</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3 text-center">Present</th>
-                  <th className="px-5 py-3 text-center">Late</th>
-                  <th className="px-5 py-3 text-center">Absent</th>
-                  <th className="px-5 py-3 text-center">WFH</th>
-                  <th className="px-5 py-3 text-center">Total Hours</th>
-                </tr>
-              )}
-
-              {reportType === 'monthly' && (
-                <tr className="border-b border-border/40 bg-muted/30 text-muted-foreground font-black uppercase text-[10px] tracking-wider whitespace-nowrap">
-                  <th className="px-5 py-3 text-left">
-                    <div className="flex items-center gap-2.5">
-                      <input
-                        type="checkbox"
-                        id="select-all-monthly"
+                        id={`select-all-${reportType}`}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate;
+                        }}
                         checked={isAllSelected}
                         onChange={handleToggleSelectAll}
                         disabled={displayedRecords.length === 0}
@@ -736,6 +769,7 @@ export default function AttendanceReportSection({ user, onClose }) {
                   </th>
                   <th className="px-5 py-3 text-center">Working Days</th>
                   <th className="px-5 py-3 text-center">Present</th>
+                  <th className="px-5 py-3 text-center">WFH</th>
                   <th className="px-5 py-3 text-center">Late</th>
                   {dynamicLeaveTypes.map((lt) => (
                     <th key={lt.id || lt.name} className="px-5 py-3 text-center">
@@ -750,14 +784,14 @@ export default function AttendanceReportSection({ user, onClose }) {
             <tbody className="divide-y divide-border/25">
               {loading ? (
                 <tr>
-                  <td colSpan={reportType === 'monthly' ? monthlyColSpan : 6} className="px-5 py-8 text-center text-muted-foreground font-semibold">
+                  <td colSpan={reportType === 'daily' ? 4 : periodicColSpan} className="px-5 py-8 text-center text-muted-foreground font-semibold">
                     <RefreshCw className="h-5 w-5 animate-spin mx-auto text-primary mb-2" />
                     <span>Loading report preview...</span>
                   </td>
                 </tr>
               ) : !reportData?.records || reportData.records.length === 0 ? (
                 <tr>
-                  <td colSpan={reportType === 'monthly' ? monthlyColSpan : 6} className="px-5 py-8 text-center text-muted-foreground font-semibold">
+                  <td colSpan={reportType === 'daily' ? 4 : periodicColSpan} className="px-5 py-8 text-center text-muted-foreground font-semibold">
                     No attendance records match the selected filters.
                   </td>
                 </tr>
@@ -770,7 +804,7 @@ export default function AttendanceReportSection({ user, onClose }) {
                         <input
                           type="checkbox"
                           id={`select-member-${rec.userId}`}
-                          checked={currentSelectedIds.includes(rec.userId)}
+                          checked={currentSelectedIds.includes(String(rec.userId).trim())}
                           onChange={() => handleToggleMember(rec.userId)}
                           className="h-4 w-4 rounded border-border/80 text-primary focus:ring-primary/20 accent-primary cursor-pointer shrink-0"
                           title={`Select ${rec.employee}`}
@@ -829,35 +863,17 @@ export default function AttendanceReportSection({ user, onClose }) {
                       </>
                     )}
 
-                    {/* Weekly Columns */}
-                    {reportType === 'weekly' && (
-                      <>
-                        <td className="px-5 py-3.5 text-center font-bold text-emerald-600 whitespace-nowrap">
-                          {rec.present}
-                        </td>
-                        <td className="px-5 py-3.5 text-center font-bold text-amber-600 whitespace-nowrap">
-                          {rec.late}
-                        </td>
-                        <td className="px-5 py-3.5 text-center font-bold text-rose-600 whitespace-nowrap">
-                          {rec.absent}
-                        </td>
-                        <td className="px-5 py-3.5 text-center font-bold text-purple-600 whitespace-nowrap">
-                          {rec.wfh}
-                        </td>
-                        <td className="px-5 py-3.5 text-center font-mono font-bold text-foreground whitespace-nowrap">
-                          {rec.totalHours} hrs
-                        </td>
-                      </>
-                    )}
-
-                    {/* Monthly Columns */}
-                    {reportType === 'monthly' && (
+                    {/* Weekly & Monthly Unified Columns */}
+                    {(reportType === 'weekly' || reportType === 'monthly') && (
                       <>
                         <td className="px-5 py-3.5 text-center font-bold text-foreground whitespace-nowrap">
                           {rec.workingDays}
                         </td>
                         <td className="px-5 py-3.5 text-center font-bold text-emerald-600 whitespace-nowrap">
                           {rec.present}
+                        </td>
+                        <td className="px-5 py-3.5 text-center font-bold text-purple-600 whitespace-nowrap">
+                          {rec.wfh}
                         </td>
                         <td className="px-5 py-3.5 text-center font-bold text-amber-600 whitespace-nowrap">
                           {rec.late}

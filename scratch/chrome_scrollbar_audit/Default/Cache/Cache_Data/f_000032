@@ -1,0 +1,1592 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/super-admin/LeavePolicySettings.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion, AnimatePresence } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import CompanyScopeSelector from "/src/components/common/CompanyScopeSelector.jsx";
+import {
+  Calendar,
+  Settings,
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+  Shield,
+  RotateCcw,
+  Clock,
+  Briefcase,
+  FileText,
+  Sliders,
+  Sparkles,
+  Lock,
+  Layers,
+  Search,
+  Check,
+  X,
+  Stethoscope,
+  Award,
+  DollarSign,
+  Building2,
+  Users
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+import ConfirmModal from "/src/components/common/ConfirmModal.jsx";
+const extractCompanyList = (responseData) => {
+  if (Array.isArray(responseData)) return responseData;
+  if (Array.isArray(responseData?.data)) return responseData.data;
+  if (Array.isArray(responseData?.organizations)) return responseData.organizations;
+  if (Array.isArray(responseData?.companies)) return responseData.companies;
+  return [];
+};
+import { useAuth } from "/src/context/AuthContext.jsx";
+import { useCompanyScope } from "/src/context/CompanyScopeContext.jsx";
+const LeavePolicySettings = () => {
+  _s();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const { selectedOrgId, effectiveOrgId, companies: scopeCompanies } = useCompanyScope();
+  const safeCompanies = Array.isArray(scopeCompanies) ? scopeCompanies : [];
+  const [policy, setPolicy] = useState({
+    allocationType: "ANNUAL",
+    carryForwardEnabled: true,
+    maxCarryForwardDays: 5,
+    halfDayAllowed: true,
+    workingDaysOnly: true,
+    autoApproval: false
+  });
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [userBalances, setUserBalances] = useState([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingPolicy, setSavingPolicy] = useState(false);
+  const [alert, setAlert] = useState({ type: "", text: "" });
+  const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [editingType, setEditingType] = useState(null);
+  const [typeFormData, setTypeFormData] = useState({
+    name: "",
+    code: "",
+    description: "",
+    color: "#3B82F6",
+    icon: "Calendar",
+    displayOrder: 0,
+    isPaid: true,
+    annualDays: 12,
+    monthlyCreditDays: 1,
+    allowCarryForward: false,
+    requireDoc: false,
+    allowHalfDay: true
+  });
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [selectedUserForAdjust, setSelectedUserForAdjust] = useState(null);
+  const [adjustFormData, setAdjustFormData] = useState({
+    leaveTypeId: "",
+    adjustmentDays: 1,
+    reason: ""
+  });
+  const [adjusting, setAdjusting] = useState(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [typeToDelete, setTypeToDelete] = useState(null);
+  const [deletingType, setDeletingType] = useState(false);
+  const isProtectedLeaveType = (lt) => {
+    if (!lt) return false;
+    const protectedCodes = ["CL", "SL"];
+    return protectedCodes.includes((lt.code || "").toUpperCase());
+  };
+  const [selectedRole, setSelectedRole] = useState("ALL");
+  const fetchPolicyData = async (orgId = effectiveOrgId, role = selectedRole) => {
+    const targetOrg = isSuperAdmin ? orgId : effectiveOrgId || user?.organizationId;
+    try {
+      setLoading(true);
+      const params = {};
+      if (targetOrg) params.organizationId = targetOrg;
+      if (role && role !== "ALL") params.role = role;
+      const polRes = await api.get("/leave-policy", { params });
+      if (polRes.data?.policy) {
+        setPolicy(polRes.data.policy);
+      }
+      setLeaveTypes(polRes.data?.leaveTypes || []);
+      setAlert({ type: "", text: "" });
+    } catch (err) {
+      console.error("Fetch leave policy error:", err);
+      setAlert({ type: "error", text: "Failed to load company leave policy settings." });
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchPolicyData(effectiveOrgId, selectedRole);
+  }, [effectiveOrgId, user?.organizationId, selectedRole]);
+  const handleSavePolicy = async (e) => {
+    e.preventDefault();
+    setSavingPolicy(true);
+    setAlert({ type: "", text: "" });
+    try {
+      const allowances = {};
+      leaveTypes.forEach((lt) => {
+        allowances[lt.code] = {
+          annualDays: parseFloat(lt.annualDays) || 0,
+          monthlyCreditDays: parseFloat(lt.monthlyCreditDays) || 0
+        };
+      });
+      const res = await api.put("/leave-policy", {
+        ...policy,
+        organizationId: selectedOrgId,
+        role: selectedRole !== "ALL" ? selectedRole : void 0,
+        allowances
+      });
+      setPolicy(res.data.policy);
+      const currentCompName = safeCompanies.find((c) => c.id === selectedOrgId)?.name || "Company";
+      const roleText = selectedRole !== "ALL" ? ` (${selectedRole.replace("_", " ")})` : "";
+      setAlert({ type: "success", text: `${currentCompName}${roleText} Leave Policy updated successfully!` });
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      setAlert({ type: "error", text: err.response?.data?.message || "Failed to update leave policy." });
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    let autoCode = typeFormData.code;
+    if (!editingType && val) {
+      const words = val.trim().split(/\s+/);
+      if (words.length >= 2) {
+        autoCode = (words[0][0] + words[1][0]).toUpperCase();
+      } else {
+        autoCode = val.substring(0, 3).toUpperCase();
+      }
+    }
+    setTypeFormData({ ...typeFormData, name: val, code: autoCode });
+  };
+  const openTypeModal = (lt = null) => {
+    if (lt) {
+      setEditingType(lt);
+      const annualVal = lt.annualDays !== void 0 && lt.annualDays !== null ? lt.annualDays : 0;
+      const monthlyVal = lt.monthlyCreditDays !== void 0 && lt.monthlyCreditDays !== null ? lt.monthlyCreditDays : lt.monthlyCredit !== void 0 && lt.monthlyCredit !== null ? lt.monthlyCredit : 0;
+      setTypeFormData({
+        name: lt.name || "",
+        code: lt.code || "",
+        description: lt.description || "",
+        color: lt.color || "#3B82F6",
+        icon: lt.icon || "Calendar",
+        displayOrder: lt.displayOrder !== void 0 ? lt.displayOrder : 0,
+        isPaid: lt.isPaid ?? true,
+        annualDays: annualVal,
+        monthlyCreditDays: monthlyVal,
+        monthlyCredit: monthlyVal,
+        allowCarryForward: lt.allowCarryForward ?? false,
+        requireDoc: lt.requireDoc ?? false,
+        allowHalfDay: lt.allowHalfDay ?? true
+      });
+    } else {
+      setEditingType(null);
+      setTypeFormData({
+        name: "",
+        code: "",
+        description: "",
+        color: "#3B82F6",
+        icon: "Calendar",
+        displayOrder: leaveTypes.length + 1,
+        isPaid: true,
+        annualDays: 12,
+        monthlyCreditDays: 1,
+        monthlyCredit: 1,
+        allowCarryForward: false,
+        requireDoc: false,
+        allowHalfDay: true
+      });
+    }
+    setTypeModalOpen(true);
+  };
+  const handleSaveLeaveType = async (e) => {
+    e.preventDefault();
+    const annualDaysNum = typeFormData.annualDays === "" ? 0 : Number(typeFormData.annualDays);
+    const monthlyCreditRaw = typeFormData.monthlyCreditDays !== void 0 && typeFormData.monthlyCreditDays !== "" ? typeFormData.monthlyCreditDays : typeFormData.monthlyCredit;
+    const monthlyCreditNum = monthlyCreditRaw === "" || monthlyCreditRaw === void 0 ? 0 : Number(monthlyCreditRaw);
+    if (isNaN(annualDaysNum) || isNaN(monthlyCreditNum) || annualDaysNum < 0 || monthlyCreditNum < 0) {
+      setAlert({ type: "error", text: "Leave allowances cannot be negative or invalid numbers." });
+      return;
+    }
+    const payload = {
+      ...typeFormData,
+      annualDays: annualDaysNum,
+      monthlyCredit: monthlyCreditNum,
+      monthlyCreditDays: monthlyCreditNum,
+      organizationId: selectedOrgId,
+      role: selectedRole !== "ALL" ? selectedRole : void 0
+    };
+    console.log("Before Save", payload);
+    try {
+      if (editingType) {
+        const res = await api.put(`/leave-policy/types/${editingType.id}`, payload);
+        const updated = res.data?.leaveType || {
+          ...editingType,
+          ...payload,
+          id: editingType.id
+        };
+        setLeaveTypes(
+          (prev) => prev.map(
+            (type) => type.id === updated.id ? { ...type, ...updated } : type
+          )
+        );
+        const roleLabel = selectedRole !== "ALL" ? ` for ${selectedRole.replace("_", " ")}` : "";
+        setAlert({ type: "success", text: `Leave Type ${typeFormData.name} updated successfully${roleLabel}!` });
+      } else {
+        const res = await api.post("/leave-policy/types", payload);
+        if (res.data?.leaveType) {
+          setLeaveTypes((prev) => [...prev, res.data.leaveType]);
+        }
+        setAlert({ type: "success", text: `Leave Type ${typeFormData.name} created successfully!` });
+      }
+      setTypeModalOpen(false);
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      setAlert({ type: "error", text: err.response?.data?.message || "Failed to save leave type." });
+    }
+  };
+  const handleToggleStatus = async (lt) => {
+    try {
+      const res = await api.put(`/leave-policy/types/${lt.id}/status`);
+      setAlert({ type: "success", text: res.data.message });
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      setAlert({ type: "error", text: "Failed to toggle leave type status." });
+    }
+  };
+  const handleDeleteClick = (lt) => {
+    setTypeToDelete(lt);
+    setDeleteConfirmOpen(true);
+  };
+  const handleConfirmDelete = async () => {
+    if (!typeToDelete) return;
+    const deletedId = typeToDelete.id;
+    const deletedName = typeToDelete.name;
+    try {
+      setDeletingType(true);
+      const res = await api.delete(`/leave-policy/types/${deletedId}`, {
+        params: effectiveOrgId ? { organizationId: effectiveOrgId } : {}
+      });
+      setLeaveTypes((prev) => prev.filter((lt) => lt.id !== deletedId));
+      setDeleteConfirmOpen(false);
+      setTypeToDelete(null);
+      setAlert({
+        type: "success",
+        text: res.data?.message || `Leave type "${deletedName}" deleted successfully.`
+      });
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to delete leave type.";
+      setAlert({ type: "error", text: errMsg });
+      setDeleteConfirmOpen(false);
+      setTypeToDelete(null);
+    } finally {
+      setDeletingType(false);
+    }
+  };
+  const handleAdjustBalance = async (e) => {
+    e.preventDefault();
+    if (!adjustFormData.leaveTypeId || !adjustFormData.reason) {
+      setAlert({ type: "error", text: "Please fill all required adjustment fields." });
+      return;
+    }
+    setAdjusting(true);
+    try {
+      const payload = {
+        userId: selectedUserForAdjust.userId,
+        leaveTypeId: adjustFormData.leaveTypeId,
+        adjustmentDays: adjustFormData.adjustmentDays,
+        reason: adjustFormData.reason
+      };
+      await api.post("/leave-policy/adjust-balance", payload);
+      setAlert({ type: "success", text: "User leave balance adjusted successfully!" });
+      setAdjustModalOpen(false);
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      setAlert({ type: "error", text: err.response?.data?.message || "Failed to adjust user leave balance." });
+    } finally {
+      setAdjusting(false);
+    }
+  };
+  const handleRunAnnualReset = async () => {
+    setResetting(true);
+    try {
+      const res = await api.post("/leave-policy/annual-reset", { organizationId: selectedOrgId });
+      setAlert({ type: "success", text: res.data.message || "Annual leave reset executed!" });
+      setResetModalOpen(false);
+      fetchPolicyData(selectedOrgId, selectedRole);
+    } catch (err) {
+      setAlert({ type: "error", text: err.response?.data?.message || "Failed to execute annual reset." });
+    } finally {
+      setResetting(false);
+    }
+  };
+  const currentCompany = safeCompanies.find((c) => c.id === selectedOrgId);
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-8 p-4 sm:p-8 max-w-7xl mx-auto text-left", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3 mb-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "p-2.5 rounded-2xl bg-primary/10 text-primary border border-primary/20", children: /* @__PURE__ */ jsxDEV(Calendar, { className: "h-6 w-6" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 399,
+            columnNumber: 15
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 398,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("h1", { className: "text-2xl font-black tracking-tight text-foreground flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV("span", { children: currentCompany ? `${currentCompany.name} Leave Policy` : "Company Leave Policy" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 402,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(Sparkles, { className: "h-5 w-5 text-primary" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 403,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 401,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 397,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: [
+          "Leave policy governing Interns, Employees, and Team Leaders for ",
+          currentCompany?.name || "selected company",
+          "."
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 406,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 396,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => setResetModalOpen(true),
+            className: "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-bold transition-all cursor-pointer shadow-xs",
+            children: [
+              /* @__PURE__ */ jsxDEV(RotateCcw, { className: "h-4 w-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 416,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Run Annual Reset" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 417,
+                columnNumber: 13
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 412,
+            columnNumber: 11
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => openTypeModal(),
+            className: "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md cursor-pointer transition-all",
+            children: [
+              /* @__PURE__ */ jsxDEV(Plus, { className: "h-4 w-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 423,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Add Leave Type" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 424,
+                columnNumber: 13
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 419,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 411,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 395,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(CompanyScopeSelector, { onScopeChange: (newId) => fetchPolicyData(newId, selectedRole) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 430,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-wrap items-center justify-between gap-3 p-3.5 bg-card border border-border/70 rounded-2xl shadow-xs text-left", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-2 rounded-xl bg-primary/10 text-primary border border-primary/20", children: /* @__PURE__ */ jsxDEV(Users, { className: "w-4 h-4" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 436,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 435,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h4", { className: "text-xs font-bold text-foreground", children: "Target Role Scope" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 439,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground font-medium", children: "Configure policies specifically for Team Leaders, Employees, or Interns" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 440,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 438,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 434,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-1 p-1 bg-muted/60 border border-border/50 rounded-xl", children: [
+        { id: "ALL", label: "All Roles" },
+        { id: "TEAM_LEADER", label: "Team Leader" },
+        { id: "EMPLOYEE", label: "Employee" },
+        { id: "INTERN", label: "Intern" }
+      ].map((r) => {
+        const isSelected = selectedRole === r.id;
+        return /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => {
+              setSelectedRole(r.id);
+              fetchPolicyData(selectedOrgId, r.id);
+            },
+            className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-primary text-white shadow-xs font-extrabold" : "text-muted-foreground hover:text-foreground hover:bg-muted/80"}`,
+            children: r.label
+          },
+          r.id,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 453,
+            columnNumber: 15
+          },
+          this
+        );
+      }) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 444,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 433,
+      columnNumber: 7
+    }, this),
+    alert.text && /* @__PURE__ */ jsxDEV(
+      motion.div,
+      {
+        initial: { opacity: 0, y: -10 },
+        animate: { opacity: 1, y: 0 },
+        className: `p-4 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-xs ${alert.type === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-rose-500/10 border-rose-500/30 text-rose-600"}`,
+        children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+            alert.type === "success" ? /* @__PURE__ */ jsxDEV(CheckCircle, { className: "h-4 w-4 shrink-0" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 484,
+              columnNumber: 41
+            }, this) : /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-4 w-4 shrink-0" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 484,
+              columnNumber: 88
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: alert.text }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 485,
+              columnNumber: 13
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 483,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("button", { onClick: () => setAlert({ type: "", text: "" }), className: "p-1 hover:opacity-75", children: /* @__PURE__ */ jsxDEV(X, { className: "h-4 w-4" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 488,
+            columnNumber: 13
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 487,
+            columnNumber: 11
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 474,
+        columnNumber: 7
+      },
+      this
+    ),
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border/80 rounded-3xl p-6 sm:p-8 shadow-md text-left space-y-6", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/40 pb-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+          /* @__PURE__ */ jsxDEV(Calendar, { className: "h-5 w-5 text-primary" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 498,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 flex-wrap", children: [
+            /* @__PURE__ */ jsxDEV("h2", { className: "text-base font-extrabold text-foreground", children: [
+              currentCompany?.name || "Company",
+              " Leave Policy"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 500,
+              columnNumber: 15
+            }, this),
+            selectedRole !== "ALL" && /* @__PURE__ */ jsxDEV("span", { className: "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-primary/10 text-primary border border-primary/20", children: selectedRole.replace("_", " ") }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 502,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 499,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 497,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: handleSavePolicy,
+            disabled: savingPolicy,
+            className: "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md cursor-pointer transition-all disabled:opacity-50",
+            children: [
+              /* @__PURE__ */ jsxDEV(Check, { className: "h-4 w-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 513,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: savingPolicy ? "Saving..." : `Save ${selectedRole !== "ALL" ? selectedRole.replace("_", " ") + " " : ""}Policy` }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 514,
+                columnNumber: 13
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 508,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 496,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-3", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-extrabold uppercase tracking-wider text-muted-foreground", children: "Allocation Mode *" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 520,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+          /* @__PURE__ */ jsxDEV(
+            "label",
+            {
+              onClick: () => setPolicy({ ...policy, allocationType: "ANNUAL" }),
+              className: `p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${policy.allocationType === "ANNUAL" ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 bg-muted/20 hover:border-border"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "radio",
+                    name: "allocationType",
+                    value: "ANNUAL",
+                    checked: policy.allocationType === "ANNUAL",
+                    onChange: () => {
+                    },
+                    className: "mt-1 text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 532,
+                    columnNumber: 15
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("h4", { className: "text-sm font-black text-foreground", children: "Annual Allocation" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 541,
+                    columnNumber: 17
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5 font-medium", children: "Allocates total annual leave allowance immediately at the start of each year." }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 542,
+                    columnNumber: 17
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 540,
+                  columnNumber: 15
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 524,
+              columnNumber: 13
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV(
+            "label",
+            {
+              onClick: () => setPolicy({ ...policy, allocationType: "MONTHLY" }),
+              className: `p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${policy.allocationType === "MONTHLY" ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 bg-muted/20 hover:border-border"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "radio",
+                    name: "allocationType",
+                    value: "MONTHLY",
+                    checked: policy.allocationType === "MONTHLY",
+                    onChange: () => {
+                    },
+                    className: "mt-1 text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 556,
+                    columnNumber: 15
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("h4", { className: "text-sm font-black text-foreground", children: "Monthly Automated Credit" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 565,
+                    columnNumber: 17
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5 font-medium", children: "Credits configured monthly leave days automatically every 1st of the month." }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 566,
+                    columnNumber: 17
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 564,
+                  columnNumber: 15
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 548,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 523,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 519,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-6 border-t border-border/40 space-y-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("h3", { className: "text-sm font-extrabold text-foreground", children: "Leave Types" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 578,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Configure allowances, colors, and system status for company leave categories." }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 579,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 577,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: () => openTypeModal(),
+              className: "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all cursor-pointer shadow-xs",
+              children: [
+                /* @__PURE__ */ jsxDEV(Plus, { className: "h-3.5 w-3.5" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 587,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { children: "New Leave Type" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 588,
+                  columnNumber: 15
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 583,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 576,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6", children: leaveTypes.map((lt) => {
+          const isProtected = isProtectedLeaveType(lt);
+          return /* @__PURE__ */ jsxDEV(
+            "div",
+            {
+              className: `p-6 rounded-3xl border transition-all flex flex-col justify-between space-y-5 shadow-xs ${lt.isActive ? "bg-card border-border/80 hover:border-primary/50 hover:shadow-md" : "bg-muted/30 border-border/40 opacity-60"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "space-y-4", children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+                      /* @__PURE__ */ jsxDEV(
+                        "span",
+                        {
+                          className: "h-4 w-4 rounded-full shrink-0 shadow-xs border border-white/20",
+                          style: { backgroundColor: lt.color }
+                        },
+                        void 0,
+                        false,
+                        {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                          lineNumber: 605,
+                          columnNumber: 25
+                        },
+                        this
+                      ),
+                      /* @__PURE__ */ jsxDEV("span", { className: "font-mono text-xs font-black text-foreground tracking-wider", children: lt.code }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 609,
+                        columnNumber: 25
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 604,
+                      columnNumber: 23
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-1.5", children: [
+                      isProtected && /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center gap-1", title: "System leave type", children: [
+                        /* @__PURE__ */ jsxDEV(Lock, { className: "h-3 w-3" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                          lineNumber: 615,
+                          columnNumber: 29
+                        }, this),
+                        " System"
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 614,
+                        columnNumber: 25
+                      }, this),
+                      /* @__PURE__ */ jsxDEV(
+                        "button",
+                        {
+                          onClick: () => handleToggleStatus(lt),
+                          className: `text-[10px] font-bold uppercase px-2.5 py-1 rounded-full transition-all cursor-pointer ${lt.isActive ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-rose-500/10 text-rose-600 border border-rose-500/20"}`,
+                          children: lt.isActive ? "Active" : "Disabled"
+                        },
+                        void 0,
+                        false,
+                        {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                          lineNumber: 618,
+                          columnNumber: 25
+                        },
+                        this
+                      )
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 612,
+                      columnNumber: 23
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 603,
+                    columnNumber: 21
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("div", { children: [
+                    /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-black text-foreground", children: lt.name }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 630,
+                      columnNumber: 23
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium mt-1 leading-relaxed", children: lt.description || "Configurable organizational leave category" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 631,
+                      columnNumber: 23
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 629,
+                    columnNumber: 21
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("div", { className: "pt-3 border-t border-border/40 grid grid-cols-2 gap-3 text-center text-xs", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "bg-muted/40 p-3 rounded-2xl border border-border/40", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-extrabold block uppercase tracking-wider", children: "Annual Allowance" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 638,
+                        columnNumber: 25
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("span", { className: "font-black text-sm text-foreground mt-0.5 block", children: lt.isPaid ? `${lt.annualDays ?? 0} Days` : "Unpaid" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 639,
+                        columnNumber: 25
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 637,
+                      columnNumber: 23
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "bg-muted/40 p-3 rounded-2xl border border-border/40", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-extrabold block uppercase tracking-wider", children: "Monthly Credit" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 642,
+                        columnNumber: 25
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("span", { className: "font-black text-sm text-foreground mt-0.5 block", children: lt.isPaid ? `${lt.monthlyCreditDays ?? lt.monthlyCredit ?? 0} Days` : "N/A" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 643,
+                        columnNumber: 25
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 641,
+                      columnNumber: 23
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 636,
+                    columnNumber: 21
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 602,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-end gap-2 pt-3 border-t border-border/40", children: [
+                  /* @__PURE__ */ jsxDEV(
+                    "button",
+                    {
+                      onClick: () => openTypeModal(lt),
+                      className: "p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer",
+                      title: "Edit Leave Type",
+                      children: /* @__PURE__ */ jsxDEV(Edit2, { className: "h-4 w-4" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 654,
+                        columnNumber: 23
+                      }, this)
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 649,
+                      columnNumber: 21
+                    },
+                    this
+                  ),
+                  !isProtected && /* @__PURE__ */ jsxDEV(
+                    "button",
+                    {
+                      onClick: () => handleDeleteClick(lt),
+                      className: "p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-rose-600 transition-colors cursor-pointer",
+                      title: "Delete Leave Type",
+                      children: /* @__PURE__ */ jsxDEV(Trash2, { className: "h-4 w-4" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                        lineNumber: 662,
+                        columnNumber: 25
+                      }, this)
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                      lineNumber: 657,
+                      columnNumber: 21
+                    },
+                    this
+                  )
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 648,
+                  columnNumber: 19
+                }, this)
+              ]
+            },
+            lt.id,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 596,
+              columnNumber: 17
+            },
+            this
+          );
+        }) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 592,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 575,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 494,
+      columnNumber: 7
+    }, this),
+    typeModalOpen && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs", children: /* @__PURE__ */ jsxDEV(
+      motion.div,
+      {
+        initial: { scale: 0.95, opacity: 0 },
+        animate: { scale: 1, opacity: 1 },
+        className: "bg-card border border-border/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 text-left max-h-[90vh] overflow-y-auto",
+        children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/60 pb-4", children: [
+            /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-extrabold text-foreground", children: editingType ? `Edit Leave Type: ${editingType.name}` : "Create Dynamic Leave Type" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 682,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("button", { onClick: () => setTypeModalOpen(false), className: "p-1 rounded-xl text-muted-foreground hover:bg-muted", children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 686,
+              columnNumber: 17
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 685,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 681,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("form", { onSubmit: handleSaveLeaveType, className: "space-y-4", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Leave Name *" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 693,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "text",
+                    required: true,
+                    placeholder: "e.g. Marriage Leave",
+                    value: typeFormData.name,
+                    onChange: handleNameChange,
+                    className: "w-full px-3 py-2 text-xs font-medium rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 694,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 692,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Leave Code *" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 704,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "text",
+                    required: true,
+                    disabled: Boolean(editingType?.isSystem || isProtectedLeaveType(editingType)),
+                    title: editingType?.isSystem || isProtectedLeaveType(editingType) ? "System leave code cannot be modified" : "",
+                    placeholder: "e.g. ML",
+                    value: typeFormData.code,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, code: e.target.value.toUpperCase() }),
+                    className: `w-full px-3 py-2 text-xs font-bold uppercase rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20 ${editingType?.isSystem || isProtectedLeaveType(editingType) ? "opacity-60 cursor-not-allowed bg-muted/40" : ""}`
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 705,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 703,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 691,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Description" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 721,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "textarea",
+                {
+                  rows: 2,
+                  placeholder: "Leave category policy guidelines for HR...",
+                  value: typeFormData.description,
+                  onChange: (e) => setTypeFormData({ ...typeFormData, description: e.target.value }),
+                  className: "w-full px-3 py-2 text-xs font-medium rounded-xl border border-border bg-background outline-none resize-none"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 722,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 720,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Badge Color" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 733,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "color",
+                    value: typeFormData.color,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, color: e.target.value }),
+                    className: "h-9 w-full rounded-xl border border-border bg-background cursor-pointer"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 734,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 732,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Display Order" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 742,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "number",
+                    value: typeFormData.displayOrder,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, displayOrder: parseInt(e.target.value, 10) || 0 }),
+                    className: "w-full px-3 py-2 text-xs font-medium rounded-xl border border-border bg-background outline-none"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 743,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 741,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 731,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4", children: [
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Annual Allowance (Days) *" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 754,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "number",
+                    step: "any",
+                    min: "0",
+                    required: true,
+                    value: typeFormData.annualDays,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, annualDays: e.target.value }),
+                    className: "w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 755,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 753,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "block text-xs font-bold text-foreground mb-1", children: "Monthly Credit (Days) *" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 766,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "number",
+                    step: "any",
+                    min: "0",
+                    required: true,
+                    value: typeFormData.monthlyCredit !== void 0 ? typeFormData.monthlyCredit : typeFormData.monthlyCreditDays ?? "",
+                    onChange: (e) => {
+                      const val = e.target.value;
+                      setTypeFormData({
+                        ...typeFormData,
+                        monthlyCredit: val,
+                        monthlyCreditDays: val
+                      });
+                    },
+                    className: "w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 767,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 765,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 752,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 gap-3 pt-2", children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: typeFormData.isPaid,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, isPaid: e.target.checked }),
+                    className: "rounded text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 788,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("span", { children: "Paid Leave" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 794,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 787,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("label", { className: "flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: typeFormData.allowCarryForward,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, allowCarryForward: e.target.checked }),
+                    className: "rounded text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 797,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("span", { children: "Carry Forward" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 803,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 796,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("label", { className: "flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: typeFormData.allowHalfDay,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, allowHalfDay: e.target.checked }),
+                    className: "rounded text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 806,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("span", { children: "Allow Half Day" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 812,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 805,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("label", { className: "flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: typeFormData.requireDoc,
+                    onChange: (e) => setTypeFormData({ ...typeFormData, requireDoc: e.target.checked }),
+                    className: "rounded text-primary focus:ring-primary"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                    lineNumber: 815,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("span", { children: "Require Documents" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 821,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                lineNumber: 814,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 786,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-3 pt-4 border-t border-border/60", children: [
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setTypeModalOpen(false),
+                  className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted",
+                  children: "Cancel"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 826,
+                  columnNumber: 17
+                },
+                this
+              ),
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  type: "submit",
+                  className: "px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md cursor-pointer",
+                  children: "Save Leave Type"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+                  lineNumber: 833,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+              lineNumber: 825,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 690,
+            columnNumber: 13
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 676,
+        columnNumber: 11
+      },
+      this
+    ) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 675,
+      columnNumber: 7
+    }, this),
+    resetModalOpen && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border/80 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 text-left", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-primary/10 text-primary border border-primary/20", children: /* @__PURE__ */ jsxDEV(RotateCcw, { className: "h-6 w-6" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 851,
+          columnNumber: 17
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 850,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-extrabold text-foreground", children: "Execute Annual Leave Reset?" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 854,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Applies carry-forward limits, expires old balances, and initializes new annual leave credits for all users." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 855,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+          lineNumber: 853,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 849,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-3 pt-4 border-t border-border/60", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => setResetModalOpen(false),
+            className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer",
+            children: "Cancel"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 862,
+            columnNumber: 15
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: handleRunAnnualReset,
+            disabled: resetting,
+            className: "px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50",
+            children: resetting ? "Executing Reset..." : "Confirm Reset"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+            lineNumber: 868,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 861,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 848,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+      lineNumber: 847,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(
+      ConfirmModal,
+      {
+        isOpen: deleteConfirmOpen,
+        title: "Delete Leave Type",
+        message: `Are you sure you want to delete the "${typeToDelete?.name}" leave type? Users will no longer be able to request this leave type. Existing leave history remains unaffected.`,
+        confirmText: "Delete Leave Type",
+        cancelText: "Cancel",
+        loading: deletingType,
+        onConfirm: handleConfirmDelete,
+        onClose: () => {
+          if (!deletingType) {
+            setDeleteConfirmOpen(false);
+            setTypeToDelete(null);
+          }
+        }
+      },
+      void 0,
+      false,
+      {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+        lineNumber: 881,
+        columnNumber: 7
+      },
+      this
+    )
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx",
+    lineNumber: 393,
+    columnNumber: 5
+  }, this);
+};
+_s(LeavePolicySettings, "+9FiTEGR/SQqlEJxc15az33Joq8=", false, function() {
+  return [useAuth, useCompanyScope];
+});
+_c = LeavePolicySettings;
+export default LeavePolicySettings;
+var _c;
+$RefreshReg$(_c, "LeavePolicySettings");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LeavePolicySettings.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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MEJJRCxxQkFBbUI7QUFBQSxVQUNORixTQUVvREMsZUFBZTtBQUFBO0FBQUEsS0FIaEZDO0FBcTBCTixlQUFlQTtBQUFvQixJQUFBOEo7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsIm1vdGlvbiIsIkFuaW1hdGVQcmVzZW5jZSIsIkNvbXBhbnlTY29wZVNlbGVjdG9yIiwiQ2FsZW5kYXIiLCJTZXR0aW5ncyIsIlBsdXMiLCJFZGl0MiIsIlRyYXNoMiIsIkNoZWNrQ2lyY2xlIiwiQWxlcnRDaXJjbGUiLCJTaGllbGQiLCJSb3RhdGVDY3ciLCJDbG9jayIsIkJyaWVmY2FzZSIsIkZpbGVUZXh0IiwiU2xpZGVycyIsIlNwYXJrbGVzIiwiTG9jayIsIkxheWVycyIsIlNlYXJjaCIsIkNoZWNrIiwiWCIsIlN0ZXRob3Njb3BlIiwiQXdhcmQiLCJEb2xsYXJTaWduIiwiQnVpbGRpbmcyIiwiVXNlcnMiLCJhcGkiLCJDb25maXJtTW9kYWwiLCJleHRyYWN0Q29tcGFueUxpc3QiLCJyZXNwb25zZURhdGEiLCJBcnJheSIsImlzQXJyYXkiLCJkYXRhIiwib3JnYW5pemF0aW9ucyIsImNvbXBhbmllcyIsInVzZUF1dGgiLCJ1c2VDb21wYW55U2NvcGUiLCJMZWF2ZVBvbGljeVNldHRpbmdzIiwiX3MiLCJ1c2VyIiwiaXNTdXBlckFkbWluIiwicm9sZSIsInNlbGVjdGVkT3JnSWQiLCJlZmZlY3RpdmVPcmdJZCIsInNjb3BlQ29tcGFuaWVzIiwic2FmZUNvbXBhbmllcyIsInBvbGljeSIsInNldFBvbGljeSIsImFsbG9jYXRpb25UeXBlIiwiY2FycnlGb3J3YXJkRW5hYmxlZCIsIm1heENhcnJ5Rm9yd2FyZERheXMiLCJoYWxmRGF5QWxsb3dlZCIsIndvcmtpbmdEYXlzT25seSIsImF1dG9BcHByb3ZhbCIsImxlYXZlVHlwZXMiLCJzZXRMZWF2ZVR5cGVzIiwidXNlckJhbGFuY2VzIiwic2V0VXNlckJhbGFuY2VzIiwidXNlclNlYXJjaCIsInNldFVzZXJTZWFyY2giLCJsb2FkaW5nIiwic2V0TG9hZGluZyIsInNhdmluZ1BvbGljeSIsInNldFNhdmluZ1BvbGljeSIsImFsZXJ0Iiwic2V0QWxlcnQiLCJ0eXBlIiwidGV4dCIsInR5cGVNb2RhbE9wZW4iLCJzZXRUeXBlTW9kYWxPcGVuIiwiZWRpdGluZ1R5cGUiLCJzZXRFZGl0aW5nVHlwZSIsInR5cGVGb3JtRGF0YSIsInNldFR5cGVGb3JtRGF0YSIsIm5hbWUiLCJjb2RlIiwiZGVzY3JpcHRpb24iLCJjb2xvciIsImljb24iLCJkaXNwbGF5T3JkZXIiLCJpc1BhaWQiLCJhbm51YWxEYXlzIiwibW9udGhseUNyZWRpdERheXMiLCJhbGxvd0NhcnJ5Rm9yd2FyZCIsInJlcXVpcmVEb2MiLCJhbGxvd0hhbGZEYXkiLCJhZGp1c3RNb2RhbE9wZW4iLCJzZXRBZGp1c3RNb2RhbE9wZW4iLCJzZWxlY3RlZFVzZXJGb3JBZGp1c3QiLCJzZXRTZWxlY3RlZFVzZXJGb3JBZGp1c3QiLCJhZGp1c3RGb3JtRGF0YSIsInNldEFkanVzdEZvcm1EYXRhIiwibGVhdmVUeXBlSWQiLCJhZGp1c3RtZW50RGF5cyIsInJlYXNvbiIsImFkanVzdGluZyIsInNldEFkanVzdGluZyIsInJlc2V0TW9kYWxPcGVuIiwic2V0UmVzZXRNb2RhbE9wZW4iLCJyZXNldHRpbmciLCJzZXRSZXNldHRpbmciLCJkZWxldGVDb25maXJtT3BlbiIsInNldERlbGV0ZUNvbmZpcm1PcGVuIiwidHlwZVRvRGVsZXRlIiwic2V0VHlwZVRvRGVsZXRlIiwiZGVsZXRpbmdUeXBlIiwic2V0RGVsZXRpbmdUeXBlIiwiaXNQcm90ZWN0ZWRMZWF2ZVR5cGUiLCJsdCIsInByb3RlY3RlZENvZGVzIiwiaW5jbHVkZXMiLCJ0b1VwcGVyQ2FzZSIsInNlbGVjdGVkUm9sZSIsInNldFNlbGVjdGVkUm9sZSIsImZldGNoUG9saWN5RGF0YSIsIm9yZ0lkIiwidGFyZ2V0T3JnIiwib3JnYW5pemF0aW9uSWQiLCJwYXJhbXMiLCJwb2xSZXMiLCJnZXQiLCJlcnIiLCJjb25zb2xlIiwiZXJyb3IiLCJoYW5kbGVTYXZlUG9saWN5IiwiZSIsInByZXZlbnREZWZhdWx0IiwiYWxsb3dhbmNlcyIsImZvckVhY2giLCJwYXJzZUZsb2F0IiwicmVzIiwicHV0IiwidW5kZWZpbmVkIiwiY3VycmVudENvbXBOYW1lIiwiZmluZCIsImMiLCJpZCIsInJvbGVUZXh0IiwicmVwbGFjZSIsInJlc3BvbnNlIiwibWVzc2FnZSIsImhhbmRsZU5hbWVDaGFuZ2UiLCJ2YWwiLCJ0YXJnZXQiLCJ2YWx1ZSIsImF1dG9Db2RlIiwid29yZHMiLCJ0cmltIiwic3BsaXQiLCJsZW5ndGgiLCJzdWJzdHJpbmciLCJvcGVuVHlwZU1vZGFsIiwiYW5udWFsVmFsIiwibW9udGhseVZhbCIsIm1vbnRobHlDcmVkaXQiLCJoYW5kbGVTYXZlTGVhdmVUeXBlIiwiYW5udWFsRGF5c051bSIsIk51bWJlciIsIm1vbnRobHlDcmVkaXRSYXciLCJtb250aGx5Q3JlZGl0TnVtIiwiaXNOYU4iLCJwYXlsb2FkIiwibG9nIiwidXBkYXRlZCIsImxlYXZlVHlwZSIsInByZXYiLCJtYXAiLCJyb2xlTGFiZWwiLCJwb3N0IiwiaGFuZGxlVG9nZ2xlU3RhdHVzIiwiaGFuZGxlRGVsZXRlQ2xpY2siLCJoYW5kbGVDb25maXJtRGVsZXRlIiwiZGVsZXRlZElkIiwiZGVsZXRlZE5hbWUiLCJkZWxldGUiLCJmaWx0ZXIiLCJlcnJNc2ciLCJoYW5kbGVBZGp1c3RCYWxhbmNlIiwidXNlcklkIiwiaGFuZGxlUnVuQW5udWFsUmVzZXQiLCJjdXJyZW50Q29tcGFueSIsIm5ld0lkIiwibGFiZWwiLCJyIiwiaXNTZWxlY3RlZCIsIm9wYWNpdHkiLCJ5IiwiaXNQcm90ZWN0ZWQiLCJpc0FjdGl2ZSIsImJhY2tncm91bmRDb2xvciIsInNjYWxlIiwiQm9vbGVhbiIsImlzU3lzdGVtIiwicGFyc2VJbnQiLCJjaGVja2VkIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiTGVhdmVQb2xpY3lTZXR0aW5ncy5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VFZmZlY3QgfSBmcm9tICdyZWFjdCc7XHJcbmltcG9ydCB7IG1vdGlvbiwgQW5pbWF0ZVByZXNlbmNlIH0gZnJvbSAnZnJhbWVyLW1vdGlvbic7XHJcbmltcG9ydCBDb21wYW55U2NvcGVTZWxlY3RvciBmcm9tICcuLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Db21wYW55U2NvcGVTZWxlY3Rvcic7XHJcbmltcG9ydCB7XHJcbiAgQ2FsZW5kYXIsXHJcbiAgU2V0dGluZ3MsXHJcbiAgUGx1cyxcclxuICBFZGl0MixcclxuICBUcmFzaDIsXHJcbiAgQ2hlY2tDaXJjbGUsXHJcbiAgQWxlcnRDaXJjbGUsXHJcbiAgU2hpZWxkLFxyXG4gIFJvdGF0ZUNjdyxcclxuICBDbG9jayxcclxuICBCcmllZmNhc2UsXHJcbiAgRmlsZVRleHQsXHJcbiAgU2xpZGVycyxcclxuICBTcGFya2xlcyxcclxuICBMb2NrLFxyXG4gIExheWVycyxcclxuICBTZWFyY2gsXHJcbiAgQ2hlY2ssXHJcbiAgWCxcclxuICBTdGV0aG9zY29wZSxcclxuICBBd2FyZCxcclxuICBEb2xsYXJTaWduLFxyXG4gIEJ1aWxkaW5nMixcclxuICBVc2Vyc1xyXG59IGZyb20gJ2x1Y2lkZS1yZWFjdCc7XHJcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcclxuaW1wb3J0IENvbmZpcm1Nb2RhbCBmcm9tICcuLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Db25maXJtTW9kYWwnO1xyXG5cclxuY29uc3QgZXh0cmFjdENvbXBhbnlMaXN0ID0gKHJlc3BvbnNlRGF0YSkgPT4ge1xyXG4gIGlmIChBcnJheS5pc0FycmF5KHJlc3BvbnNlRGF0YSkpIHJldHVybiByZXNwb25zZURhdGE7XHJcbiAgaWYgKEFycmF5LmlzQXJyYXkocmVzcG9uc2VEYXRhPy5kYXRhKSkgcmV0dXJuIHJlc3BvbnNlRGF0YS5kYXRhO1xyXG4gIGlmIChBcnJheS5pc0FycmF5KHJlc3BvbnNlRGF0YT8ub3JnYW5pemF0aW9ucykpIHJldHVybiByZXNwb25zZURhdGEub3JnYW5pemF0aW9ucztcclxuICBpZiAoQXJyYXkuaXNBcnJheShyZXNwb25zZURhdGE/LmNvbXBhbmllcykpIHJldHVybiByZXNwb25zZURhdGEuY29tcGFuaWVzO1xyXG4gIHJldHVybiBbXTtcclxufTtcclxuXHJcbmltcG9ydCB7IHVzZUF1dGggfSBmcm9tICcuLi8uLi9jb250ZXh0L0F1dGhDb250ZXh0JztcclxuaW1wb3J0IHsgdXNlQ29tcGFueVNjb3BlIH0gZnJvbSAnLi4vLi4vY29udGV4dC9Db21wYW55U2NvcGVDb250ZXh0JztcclxuXHJcbmNvbnN0IExlYXZlUG9saWN5U2V0dGluZ3MgPSAoKSA9PiB7XHJcbiAgY29uc3QgeyB1c2VyIH0gPSB1c2VBdXRoKCk7XHJcbiAgY29uc3QgaXNTdXBlckFkbWluID0gdXNlcj8ucm9sZSA9PT0gJ1NVUEVSX0FETUlOJztcclxuICBjb25zdCB7IHNlbGVjdGVkT3JnSWQsIGVmZmVjdGl2ZU9yZ0lkLCBjb21wYW5pZXM6IHNjb3BlQ29tcGFuaWVzIH0gPSB1c2VDb21wYW55U2NvcGUoKTtcclxuXHJcbiAgY29uc3Qgc2FmZUNvbXBhbmllcyA9IEFycmF5LmlzQXJyYXkoc2NvcGVDb21wYW5pZXMpID8gc2NvcGVDb21wYW5pZXMgOiBbXTtcclxuXHJcbiAgY29uc3QgW3BvbGljeSwgc2V0UG9saWN5XSA9IHVzZVN0YXRlKHtcclxuICAgIGFsbG9jYXRpb25UeXBlOiAnQU5OVUFMJyxcclxuICAgIGNhcnJ5Rm9yd2FyZEVuYWJsZWQ6IHRydWUsXHJcbiAgICBtYXhDYXJyeUZvcndhcmREYXlzOiA1LjAsXHJcbiAgICBoYWxmRGF5QWxsb3dlZDogdHJ1ZSxcclxuICAgIHdvcmtpbmdEYXlzT25seTogdHJ1ZSxcclxuICAgIGF1dG9BcHByb3ZhbDogZmFsc2VcclxuICB9KTtcclxuXHJcbiAgY29uc3QgW2xlYXZlVHlwZXMsIHNldExlYXZlVHlwZXNdID0gdXNlU3RhdGUoW10pO1xyXG4gIGNvbnN0IFt1c2VyQmFsYW5jZXMsIHNldFVzZXJCYWxhbmNlc10gPSB1c2VTdGF0ZShbXSk7XHJcbiAgY29uc3QgW3VzZXJTZWFyY2gsIHNldFVzZXJTZWFyY2hdID0gdXNlU3RhdGUoJycpO1xyXG5cclxuICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZSh0cnVlKTtcclxuICBjb25zdCBbc2F2aW5nUG9saWN5LCBzZXRTYXZpbmdQb2xpY3ldID0gdXNlU3RhdGUoZmFsc2UpO1xyXG4gIGNvbnN0IFthbGVydCwgc2V0QWxlcnRdID0gdXNlU3RhdGUoeyB0eXBlOiAnJywgdGV4dDogJycgfSk7XHJcblxyXG4gIC8vIE1vZGFscyBzdGF0ZVxyXG4gIGNvbnN0IFt0eXBlTW9kYWxPcGVuLCBzZXRUeXBlTW9kYWxPcGVuXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuICBjb25zdCBbZWRpdGluZ1R5cGUsIHNldEVkaXRpbmdUeXBlXSA9IHVzZVN0YXRlKG51bGwpO1xyXG4gIGNvbnN0IFt0eXBlRm9ybURhdGEsIHNldFR5cGVGb3JtRGF0YV0gPSB1c2VTdGF0ZSh7XHJcbiAgICBuYW1lOiAnJyxcclxuICAgIGNvZGU6ICcnLFxyXG4gICAgZGVzY3JpcHRpb246ICcnLFxyXG4gICAgY29sb3I6ICcjM0I4MkY2JyxcclxuICAgIGljb246ICdDYWxlbmRhcicsXHJcbiAgICBkaXNwbGF5T3JkZXI6IDAsXHJcbiAgICBpc1BhaWQ6IHRydWUsXHJcbiAgICBhbm51YWxEYXlzOiAxMixcclxuICAgIG1vbnRobHlDcmVkaXREYXlzOiAxLFxyXG4gICAgYWxsb3dDYXJyeUZvcndhcmQ6IGZhbHNlLFxyXG4gICAgcmVxdWlyZURvYzogZmFsc2UsXHJcbiAgICBhbGxvd0hhbGZEYXk6IHRydWVcclxuICB9KTtcclxuXHJcbiAgLy8gTWFudWFsIGFkanVzdG1lbnQgbW9kYWxcclxuICBjb25zdCBbYWRqdXN0TW9kYWxPcGVuLCBzZXRBZGp1c3RNb2RhbE9wZW5dID0gdXNlU3RhdGUoZmFsc2UpO1xyXG4gIGNvbnN0IFtzZWxlY3RlZFVzZXJGb3JBZGp1c3QsIHNldFNlbGVjdGVkVXNlckZvckFkanVzdF0gPSB1c2VTdGF0ZShudWxsKTtcclxuICBjb25zdCBbYWRqdXN0Rm9ybURhdGEsIHNldEFkanVzdEZvcm1EYXRhXSA9IHVzZVN0YXRlKHtcclxuICAgIGxlYXZlVHlwZUlkOiAnJyxcclxuICAgIGFkanVzdG1lbnREYXlzOiAxLFxyXG4gICAgcmVhc29uOiAnJ1xyXG4gIH0pO1xyXG4gIGNvbnN0IFthZGp1c3RpbmcsIHNldEFkanVzdGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XHJcblxyXG4gIC8vIEFubnVhbCByZXNldCBjb25maXJtIG1vZGFsXHJcbiAgY29uc3QgW3Jlc2V0TW9kYWxPcGVuLCBzZXRSZXNldE1vZGFsT3Blbl0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcbiAgY29uc3QgW3Jlc2V0dGluZywgc2V0UmVzZXR0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuXHJcbiAgLy8gTGVhdmUgVHlwZSBkZWxldGlvbiBjb25maXJtIG1vZGFsXHJcbiAgY29uc3QgW2RlbGV0ZUNvbmZpcm1PcGVuLCBzZXREZWxldGVDb25maXJtT3Blbl0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcbiAgY29uc3QgW3R5cGVUb0RlbGV0ZSwgc2V0VHlwZVRvRGVsZXRlXSA9IHVzZVN0YXRlKG51bGwpO1xyXG4gIGNvbnN0IFtkZWxldGluZ1R5cGUsIHNldERlbGV0aW5nVHlwZV0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcblxyXG4gIGNvbnN0IGlzUHJvdGVjdGVkTGVhdmVUeXBlID0gKGx0KSA9PiB7XHJcbiAgICBpZiAoIWx0KSByZXR1cm4gZmFsc2U7XHJcbiAgICBjb25zdCBwcm90ZWN0ZWRDb2RlcyA9IFsnQ0wnLCAnU0wnXTtcclxuICAgIHJldHVybiBwcm90ZWN0ZWRDb2Rlcy5pbmNsdWRlcygobHQuY29kZSB8fCAnJykudG9VcHBlckNhc2UoKSk7XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgW3NlbGVjdGVkUm9sZSwgc2V0U2VsZWN0ZWRSb2xlXSA9IHVzZVN0YXRlKCdBTEwnKTsgLy8gJ0FMTCcgfCAnVEVBTV9MRUFERVInIHwgJ0VNUExPWUVFJyB8ICdJTlRFUk4nXHJcblxyXG4gIGNvbnN0IGZldGNoUG9saWN5RGF0YSA9IGFzeW5jIChvcmdJZCA9IGVmZmVjdGl2ZU9yZ0lkLCByb2xlID0gc2VsZWN0ZWRSb2xlKSA9PiB7XHJcbiAgICBjb25zdCB0YXJnZXRPcmcgPSBpc1N1cGVyQWRtaW4gPyBvcmdJZCA6IChlZmZlY3RpdmVPcmdJZCB8fCB1c2VyPy5vcmdhbml6YXRpb25JZCk7XHJcbiAgICB0cnkge1xyXG4gICAgICBzZXRMb2FkaW5nKHRydWUpO1xyXG4gICAgICBjb25zdCBwYXJhbXMgPSB7fTtcclxuICAgICAgaWYgKHRhcmdldE9yZykgcGFyYW1zLm9yZ2FuaXphdGlvbklkID0gdGFyZ2V0T3JnO1xyXG4gICAgICBpZiAocm9sZSAmJiByb2xlICE9PSAnQUxMJykgcGFyYW1zLnJvbGUgPSByb2xlO1xyXG4gICAgICBjb25zdCBwb2xSZXMgPSBhd2FpdCBhcGkuZ2V0KCcvbGVhdmUtcG9saWN5JywgeyBwYXJhbXMgfSk7XHJcblxyXG4gICAgICBpZiAocG9sUmVzLmRhdGE/LnBvbGljeSkge1xyXG4gICAgICAgIHNldFBvbGljeShwb2xSZXMuZGF0YS5wb2xpY3kpO1xyXG4gICAgICB9XHJcbiAgICAgIHNldExlYXZlVHlwZXMocG9sUmVzLmRhdGE/LmxlYXZlVHlwZXMgfHwgW10pO1xyXG4gICAgICBzZXRBbGVydCh7IHR5cGU6ICcnLCB0ZXh0OiAnJyB9KTtcclxuICAgIH0gY2F0Y2ggKGVycikge1xyXG4gICAgICBjb25zb2xlLmVycm9yKCdGZXRjaCBsZWF2ZSBwb2xpY3kgZXJyb3I6JywgZXJyKTtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnZXJyb3InLCB0ZXh0OiAnRmFpbGVkIHRvIGxvYWQgY29tcGFueSBsZWF2ZSBwb2xpY3kgc2V0dGluZ3MuJyB9KTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICBmZXRjaFBvbGljeURhdGEoZWZmZWN0aXZlT3JnSWQsIHNlbGVjdGVkUm9sZSk7XHJcbiAgfSwgW2VmZmVjdGl2ZU9yZ0lkLCB1c2VyPy5vcmdhbml6YXRpb25JZCwgc2VsZWN0ZWRSb2xlXSk7XHJcblxyXG4gIGNvbnN0IGhhbmRsZVNhdmVQb2xpY3kgPSBhc3luYyAoZSkgPT4ge1xyXG4gICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xyXG4gICAgc2V0U2F2aW5nUG9saWN5KHRydWUpO1xyXG4gICAgc2V0QWxlcnQoeyB0eXBlOiAnJywgdGV4dDogJycgfSk7XHJcblxyXG4gICAgdHJ5IHtcclxuICAgICAgY29uc3QgYWxsb3dhbmNlcyA9IHt9O1xyXG4gICAgICBsZWF2ZVR5cGVzLmZvckVhY2goKGx0KSA9PiB7XHJcbiAgICAgICAgYWxsb3dhbmNlc1tsdC5jb2RlXSA9IHtcclxuICAgICAgICAgIGFubnVhbERheXM6IHBhcnNlRmxvYXQobHQuYW5udWFsRGF5cykgfHwgMCxcclxuICAgICAgICAgIG1vbnRobHlDcmVkaXREYXlzOiBwYXJzZUZsb2F0KGx0Lm1vbnRobHlDcmVkaXREYXlzKSB8fCAwXHJcbiAgICAgICAgfTtcclxuICAgICAgfSk7XHJcblxyXG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkucHV0KCcvbGVhdmUtcG9saWN5Jywge1xyXG4gICAgICAgIC4uLnBvbGljeSxcclxuICAgICAgICBvcmdhbml6YXRpb25JZDogc2VsZWN0ZWRPcmdJZCxcclxuICAgICAgICByb2xlOiBzZWxlY3RlZFJvbGUgIT09ICdBTEwnID8gc2VsZWN0ZWRSb2xlIDogdW5kZWZpbmVkLFxyXG4gICAgICAgIGFsbG93YW5jZXM6IGFsbG93YW5jZXNcclxuICAgICAgfSk7XHJcbiAgICAgIHNldFBvbGljeShyZXMuZGF0YS5wb2xpY3kpO1xyXG4gICAgICBjb25zdCBjdXJyZW50Q29tcE5hbWUgPSBzYWZlQ29tcGFuaWVzLmZpbmQoKGMpID0+IGMuaWQgPT09IHNlbGVjdGVkT3JnSWQpPy5uYW1lIHx8ICdDb21wYW55JztcclxuICAgICAgY29uc3Qgcm9sZVRleHQgPSBzZWxlY3RlZFJvbGUgIT09ICdBTEwnID8gYCAoJHtzZWxlY3RlZFJvbGUucmVwbGFjZSgnXycsICcgJyl9KWAgOiAnJztcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnc3VjY2VzcycsIHRleHQ6IGAke2N1cnJlbnRDb21wTmFtZX0ke3JvbGVUZXh0fSBMZWF2ZSBQb2xpY3kgdXBkYXRlZCBzdWNjZXNzZnVsbHkhYCB9KTtcclxuICAgICAgZmV0Y2hQb2xpY3lEYXRhKHNlbGVjdGVkT3JnSWQsIHNlbGVjdGVkUm9sZSk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnZXJyb3InLCB0ZXh0OiBlcnIucmVzcG9uc2U/LmRhdGE/Lm1lc3NhZ2UgfHwgJ0ZhaWxlZCB0byB1cGRhdGUgbGVhdmUgcG9saWN5LicgfSk7XHJcbiAgICB9IGZpbmFsbHkge1xyXG4gICAgICBzZXRTYXZpbmdQb2xpY3koZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIC8vIEF1dG8tZ2VuZXJhdGUgY29kZSBlLmcuIFwiTWFycmlhZ2UgTGVhdmVcIiAtPiBcIk1MXCJcclxuICBjb25zdCBoYW5kbGVOYW1lQ2hhbmdlID0gKGUpID0+IHtcclxuICAgIGNvbnN0IHZhbCA9IGUudGFyZ2V0LnZhbHVlO1xyXG4gICAgbGV0IGF1dG9Db2RlID0gdHlwZUZvcm1EYXRhLmNvZGU7XHJcbiAgICBpZiAoIWVkaXRpbmdUeXBlICYmIHZhbCkge1xyXG4gICAgICBjb25zdCB3b3JkcyA9IHZhbC50cmltKCkuc3BsaXQoL1xccysvKTtcclxuICAgICAgaWYgKHdvcmRzLmxlbmd0aCA+PSAyKSB7XHJcbiAgICAgICAgYXV0b0NvZGUgPSAod29yZHNbMF1bMF0gKyB3b3Jkc1sxXVswXSkudG9VcHBlckNhc2UoKTtcclxuICAgICAgfSBlbHNlIHtcclxuICAgICAgICBhdXRvQ29kZSA9IHZhbC5zdWJzdHJpbmcoMCwgMykudG9VcHBlckNhc2UoKTtcclxuICAgICAgfVxyXG4gICAgfVxyXG4gICAgc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCBuYW1lOiB2YWwsIGNvZGU6IGF1dG9Db2RlIH0pO1xyXG4gIH07XHJcblxyXG4gIGNvbnN0IG9wZW5UeXBlTW9kYWwgPSAobHQgPSBudWxsKSA9PiB7XHJcbiAgICBpZiAobHQpIHtcclxuICAgICAgc2V0RWRpdGluZ1R5cGUobHQpO1xyXG4gICAgICBjb25zdCBhbm51YWxWYWwgPSBsdC5hbm51YWxEYXlzICE9PSB1bmRlZmluZWQgJiYgbHQuYW5udWFsRGF5cyAhPT0gbnVsbCA/IGx0LmFubnVhbERheXMgOiAwO1xyXG4gICAgICBjb25zdCBtb250aGx5VmFsID0gbHQubW9udGhseUNyZWRpdERheXMgIT09IHVuZGVmaW5lZCAmJiBsdC5tb250aGx5Q3JlZGl0RGF5cyAhPT0gbnVsbFxyXG4gICAgICAgID8gbHQubW9udGhseUNyZWRpdERheXNcclxuICAgICAgICA6IChsdC5tb250aGx5Q3JlZGl0ICE9PSB1bmRlZmluZWQgJiYgbHQubW9udGhseUNyZWRpdCAhPT0gbnVsbCA/IGx0Lm1vbnRobHlDcmVkaXQgOiAwKTtcclxuXHJcbiAgICAgIHNldFR5cGVGb3JtRGF0YSh7XHJcbiAgICAgICAgbmFtZTogbHQubmFtZSB8fCAnJyxcclxuICAgICAgICBjb2RlOiBsdC5jb2RlIHx8ICcnLFxyXG4gICAgICAgIGRlc2NyaXB0aW9uOiBsdC5kZXNjcmlwdGlvbiB8fCAnJyxcclxuICAgICAgICBjb2xvcjogbHQuY29sb3IgfHwgJyMzQjgyRjYnLFxyXG4gICAgICAgIGljb246IGx0Lmljb24gfHwgJ0NhbGVuZGFyJyxcclxuICAgICAgICBkaXNwbGF5T3JkZXI6IGx0LmRpc3BsYXlPcmRlciAhPT0gdW5kZWZpbmVkID8gbHQuZGlzcGxheU9yZGVyIDogMCxcclxuICAgICAgICBpc1BhaWQ6IGx0LmlzUGFpZCA/PyB0cnVlLFxyXG4gICAgICAgIGFubnVhbERheXM6IGFubnVhbFZhbCxcclxuICAgICAgICBtb250aGx5Q3JlZGl0RGF5czogbW9udGhseVZhbCxcclxuICAgICAgICBtb250aGx5Q3JlZGl0OiBtb250aGx5VmFsLFxyXG4gICAgICAgIGFsbG93Q2FycnlGb3J3YXJkOiBsdC5hbGxvd0NhcnJ5Rm9yd2FyZCA/PyBmYWxzZSxcclxuICAgICAgICByZXF1aXJlRG9jOiBsdC5yZXF1aXJlRG9jID8/IGZhbHNlLFxyXG4gICAgICAgIGFsbG93SGFsZkRheTogbHQuYWxsb3dIYWxmRGF5ID8/IHRydWVcclxuICAgICAgfSk7XHJcbiAgICB9IGVsc2Uge1xyXG4gICAgICBzZXRFZGl0aW5nVHlwZShudWxsKTtcclxuICAgICAgc2V0VHlwZUZvcm1EYXRhKHtcclxuICAgICAgICBuYW1lOiAnJyxcclxuICAgICAgICBjb2RlOiAnJyxcclxuICAgICAgICBkZXNjcmlwdGlvbjogJycsXHJcbiAgICAgICAgY29sb3I6ICcjM0I4MkY2JyxcclxuICAgICAgICBpY29uOiAnQ2FsZW5kYXInLFxyXG4gICAgICAgIGRpc3BsYXlPcmRlcjogbGVhdmVUeXBlcy5sZW5ndGggKyAxLFxyXG4gICAgICAgIGlzUGFpZDogdHJ1ZSxcclxuICAgICAgICBhbm51YWxEYXlzOiAxMixcclxuICAgICAgICBtb250aGx5Q3JlZGl0RGF5czogMSxcclxuICAgICAgICBtb250aGx5Q3JlZGl0OiAxLFxyXG4gICAgICAgIGFsbG93Q2FycnlGb3J3YXJkOiBmYWxzZSxcclxuICAgICAgICByZXF1aXJlRG9jOiBmYWxzZSxcclxuICAgICAgICBhbGxvd0hhbGZEYXk6IHRydWVcclxuICAgICAgfSk7XHJcbiAgICB9XHJcbiAgICBzZXRUeXBlTW9kYWxPcGVuKHRydWUpO1xyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVNhdmVMZWF2ZVR5cGUgPSBhc3luYyAoZSkgPT4ge1xyXG4gICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xyXG4gICAgY29uc3QgYW5udWFsRGF5c051bSA9IHR5cGVGb3JtRGF0YS5hbm51YWxEYXlzID09PSAnJyA/IDAgOiBOdW1iZXIodHlwZUZvcm1EYXRhLmFubnVhbERheXMpO1xyXG4gICAgY29uc3QgbW9udGhseUNyZWRpdFJhdyA9IHR5cGVGb3JtRGF0YS5tb250aGx5Q3JlZGl0RGF5cyAhPT0gdW5kZWZpbmVkICYmIHR5cGVGb3JtRGF0YS5tb250aGx5Q3JlZGl0RGF5cyAhPT0gJydcclxuICAgICAgPyB0eXBlRm9ybURhdGEubW9udGhseUNyZWRpdERheXNcclxuICAgICAgOiB0eXBlRm9ybURhdGEubW9udGhseUNyZWRpdDtcclxuICAgIGNvbnN0IG1vbnRobHlDcmVkaXROdW0gPSAobW9udGhseUNyZWRpdFJhdyA9PT0gJycgfHwgbW9udGhseUNyZWRpdFJhdyA9PT0gdW5kZWZpbmVkKSA/IDAgOiBOdW1iZXIobW9udGhseUNyZWRpdFJhdyk7XHJcblxyXG4gICAgaWYgKGlzTmFOKGFubnVhbERheXNOdW0pIHx8IGlzTmFOKG1vbnRobHlDcmVkaXROdW0pIHx8IGFubnVhbERheXNOdW0gPCAwIHx8IG1vbnRobHlDcmVkaXROdW0gPCAwKSB7XHJcbiAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ2Vycm9yJywgdGV4dDogJ0xlYXZlIGFsbG93YW5jZXMgY2Fubm90IGJlIG5lZ2F0aXZlIG9yIGludmFsaWQgbnVtYmVycy4nIH0pO1xyXG4gICAgICByZXR1cm47XHJcbiAgICB9XHJcblxyXG4gICAgY29uc3QgcGF5bG9hZCA9IHtcclxuICAgICAgLi4udHlwZUZvcm1EYXRhLFxyXG4gICAgICBhbm51YWxEYXlzOiBhbm51YWxEYXlzTnVtLFxyXG4gICAgICBtb250aGx5Q3JlZGl0OiBtb250aGx5Q3JlZGl0TnVtLFxyXG4gICAgICBtb250aGx5Q3JlZGl0RGF5czogbW9udGhseUNyZWRpdE51bSxcclxuICAgICAgb3JnYW5pemF0aW9uSWQ6IHNlbGVjdGVkT3JnSWQsXHJcbiAgICAgIHJvbGU6IHNlbGVjdGVkUm9sZSAhPT0gJ0FMTCcgPyBzZWxlY3RlZFJvbGUgOiB1bmRlZmluZWRcclxuICAgIH07XHJcblxyXG4gICAgY29uc29sZS5sb2coXCJCZWZvcmUgU2F2ZVwiLCBwYXlsb2FkKTtcclxuXHJcbiAgICB0cnkge1xyXG4gICAgICBpZiAoZWRpdGluZ1R5cGUpIHtcclxuICAgICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkucHV0KGAvbGVhdmUtcG9saWN5L3R5cGVzLyR7ZWRpdGluZ1R5cGUuaWR9YCwgcGF5bG9hZCk7XHJcbiAgICAgICAgY29uc3QgdXBkYXRlZCA9IHJlcy5kYXRhPy5sZWF2ZVR5cGUgfHwge1xyXG4gICAgICAgICAgLi4uZWRpdGluZ1R5cGUsXHJcbiAgICAgICAgICAuLi5wYXlsb2FkLFxyXG4gICAgICAgICAgaWQ6IGVkaXRpbmdUeXBlLmlkXHJcbiAgICAgICAgfTtcclxuXHJcbiAgICAgICAgLy8gVXBkYXRlIFJlYWN0IHN0YXRlIGltbWVkaWF0ZWx5XHJcbiAgICAgICAgc2V0TGVhdmVUeXBlcyhwcmV2ID0+XHJcbiAgICAgICAgICBwcmV2Lm1hcCh0eXBlID0+XHJcbiAgICAgICAgICAgIHR5cGUuaWQgPT09IHVwZGF0ZWQuaWQgPyB7IC4uLnR5cGUsIC4uLnVwZGF0ZWQgfSA6IHR5cGVcclxuICAgICAgICAgIClcclxuICAgICAgICApO1xyXG5cclxuICAgICAgICBjb25zdCByb2xlTGFiZWwgPSBzZWxlY3RlZFJvbGUgIT09ICdBTEwnID8gYCBmb3IgJHtzZWxlY3RlZFJvbGUucmVwbGFjZSgnXycsICcgJyl9YCA6ICcnO1xyXG4gICAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ3N1Y2Nlc3MnLCB0ZXh0OiBgTGVhdmUgVHlwZSAke3R5cGVGb3JtRGF0YS5uYW1lfSB1cGRhdGVkIHN1Y2Nlc3NmdWxseSR7cm9sZUxhYmVsfSFgIH0pO1xyXG4gICAgICB9IGVsc2Uge1xyXG4gICAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5wb3N0KCcvbGVhdmUtcG9saWN5L3R5cGVzJywgcGF5bG9hZCk7XHJcbiAgICAgICAgaWYgKHJlcy5kYXRhPy5sZWF2ZVR5cGUpIHtcclxuICAgICAgICAgIHNldExlYXZlVHlwZXMocHJldiA9PiBbLi4ucHJldiwgcmVzLmRhdGEubGVhdmVUeXBlXSk7XHJcbiAgICAgICAgfVxyXG4gICAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ3N1Y2Nlc3MnLCB0ZXh0OiBgTGVhdmUgVHlwZSAke3R5cGVGb3JtRGF0YS5uYW1lfSBjcmVhdGVkIHN1Y2Nlc3NmdWxseSFgIH0pO1xyXG4gICAgICB9XHJcbiAgICAgIHNldFR5cGVNb2RhbE9wZW4oZmFsc2UpO1xyXG4gICAgICBmZXRjaFBvbGljeURhdGEoc2VsZWN0ZWRPcmdJZCwgc2VsZWN0ZWRSb2xlKTtcclxuICAgIH0gY2F0Y2ggKGVycikge1xyXG4gICAgICBzZXRBbGVydCh7IHR5cGU6ICdlcnJvcicsIHRleHQ6IGVyci5yZXNwb25zZT8uZGF0YT8ubWVzc2FnZSB8fCAnRmFpbGVkIHRvIHNhdmUgbGVhdmUgdHlwZS4nIH0pO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVRvZ2dsZVN0YXR1cyA9IGFzeW5jIChsdCkgPT4ge1xyXG4gICAgdHJ5IHtcclxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnB1dChgL2xlYXZlLXBvbGljeS90eXBlcy8ke2x0LmlkfS9zdGF0dXNgKTtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnc3VjY2VzcycsIHRleHQ6IHJlcy5kYXRhLm1lc3NhZ2UgfSk7XHJcbiAgICAgIGZldGNoUG9saWN5RGF0YShzZWxlY3RlZE9yZ0lkLCBzZWxlY3RlZFJvbGUpO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ2Vycm9yJywgdGV4dDogJ0ZhaWxlZCB0byB0b2dnbGUgbGVhdmUgdHlwZSBzdGF0dXMuJyB9KTtcclxuICAgIH1cclxuICB9O1xyXG5cclxuICBjb25zdCBoYW5kbGVEZWxldGVDbGljayA9IChsdCkgPT4ge1xyXG4gICAgc2V0VHlwZVRvRGVsZXRlKGx0KTtcclxuICAgIHNldERlbGV0ZUNvbmZpcm1PcGVuKHRydWUpO1xyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZUNvbmZpcm1EZWxldGUgPSBhc3luYyAoKSA9PiB7XHJcbiAgICBpZiAoIXR5cGVUb0RlbGV0ZSkgcmV0dXJuO1xyXG4gICAgY29uc3QgZGVsZXRlZElkID0gdHlwZVRvRGVsZXRlLmlkO1xyXG4gICAgY29uc3QgZGVsZXRlZE5hbWUgPSB0eXBlVG9EZWxldGUubmFtZTtcclxuICAgIHRyeSB7XHJcbiAgICAgIHNldERlbGV0aW5nVHlwZSh0cnVlKTtcclxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLmRlbGV0ZShgL2xlYXZlLXBvbGljeS90eXBlcy8ke2RlbGV0ZWRJZH1gLCB7XHJcbiAgICAgICAgcGFyYW1zOiBlZmZlY3RpdmVPcmdJZCA/IHsgb3JnYW5pemF0aW9uSWQ6IGVmZmVjdGl2ZU9yZ0lkIH0gOiB7fVxyXG4gICAgICB9KTtcclxuICAgICAgLy8gUmVtb3ZlIHRoZSBkZWxldGVkIGxlYXZlIHR5cGUgZnJvbSBSZWFjdCBzdGF0ZSBpbW1lZGlhdGVseSBhZnRlciBhIHN1Y2Nlc3NmdWwgQVBJIHJlc3BvbnNlXHJcbiAgICAgIHNldExlYXZlVHlwZXMoKHByZXYpID0+IHByZXYuZmlsdGVyKChsdCkgPT4gbHQuaWQgIT09IGRlbGV0ZWRJZCkpO1xyXG4gICAgICBzZXREZWxldGVDb25maXJtT3BlbihmYWxzZSk7XHJcbiAgICAgIHNldFR5cGVUb0RlbGV0ZShudWxsKTtcclxuICAgICAgc2V0QWxlcnQoe1xyXG4gICAgICAgIHR5cGU6ICdzdWNjZXNzJyxcclxuICAgICAgICB0ZXh0OiByZXMuZGF0YT8ubWVzc2FnZSB8fCBgTGVhdmUgdHlwZSBcIiR7ZGVsZXRlZE5hbWV9XCIgZGVsZXRlZCBzdWNjZXNzZnVsbHkuYFxyXG4gICAgICB9KTtcclxuICAgICAgLy8gUmVmcmVzaCBwb2xpY3kgbGlzdCBhdXRvbWF0aWNhbGx5IGluIHRoZSBiYWNrZ3JvdW5kXHJcbiAgICAgIGZldGNoUG9saWN5RGF0YShzZWxlY3RlZE9yZ0lkLCBzZWxlY3RlZFJvbGUpO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIGNvbnN0IGVyck1zZyA9IGVyci5yZXNwb25zZT8uZGF0YT8ubWVzc2FnZSB8fCBlcnIubWVzc2FnZSB8fCAnRmFpbGVkIHRvIGRlbGV0ZSBsZWF2ZSB0eXBlLic7XHJcbiAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ2Vycm9yJywgdGV4dDogZXJyTXNnIH0pO1xyXG4gICAgICBzZXREZWxldGVDb25maXJtT3BlbihmYWxzZSk7XHJcbiAgICAgIHNldFR5cGVUb0RlbGV0ZShudWxsKTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldERlbGV0aW5nVHlwZShmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgaGFuZGxlQWRqdXN0QmFsYW5jZSA9IGFzeW5jIChlKSA9PiB7XHJcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XHJcbiAgICBpZiAoIWFkanVzdEZvcm1EYXRhLmxlYXZlVHlwZUlkIHx8ICFhZGp1c3RGb3JtRGF0YS5yZWFzb24pIHtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnZXJyb3InLCB0ZXh0OiAnUGxlYXNlIGZpbGwgYWxsIHJlcXVpcmVkIGFkanVzdG1lbnQgZmllbGRzLicgfSk7XHJcbiAgICAgIHJldHVybjtcclxuICAgIH1cclxuICAgIHNldEFkanVzdGluZyh0cnVlKTtcclxuXHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCBwYXlsb2FkID0ge1xyXG4gICAgICAgIHVzZXJJZDogc2VsZWN0ZWRVc2VyRm9yQWRqdXN0LnVzZXJJZCxcclxuICAgICAgICBsZWF2ZVR5cGVJZDogYWRqdXN0Rm9ybURhdGEubGVhdmVUeXBlSWQsXHJcbiAgICAgICAgYWRqdXN0bWVudERheXM6IGFkanVzdEZvcm1EYXRhLmFkanVzdG1lbnREYXlzLFxyXG4gICAgICAgIHJlYXNvbjogYWRqdXN0Rm9ybURhdGEucmVhc29uXHJcbiAgICAgIH07XHJcblxyXG4gICAgICBhd2FpdCBhcGkucG9zdCgnL2xlYXZlLXBvbGljeS9hZGp1c3QtYmFsYW5jZScsIHBheWxvYWQpO1xyXG4gICAgICBzZXRBbGVydCh7IHR5cGU6ICdzdWNjZXNzJywgdGV4dDogJ1VzZXIgbGVhdmUgYmFsYW5jZSBhZGp1c3RlZCBzdWNjZXNzZnVsbHkhJyB9KTtcclxuICAgICAgc2V0QWRqdXN0TW9kYWxPcGVuKGZhbHNlKTtcclxuICAgICAgZmV0Y2hQb2xpY3lEYXRhKHNlbGVjdGVkT3JnSWQsIHNlbGVjdGVkUm9sZSk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnZXJyb3InLCB0ZXh0OiBlcnIucmVzcG9uc2U/LmRhdGE/Lm1lc3NhZ2UgfHwgJ0ZhaWxlZCB0byBhZGp1c3QgdXNlciBsZWF2ZSBiYWxhbmNlLicgfSk7XHJcbiAgICB9IGZpbmFsbHkge1xyXG4gICAgICBzZXRBZGp1c3RpbmcoZmFsc2UpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGhhbmRsZVJ1bkFubnVhbFJlc2V0ID0gYXN5bmMgKCkgPT4ge1xyXG4gICAgc2V0UmVzZXR0aW5nKHRydWUpO1xyXG4gICAgdHJ5IHtcclxuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnBvc3QoJy9sZWF2ZS1wb2xpY3kvYW5udWFsLXJlc2V0JywgeyBvcmdhbml6YXRpb25JZDogc2VsZWN0ZWRPcmdJZCB9KTtcclxuICAgICAgc2V0QWxlcnQoeyB0eXBlOiAnc3VjY2VzcycsIHRleHQ6IHJlcy5kYXRhLm1lc3NhZ2UgfHwgJ0FubnVhbCBsZWF2ZSByZXNldCBleGVjdXRlZCEnIH0pO1xyXG4gICAgICBzZXRSZXNldE1vZGFsT3BlbihmYWxzZSk7XHJcbiAgICAgIGZldGNoUG9saWN5RGF0YShzZWxlY3RlZE9yZ0lkLCBzZWxlY3RlZFJvbGUpO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIHNldEFsZXJ0KHsgdHlwZTogJ2Vycm9yJywgdGV4dDogZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gZXhlY3V0ZSBhbm51YWwgcmVzZXQuJyB9KTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldFJlc2V0dGluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgY29uc3QgY3VycmVudENvbXBhbnkgPSBzYWZlQ29tcGFuaWVzLmZpbmQoKGMpID0+IGMuaWQgPT09IHNlbGVjdGVkT3JnSWQpO1xyXG5cclxuICByZXR1cm4gKFxyXG4gICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTggcC00IHNtOnAtOCBtYXgtdy03eGwgbXgtYXV0byB0ZXh0LWxlZnRcIj5cclxuICAgICAgey8qIEhlYWRlciAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIHNtOmZsZXgtcm93IHNtOml0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gZ2FwLTQgYm9yZGVyLWIgYm9yZGVyLWJvcmRlci82MCBwYi02XCI+XHJcbiAgICAgICAgPGRpdj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTMgbWItMVwiPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMi41IHJvdW5kZWQtMnhsIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IGJvcmRlciBib3JkZXItcHJpbWFyeS8yMFwiPlxyXG4gICAgICAgICAgICAgIDxDYWxlbmRhciBjbGFzc05hbWU9XCJoLTYgdy02XCIgLz5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDxoMSBjbGFzc05hbWU9XCJ0ZXh0LTJ4bCBmb250LWJsYWNrIHRyYWNraW5nLXRpZ2h0IHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxyXG4gICAgICAgICAgICAgIDxzcGFuPntjdXJyZW50Q29tcGFueSA/IGAke2N1cnJlbnRDb21wYW55Lm5hbWV9IExlYXZlIFBvbGljeWAgOiAnQ29tcGFueSBMZWF2ZSBQb2xpY3knfTwvc3Bhbj5cclxuICAgICAgICAgICAgICA8U3BhcmtsZXMgY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxyXG4gICAgICAgICAgICA8L2gxPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LW1lZGl1bVwiPlxyXG4gICAgICAgICAgICBMZWF2ZSBwb2xpY3kgZ292ZXJuaW5nIEludGVybnMsIEVtcGxveWVlcywgYW5kIFRlYW0gTGVhZGVycyBmb3Ige2N1cnJlbnRDb21wYW55Py5uYW1lIHx8ICdzZWxlY3RlZCBjb21wYW55J30uXHJcbiAgICAgICAgICA8L3A+XHJcbiAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTNcIj5cclxuICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0UmVzZXRNb2RhbE9wZW4odHJ1ZSl9XHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiBweC00IHB5LTIgcm91bmRlZC14bCBiZy1wcmltYXJ5LzEwIGhvdmVyOmJnLXByaW1hcnkvMjAgdGV4dC1wcmltYXJ5IGJvcmRlciBib3JkZXItcHJpbWFyeS8zMCB0ZXh0LXhzIGZvbnQtYm9sZCB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlciBzaGFkb3cteHNcIlxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICA8Um90YXRlQ2N3IGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgICA8c3Bhbj5SdW4gQW5udWFsIFJlc2V0PC9zcGFuPlxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IG9wZW5UeXBlTW9kYWwoKX1cclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHB4LTQgcHktMiByb3VuZGVkLXhsIGJnLXByaW1hcnkgaG92ZXI6YmctcHJpbWFyeS1ob3ZlciB0ZXh0LXdoaXRlIHRleHQteHMgZm9udC1ib2xkIHNoYWRvdy1tZCBjdXJzb3ItcG9pbnRlciB0cmFuc2l0aW9uLWFsbFwiXHJcbiAgICAgICAgICA+XHJcbiAgICAgICAgICAgIDxQbHVzIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgICA8c3Bhbj5BZGQgTGVhdmUgVHlwZTwvc3Bhbj5cclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L2Rpdj5cclxuXHJcbiAgICAgIHsvKiBTaGFyZWQgQ29tcGFueSBTZWxlY3RvciBCYXIgKi99XHJcbiAgICAgIDxDb21wYW55U2NvcGVTZWxlY3RvciBvblNjb3BlQ2hhbmdlPXsobmV3SWQpID0+IGZldGNoUG9saWN5RGF0YShuZXdJZCwgc2VsZWN0ZWRSb2xlKX0gLz5cclxuXHJcbiAgICAgIHsvKiBSb2xlIFNjb3BlIFNlbGVjdG9yIEJhciAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtd3JhcCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGdhcC0zIHAtMy41IGJnLWNhcmQgYm9yZGVyIGJvcmRlci1ib3JkZXIvNzAgcm91bmRlZC0yeGwgc2hhZG93LXhzIHRleHQtbGVmdFwiPlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNVwiPlxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTIgcm91bmRlZC14bCBiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeSBib3JkZXIgYm9yZGVyLXByaW1hcnkvMjBcIj5cclxuICAgICAgICAgICAgPFVzZXJzIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICA8aDQgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+VGFyZ2V0IFJvbGUgU2NvcGU8L2g0PlxyXG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW1cIj5Db25maWd1cmUgcG9saWNpZXMgc3BlY2lmaWNhbGx5IGZvciBUZWFtIExlYWRlcnMsIEVtcGxveWVlcywgb3IgSW50ZXJuczwvcD5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xIHAtMSBiZy1tdXRlZC82MCBib3JkZXIgYm9yZGVyLWJvcmRlci81MCByb3VuZGVkLXhsXCI+XHJcbiAgICAgICAgICB7W1xyXG4gICAgICAgICAgICB7IGlkOiAnQUxMJywgbGFiZWw6ICdBbGwgUm9sZXMnIH0sXHJcbiAgICAgICAgICAgIHsgaWQ6ICdURUFNX0xFQURFUicsIGxhYmVsOiAnVGVhbSBMZWFkZXInIH0sXHJcbiAgICAgICAgICAgIHsgaWQ6ICdFTVBMT1lFRScsIGxhYmVsOiAnRW1wbG95ZWUnIH0sXHJcbiAgICAgICAgICAgIHsgaWQ6ICdJTlRFUk4nLCBsYWJlbDogJ0ludGVybicgfVxyXG4gICAgICAgICAgXS5tYXAoKHIpID0+IHtcclxuICAgICAgICAgICAgY29uc3QgaXNTZWxlY3RlZCA9IHNlbGVjdGVkUm9sZSA9PT0gci5pZDtcclxuICAgICAgICAgICAgcmV0dXJuIChcclxuICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICBrZXk9e3IuaWR9XHJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7XHJcbiAgICAgICAgICAgICAgICAgIHNldFNlbGVjdGVkUm9sZShyLmlkKTtcclxuICAgICAgICAgICAgICAgICAgZmV0Y2hQb2xpY3lEYXRhKHNlbGVjdGVkT3JnSWQsIHIuaWQpO1xyXG4gICAgICAgICAgICAgICAgfX1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHB4LTMgcHktMS41IHJvdW5kZWQtbGcgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXIgJHtcclxuICAgICAgICAgICAgICAgICAgaXNTZWxlY3RlZFxyXG4gICAgICAgICAgICAgICAgICAgID8gJ2JnLXByaW1hcnkgdGV4dC13aGl0ZSBzaGFkb3cteHMgZm9udC1leHRyYWJvbGQnXHJcbiAgICAgICAgICAgICAgICAgICAgOiAndGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZC84MCdcclxuICAgICAgICAgICAgICAgIH1gfVxyXG4gICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgIHtyLmxhYmVsfVxyXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICApO1xyXG4gICAgICAgICAgfSl9XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgey8qIEFsZXJ0IEJhbm5lciAqL31cclxuICAgICAge2FsZXJ0LnRleHQgJiYgKFxyXG4gICAgICAgIDxtb3Rpb24uZGl2XHJcbiAgICAgICAgICBpbml0aWFsPXt7IG9wYWNpdHk6IDAsIHk6IC0xMCB9fVxyXG4gICAgICAgICAgYW5pbWF0ZT17eyBvcGFjaXR5OiAxLCB5OiAwIH19XHJcbiAgICAgICAgICBjbGFzc05hbWU9e2BwLTQgcm91bmRlZC0yeGwgYm9yZGVyIHRleHQteHMgZm9udC1ib2xkIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBzaGFkb3cteHMgJHtcclxuICAgICAgICAgICAgYWxlcnQudHlwZSA9PT0gJ3N1Y2Nlc3MnXHJcbiAgICAgICAgICAgICAgPyAnYmctZW1lcmFsZC01MDAvMTAgYm9yZGVyLWVtZXJhbGQtNTAwLzMwIHRleHQtZW1lcmFsZC02MDAnXHJcbiAgICAgICAgICAgICAgOiAnYmctcm9zZS01MDAvMTAgYm9yZGVyLXJvc2UtNTAwLzMwIHRleHQtcm9zZS02MDAnXHJcbiAgICAgICAgICB9YH1cclxuICAgICAgICA+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjVcIj5cclxuICAgICAgICAgICAge2FsZXJ0LnR5cGUgPT09ICdzdWNjZXNzJyA/IDxDaGVja0NpcmNsZSBjbGFzc05hbWU9XCJoLTQgdy00IHNocmluay0wXCIgLz4gOiA8QWxlcnRDaXJjbGUgY2xhc3NOYW1lPVwiaC00IHctNCBzaHJpbmstMFwiIC8+fVxyXG4gICAgICAgICAgICA8c3Bhbj57YWxlcnQudGV4dH08L3NwYW4+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDxidXR0b24gb25DbGljaz17KCkgPT4gc2V0QWxlcnQoeyB0eXBlOiAnJywgdGV4dDogJycgfSl9IGNsYXNzTmFtZT1cInAtMSBob3ZlcjpvcGFjaXR5LTc1XCI+XHJcbiAgICAgICAgICAgIDxYIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgPC9tb3Rpb24uZGl2PlxyXG4gICAgICApfVxyXG5cclxuICAgICAgey8qIFNJTkdMRSBNRVJHRUQgQ0FSRDogR0xPQkFMIExFQVZFIFBPTElDWSAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyLzgwIHJvdW5kZWQtM3hsIHAtNiBzbTpwLTggc2hhZG93LW1kIHRleHQtbGVmdCBzcGFjZS15LTZcIj5cclxuICAgICAgICB7LyogQ2FyZCBIZWFkZXIgd2l0aCBTYXZlIEJ1dHRvbiAqL31cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBib3JkZXItYiBib3JkZXItYm9yZGVyLzQwIHBiLTRcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNVwiPlxyXG4gICAgICAgICAgICA8Q2FsZW5kYXIgY2xhc3NOYW1lPVwiaC01IHctNSB0ZXh0LXByaW1hcnlcIiAvPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIGZsZXgtd3JhcFwiPlxyXG4gICAgICAgICAgICAgIDxoMiBjbGFzc05hbWU9XCJ0ZXh0LWJhc2UgZm9udC1leHRyYWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+e2N1cnJlbnRDb21wYW55Py5uYW1lIHx8ICdDb21wYW55J30gTGVhdmUgUG9saWN5PC9oMj5cclxuICAgICAgICAgICAgICB7c2VsZWN0ZWRSb2xlICE9PSAnQUxMJyAmJiAoXHJcbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJweC0yLjUgcHktMC41IHJvdW5kZWQtZnVsbCB0ZXh0LVsxMHB4XSBmb250LWJsYWNrIHVwcGVyY2FzZSBiZy1wcmltYXJ5LzEwIHRleHQtcHJpbWFyeSBib3JkZXIgYm9yZGVyLXByaW1hcnkvMjBcIj5cclxuICAgICAgICAgICAgICAgICAge3NlbGVjdGVkUm9sZS5yZXBsYWNlKCdfJywgJyAnKX1cclxuICAgICAgICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICAgICAgICApfVxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVTYXZlUG9saWN5fVxyXG4gICAgICAgICAgICBkaXNhYmxlZD17c2F2aW5nUG9saWN5fVxyXG4gICAgICAgICAgICBjbGFzc05hbWU9XCJpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgcHgtNCBweS0yIHJvdW5kZWQteGwgYmctcHJpbWFyeSBob3ZlcjpiZy1wcmltYXJ5LWhvdmVyIHRleHQtd2hpdGUgdGV4dC14cyBmb250LWJvbGQgc2hhZG93LW1kIGN1cnNvci1wb2ludGVyIHRyYW5zaXRpb24tYWxsIGRpc2FibGVkOm9wYWNpdHktNTBcIlxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICA8Q2hlY2sgY2xhc3NOYW1lPVwiaC00IHctNFwiIC8+XHJcbiAgICAgICAgICAgIDxzcGFuPntzYXZpbmdQb2xpY3kgPyAnU2F2aW5nLi4uJyA6IGBTYXZlICR7c2VsZWN0ZWRSb2xlICE9PSAnQUxMJyA/IHNlbGVjdGVkUm9sZS5yZXBsYWNlKCdfJywgJyAnKSArICcgJyA6ICcnfVBvbGljeWB9PC9zcGFuPlxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgIHsvKiAxLiBBbGxvY2F0aW9uIE1vZGUgU2VsZWN0b3IgKi99XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cclxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJibG9jayB0ZXh0LXhzIGZvbnQtZXh0cmFib2xkIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cclxuICAgICAgICAgICAgQWxsb2NhdGlvbiBNb2RlICpcclxuICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cclxuICAgICAgICAgICAgPGxhYmVsXHJcbiAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0UG9saWN5KHsgLi4ucG9saWN5LCBhbGxvY2F0aW9uVHlwZTogJ0FOTlVBTCcgfSl9XHJcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgcC00IHJvdW5kZWQtMnhsIGJvcmRlci0yIGN1cnNvci1wb2ludGVyIHRyYW5zaXRpb24tYWxsIGZsZXggaXRlbXMtc3RhcnQgZ2FwLTMgJHtcclxuICAgICAgICAgICAgICAgIHBvbGljeS5hbGxvY2F0aW9uVHlwZSA9PT0gJ0FOTlVBTCdcclxuICAgICAgICAgICAgICAgICAgPyAnYm9yZGVyLXByaW1hcnkgYmctcHJpbWFyeS81IHNoYWRvdy1zbSdcclxuICAgICAgICAgICAgICAgICAgOiAnYm9yZGVyLWJvcmRlci82MCBiZy1tdXRlZC8yMCBob3Zlcjpib3JkZXItYm9yZGVyJ1xyXG4gICAgICAgICAgICAgIH1gfVxyXG4gICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICB0eXBlPVwicmFkaW9cIlxyXG4gICAgICAgICAgICAgICAgbmFtZT1cImFsbG9jYXRpb25UeXBlXCJcclxuICAgICAgICAgICAgICAgIHZhbHVlPVwiQU5OVUFMXCJcclxuICAgICAgICAgICAgICAgIGNoZWNrZWQ9e3BvbGljeS5hbGxvY2F0aW9uVHlwZSA9PT0gJ0FOTlVBTCd9XHJcbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KCkgPT4ge319XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJtdC0xIHRleHQtcHJpbWFyeSBmb2N1czpyaW5nLXByaW1hcnlcIlxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtYmxhY2sgdGV4dC1mb3JlZ3JvdW5kXCI+QW5udWFsIEFsbG9jYXRpb248L2g0PlxyXG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgbXQtMC41IGZvbnQtbWVkaXVtXCI+XHJcbiAgICAgICAgICAgICAgICAgIEFsbG9jYXRlcyB0b3RhbCBhbm51YWwgbGVhdmUgYWxsb3dhbmNlIGltbWVkaWF0ZWx5IGF0IHRoZSBzdGFydCBvZiBlYWNoIHllYXIuXHJcbiAgICAgICAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDwvbGFiZWw+XHJcblxyXG4gICAgICAgICAgICA8bGFiZWxcclxuICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRQb2xpY3koeyAuLi5wb2xpY3ksIGFsbG9jYXRpb25UeXBlOiAnTU9OVEhMWScgfSl9XHJcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgcC00IHJvdW5kZWQtMnhsIGJvcmRlci0yIGN1cnNvci1wb2ludGVyIHRyYW5zaXRpb24tYWxsIGZsZXggaXRlbXMtc3RhcnQgZ2FwLTMgJHtcclxuICAgICAgICAgICAgICAgIHBvbGljeS5hbGxvY2F0aW9uVHlwZSA9PT0gJ01PTlRITFknXHJcbiAgICAgICAgICAgICAgICAgID8gJ2JvcmRlci1wcmltYXJ5IGJnLXByaW1hcnkvNSBzaGFkb3ctc20nXHJcbiAgICAgICAgICAgICAgICAgIDogJ2JvcmRlci1ib3JkZXIvNjAgYmctbXV0ZWQvMjAgaG92ZXI6Ym9yZGVyLWJvcmRlcidcclxuICAgICAgICAgICAgICB9YH1cclxuICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgdHlwZT1cInJhZGlvXCJcclxuICAgICAgICAgICAgICAgIG5hbWU9XCJhbGxvY2F0aW9uVHlwZVwiXHJcbiAgICAgICAgICAgICAgICB2YWx1ZT1cIk1PTlRITFlcIlxyXG4gICAgICAgICAgICAgICAgY2hlY2tlZD17cG9saWN5LmFsbG9jYXRpb25UeXBlID09PSAnTU9OVEhMWSd9XHJcbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KCkgPT4ge319XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJtdC0xIHRleHQtcHJpbWFyeSBmb2N1czpyaW5nLXByaW1hcnlcIlxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtYmxhY2sgdGV4dC1mb3JlZ3JvdW5kXCI+TW9udGhseSBBdXRvbWF0ZWQgQ3JlZGl0PC9oND5cclxuICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTAuNSBmb250LW1lZGl1bVwiPlxyXG4gICAgICAgICAgICAgICAgICBDcmVkaXRzIGNvbmZpZ3VyZWQgbW9udGhseSBsZWF2ZSBkYXlzIGF1dG9tYXRpY2FsbHkgZXZlcnkgMXN0IG9mIHRoZSBtb250aC5cclxuICAgICAgICAgICAgICAgIDwvcD5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICB7LyogMi4gTGVhdmUgVHlwZXMgTGlzdCBJbW1lZGlhdGVseSBCZWxvdyBBbGxvY2F0aW9uIE1vZGUgKi99XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwdC02IGJvcmRlci10IGJvcmRlci1ib3JkZXIvNDAgc3BhY2UteS00XCI+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlblwiPlxyXG4gICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtZXh0cmFib2xkIHRleHQtZm9yZWdyb3VuZFwiPkxlYXZlIFR5cGVzPC9oMz5cclxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LW1lZGl1bVwiPlxyXG4gICAgICAgICAgICAgICAgQ29uZmlndXJlIGFsbG93YW5jZXMsIGNvbG9ycywgYW5kIHN5c3RlbSBzdGF0dXMgZm9yIGNvbXBhbnkgbGVhdmUgY2F0ZWdvcmllcy5cclxuICAgICAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gb3BlblR5cGVNb2RhbCgpfVxyXG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHB4LTMuNSBweS0yIHJvdW5kZWQteGwgYmctcHJpbWFyeSBob3ZlcjpiZy1wcmltYXJ5LWhvdmVyIHRleHQtd2hpdGUgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXIgc2hhZG93LXhzXCJcclxuICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgIDxQbHVzIGNsYXNzTmFtZT1cImgtMy41IHctMy41XCIgLz5cclxuICAgICAgICAgICAgICA8c3Bhbj5OZXcgTGVhdmUgVHlwZTwvc3Bhbj5cclxuICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgbWQ6Z3JpZC1jb2xzLTIgbGc6Z3JpZC1jb2xzLTIgZ2FwLTZcIj5cclxuICAgICAgICAgICAge2xlYXZlVHlwZXMubWFwKChsdCkgPT4ge1xyXG4gICAgICAgICAgICAgIGNvbnN0IGlzUHJvdGVjdGVkID0gaXNQcm90ZWN0ZWRMZWF2ZVR5cGUobHQpO1xyXG4gICAgICAgICAgICAgIHJldHVybiAoXHJcbiAgICAgICAgICAgICAgICA8ZGl2XHJcbiAgICAgICAgICAgICAgICAgIGtleT17bHQuaWR9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHAtNiByb3VuZGVkLTN4bCBib3JkZXIgdHJhbnNpdGlvbi1hbGwgZmxleCBmbGV4LWNvbCBqdXN0aWZ5LWJldHdlZW4gc3BhY2UteS01IHNoYWRvdy14cyAke1xyXG4gICAgICAgICAgICAgICAgICAgIGx0LmlzQWN0aXZlID8gJ2JnLWNhcmQgYm9yZGVyLWJvcmRlci84MCBob3Zlcjpib3JkZXItcHJpbWFyeS81MCBob3ZlcjpzaGFkb3ctbWQnIDogJ2JnLW11dGVkLzMwIGJvcmRlci1ib3JkZXIvNDAgb3BhY2l0eS02MCdcclxuICAgICAgICAgICAgICAgICAgfWB9XHJcbiAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS00XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNVwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhblxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cImgtNCB3LTQgcm91bmRlZC1mdWxsIHNocmluay0wIHNoYWRvdy14cyBib3JkZXIgYm9yZGVyLXdoaXRlLzIwXCJcclxuICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT17eyBiYWNrZ3JvdW5kQ29sb3I6IGx0LmNvbG9yIH19XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtbW9ubyB0ZXh0LXhzIGZvbnQtYmxhY2sgdGV4dC1mb3JlZ3JvdW5kIHRyYWNraW5nLXdpZGVyXCI+e2x0LmNvZGV9PC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIHtpc1Byb3RlY3RlZCAmJiAoXHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1ibGFjayB1cHBlcmNhc2UgcHgtMi41IHB5LTEgcm91bmRlZC1mdWxsIGJnLWluZGlnby01MDAvMTAgdGV4dC1pbmRpZ28tNjAwIGJvcmRlciBib3JkZXItaW5kaWdvLTUwMC8yMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMVwiIHRpdGxlPVwiU3lzdGVtIGxlYXZlIHR5cGVcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxMb2NrIGNsYXNzTmFtZT1cImgtMyB3LTNcIiAvPiBTeXN0ZW1cclxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVUb2dnbGVTdGF0dXMobHQpfVxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHRleHQtWzEwcHhdIGZvbnQtYm9sZCB1cHBlcmNhc2UgcHgtMi41IHB5LTEgcm91bmRlZC1mdWxsIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyICR7XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBsdC5pc0FjdGl2ZSA/ICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGJvcmRlciBib3JkZXItZW1lcmFsZC01MDAvMjAnIDogJ2JnLXJvc2UtNTAwLzEwIHRleHQtcm9zZS02MDAgYm9yZGVyIGJvcmRlci1yb3NlLTUwMC8yMCdcclxuICAgICAgICAgICAgICAgICAgICAgICAgICB9YH1cclxuICAgICAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgIHtsdC5pc0FjdGl2ZSA/ICdBY3RpdmUnIDogJ0Rpc2FibGVkJ31cclxuICAgICAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9XCJ0ZXh0LWJhc2UgZm9udC1ibGFjayB0ZXh0LWZvcmVncm91bmRcIj57bHQubmFtZX08L2gzPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW0gbXQtMSBsZWFkaW5nLXJlbGF4ZWRcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAge2x0LmRlc2NyaXB0aW9uIHx8ICdDb25maWd1cmFibGUgb3JnYW5pemF0aW9uYWwgbGVhdmUgY2F0ZWdvcnknfVxyXG4gICAgICAgICAgICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB0LTMgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci80MCBncmlkIGdyaWQtY29scy0yIGdhcC0zIHRleHQtY2VudGVyIHRleHQteHNcIj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctbXV0ZWQvNDAgcC0zIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzQwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LWV4dHJhYm9sZCBibG9jayB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXJcIj5Bbm51YWwgQWxsb3dhbmNlPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJsYWNrIHRleHQtc20gdGV4dC1mb3JlZ3JvdW5kIG10LTAuNSBibG9ja1wiPntsdC5pc1BhaWQgPyBgJHtsdC5hbm51YWxEYXlzID8/IDB9IERheXNgIDogJ1VucGFpZCd9PC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLW11dGVkLzQwIHAtMyByb3VuZGVkLTJ4bCBib3JkZXIgYm9yZGVyLWJvcmRlci80MFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1leHRyYWJvbGQgYmxvY2sgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyXCI+TW9udGhseSBDcmVkaXQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYmxhY2sgdGV4dC1zbSB0ZXh0LWZvcmVncm91bmQgbXQtMC41IGJsb2NrXCI+e2x0LmlzUGFpZCA/IGAke2x0Lm1vbnRobHlDcmVkaXREYXlzID8/IGx0Lm1vbnRobHlDcmVkaXQgPz8gMH0gRGF5c2AgOiAnTi9BJ308L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktZW5kIGdhcC0yIHB0LTMgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci80MFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IG9wZW5UeXBlTW9kYWwobHQpfVxyXG4gICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicC0yIHJvdW5kZWQteGwgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOmJnLW11dGVkIGhvdmVyOnRleHQtZm9yZWdyb3VuZCB0cmFuc2l0aW9uLWNvbG9ycyBjdXJzb3ItcG9pbnRlclwiXHJcbiAgICAgICAgICAgICAgICAgICAgICB0aXRsZT1cIkVkaXQgTGVhdmUgVHlwZVwiXHJcbiAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPEVkaXQyIGNsYXNzTmFtZT1cImgtNCB3LTRcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgICAgICAgIHshaXNQcm90ZWN0ZWQgJiYgKFxyXG4gICAgICAgICAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVEZWxldGVDbGljayhsdCl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMiByb3VuZGVkLXhsIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZCBob3Zlcjp0ZXh0LXJvc2UtNjAwIHRyYW5zaXRpb24tY29sb3JzIGN1cnNvci1wb2ludGVyXCJcclxuICAgICAgICAgICAgICAgICAgICAgICAgdGl0bGU9XCJEZWxldGUgTGVhdmUgVHlwZVwiXHJcbiAgICAgICAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxUcmFzaDIgY2xhc3NOYW1lPVwiaC00IHctNFwiIC8+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICAgICAgICApfVxyXG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICk7XHJcbiAgICAgICAgICAgIH0pfVxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgey8qIExFQVZFIFRZUEUgTU9EQUwgKi99XHJcbiAgICAgIHt0eXBlTW9kYWxPcGVuICYmIChcclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei01MCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTQgYmctc2xhdGUtOTUwLzYwIGJhY2tkcm9wLWJsdXIteHNcIj5cclxuICAgICAgICAgIDxtb3Rpb24uZGl2XHJcbiAgICAgICAgICAgIGluaXRpYWw9e3sgc2NhbGU6IDAuOTUsIG9wYWNpdHk6IDAgfX1cclxuICAgICAgICAgICAgYW5pbWF0ZT17eyBzY2FsZTogMSwgb3BhY2l0eTogMSB9fVxyXG4gICAgICAgICAgICBjbGFzc05hbWU9XCJiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyLzgwIHJvdW5kZWQtM3hsIHAtNiBzbTpwLTggbWF4LXctbGcgdy1mdWxsIHNoYWRvdy0yeGwgc3BhY2UteS02IHRleHQtbGVmdCBtYXgtaC1bOTB2aF0gb3ZlcmZsb3cteS1hdXRvXCJcclxuICAgICAgICAgID5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlci82MCBwYi00XCI+XHJcbiAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtYmFzZSBmb250LWV4dHJhYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5cclxuICAgICAgICAgICAgICAgIHtlZGl0aW5nVHlwZSA/IGBFZGl0IExlYXZlIFR5cGU6ICR7ZWRpdGluZ1R5cGUubmFtZX1gIDogJ0NyZWF0ZSBEeW5hbWljIExlYXZlIFR5cGUnfVxyXG4gICAgICAgICAgICAgIDwvaDM+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvbiBvbkNsaWNrPXsoKSA9PiBzZXRUeXBlTW9kYWxPcGVuKGZhbHNlKX0gY2xhc3NOYW1lPVwicC0xIHJvdW5kZWQteGwgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOmJnLW11dGVkXCI+XHJcbiAgICAgICAgICAgICAgICA8WCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlU2F2ZUxlYXZlVHlwZX0gY2xhc3NOYW1lPVwic3BhY2UteS00XCI+XHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIHNtOmdyaWQtY29scy0yIGdhcC00XCI+XHJcbiAgICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiYmxvY2sgdGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIG1iLTFcIj5MZWF2ZSBOYW1lICo8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcclxuICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cImUuZy4gTWFycmlhZ2UgTGVhdmVcIlxyXG4gICAgICAgICAgICAgICAgICAgIHZhbHVlPXt0eXBlRm9ybURhdGEubmFtZX1cclxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17aGFuZGxlTmFtZUNoYW5nZX1cclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcHgtMyBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1iYWNrZ3JvdW5kIG91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1wcmltYXJ5LzIwXCJcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImJsb2NrIHRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBtYi0xXCI+TGVhdmUgQ29kZSAqPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgZGlzYWJsZWQ9e0Jvb2xlYW4oZWRpdGluZ1R5cGU/LmlzU3lzdGVtIHx8IGlzUHJvdGVjdGVkTGVhdmVUeXBlKGVkaXRpbmdUeXBlKSl9XHJcbiAgICAgICAgICAgICAgICAgICAgdGl0bGU9e2VkaXRpbmdUeXBlPy5pc1N5c3RlbSB8fCBpc1Byb3RlY3RlZExlYXZlVHlwZShlZGl0aW5nVHlwZSkgPyBcIlN5c3RlbSBsZWF2ZSBjb2RlIGNhbm5vdCBiZSBtb2RpZmllZFwiIDogXCJcIn1cclxuICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cImUuZy4gTUxcIlxyXG4gICAgICAgICAgICAgICAgICAgIHZhbHVlPXt0eXBlRm9ybURhdGEuY29kZX1cclxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFR5cGVGb3JtRGF0YSh7IC4uLnR5cGVGb3JtRGF0YSwgY29kZTogZS50YXJnZXQudmFsdWUudG9VcHBlckNhc2UoKSB9KX1cclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2B3LWZ1bGwgcHgtMyBweS0yIHRleHQteHMgZm9udC1ib2xkIHVwcGVyY2FzZSByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWJhY2tncm91bmQgb3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvMjAgJHtcclxuICAgICAgICAgICAgICAgICAgICAgIChlZGl0aW5nVHlwZT8uaXNTeXN0ZW0gfHwgaXNQcm90ZWN0ZWRMZWF2ZVR5cGUoZWRpdGluZ1R5cGUpKSA/ICdvcGFjaXR5LTYwIGN1cnNvci1ub3QtYWxsb3dlZCBiZy1tdXRlZC80MCcgOiAnJ1xyXG4gICAgICAgICAgICAgICAgICAgIH1gfVxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiYmxvY2sgdGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIG1iLTFcIj5EZXNjcmlwdGlvbjwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8dGV4dGFyZWFcclxuICAgICAgICAgICAgICAgICAgcm93cz17Mn1cclxuICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJMZWF2ZSBjYXRlZ29yeSBwb2xpY3kgZ3VpZGVsaW5lcyBmb3IgSFIuLi5cIlxyXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17dHlwZUZvcm1EYXRhLmRlc2NyaXB0aW9ufVxyXG4gICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFR5cGVGb3JtRGF0YSh7IC4uLnR5cGVGb3JtRGF0YSwgZGVzY3JpcHRpb246IGUudGFyZ2V0LnZhbHVlIH0pfVxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcHgtMyBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1iYWNrZ3JvdW5kIG91dGxpbmUtbm9uZSByZXNpemUtbm9uZVwiXHJcbiAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cclxuICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJibG9jayB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgbWItMVwiPkJhZGdlIENvbG9yPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImNvbG9yXCJcclxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17dHlwZUZvcm1EYXRhLmNvbG9yfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCBjb2xvcjogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiaC05IHctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWJhY2tncm91bmQgY3Vyc29yLXBvaW50ZXJcIlxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiYmxvY2sgdGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIG1iLTFcIj5EaXNwbGF5IE9yZGVyPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXHJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3R5cGVGb3JtRGF0YS5kaXNwbGF5T3JkZXJ9XHJcbiAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRUeXBlRm9ybURhdGEoeyAuLi50eXBlRm9ybURhdGEsIGRpc3BsYXlPcmRlcjogcGFyc2VJbnQoZS50YXJnZXQudmFsdWUsIDEwKSB8fCAwIH0pfVxyXG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBweC0zIHB5LTIgdGV4dC14cyBmb250LW1lZGl1bSByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWJhY2tncm91bmQgb3V0bGluZS1ub25lXCJcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTIgZ2FwLTRcIj5cclxuICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJibG9jayB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgbWItMVwiPkFubnVhbCBBbGxvd2FuY2UgKERheXMpICo8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcclxuICAgICAgICAgICAgICAgICAgICBzdGVwPVwiYW55XCJcclxuICAgICAgICAgICAgICAgICAgICBtaW49XCIwXCJcclxuICAgICAgICAgICAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgICAgICAgICAgICAgIHZhbHVlPXt0eXBlRm9ybURhdGEuYW5udWFsRGF5c31cclxuICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFR5cGVGb3JtRGF0YSh7IC4uLnR5cGVGb3JtRGF0YSwgYW5udWFsRGF5czogZS50YXJnZXQudmFsdWUgfSl9XHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHB4LTMgcHktMiB0ZXh0LXhzIGZvbnQtYm9sZCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWJhY2tncm91bmQgb3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvMjBcIlxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiYmxvY2sgdGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIG1iLTFcIj5Nb250aGx5IENyZWRpdCAoRGF5cykgKjwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxyXG4gICAgICAgICAgICAgICAgICAgIHN0ZXA9XCJhbnlcIlxyXG4gICAgICAgICAgICAgICAgICAgIG1pbj1cIjBcIlxyXG4gICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3R5cGVGb3JtRGF0YS5tb250aGx5Q3JlZGl0ICE9PSB1bmRlZmluZWQgPyB0eXBlRm9ybURhdGEubW9udGhseUNyZWRpdCA6ICh0eXBlRm9ybURhdGEubW9udGhseUNyZWRpdERheXMgPz8gJycpfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4ge1xyXG4gICAgICAgICAgICAgICAgICAgICAgY29uc3QgdmFsID0gZS50YXJnZXQudmFsdWU7XHJcbiAgICAgICAgICAgICAgICAgICAgICBzZXRUeXBlRm9ybURhdGEoe1xyXG4gICAgICAgICAgICAgICAgICAgICAgICAuLi50eXBlRm9ybURhdGEsXHJcbiAgICAgICAgICAgICAgICAgICAgICAgIG1vbnRobHlDcmVkaXQ6IHZhbCxcclxuICAgICAgICAgICAgICAgICAgICAgICAgbW9udGhseUNyZWRpdERheXM6IHZhbFxyXG4gICAgICAgICAgICAgICAgICAgICAgfSk7XHJcbiAgICAgICAgICAgICAgICAgICAgfX1cclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcHgtMyBweS0yIHRleHQteHMgZm9udC1ib2xkIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctYmFja2dyb3VuZCBvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS8yMFwiXHJcbiAgICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0yIGdhcC0zIHB0LTJcIj5cclxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgY3Vyc29yLXBvaW50ZXJcIj5cclxuICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImNoZWNrYm94XCJcclxuICAgICAgICAgICAgICAgICAgICBjaGVja2VkPXt0eXBlRm9ybURhdGEuaXNQYWlkfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCBpc1BhaWQ6IGUudGFyZ2V0LmNoZWNrZWQgfSl9XHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicm91bmRlZCB0ZXh0LXByaW1hcnkgZm9jdXM6cmluZy1wcmltYXJ5XCJcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPHNwYW4+UGFpZCBMZWF2ZTwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgdGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGN1cnNvci1wb2ludGVyXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXHJcbiAgICAgICAgICAgICAgICAgICAgY2hlY2tlZD17dHlwZUZvcm1EYXRhLmFsbG93Q2FycnlGb3J3YXJkfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCBhbGxvd0NhcnJ5Rm9yd2FyZDogZS50YXJnZXQuY2hlY2tlZCB9KX1cclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJyb3VuZGVkIHRleHQtcHJpbWFyeSBmb2N1czpyaW5nLXByaW1hcnlcIlxyXG4gICAgICAgICAgICAgICAgICAvPlxyXG4gICAgICAgICAgICAgICAgICA8c3Bhbj5DYXJyeSBGb3J3YXJkPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgY3Vyc29yLXBvaW50ZXJcIj5cclxuICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImNoZWNrYm94XCJcclxuICAgICAgICAgICAgICAgICAgICBjaGVja2VkPXt0eXBlRm9ybURhdGEuYWxsb3dIYWxmRGF5fVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCBhbGxvd0hhbGZEYXk6IGUudGFyZ2V0LmNoZWNrZWQgfSl9XHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicm91bmRlZCB0ZXh0LXByaW1hcnkgZm9jdXM6cmluZy1wcmltYXJ5XCJcclxuICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICAgPHNwYW4+QWxsb3cgSGFsZiBEYXk8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBjdXJzb3ItcG9pbnRlclwiPlxyXG4gICAgICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxyXG4gICAgICAgICAgICAgICAgICAgIGNoZWNrZWQ9e3R5cGVGb3JtRGF0YS5yZXF1aXJlRG9jfVxyXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0VHlwZUZvcm1EYXRhKHsgLi4udHlwZUZvcm1EYXRhLCByZXF1aXJlRG9jOiBlLnRhcmdldC5jaGVja2VkIH0pfVxyXG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInJvdW5kZWQgdGV4dC1wcmltYXJ5IGZvY3VzOnJpbmctcHJpbWFyeVwiXHJcbiAgICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgICAgIDxzcGFuPlJlcXVpcmUgRG9jdW1lbnRzPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktZW5kIGdhcC0zIHB0LTQgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci82MFwiPlxyXG4gICAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0VHlwZU1vZGFsT3BlbihmYWxzZSl9XHJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTQgcHktMiByb3VuZGVkLXhsIHRleHQteHMgZm9udC1ib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZFwiXHJcbiAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgIENhbmNlbFxyXG4gICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJzdWJtaXRcIlxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC01IHB5LTIuNSByb3VuZGVkLXhsIGJnLXByaW1hcnkgaG92ZXI6YmctcHJpbWFyeS1ob3ZlciB0ZXh0LXdoaXRlIHRleHQteHMgZm9udC1ib2xkIHNoYWRvdy1tZCBjdXJzb3ItcG9pbnRlclwiXHJcbiAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgIFNhdmUgTGVhdmUgVHlwZVxyXG4gICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgIDwvbW90aW9uLmRpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgKX1cclxuXHJcbiAgICAgIHsvKiBBTk5VQUwgUkVTRVQgQ09ORklSTSBNT0RBTCAqL31cclxuICAgICAge3Jlc2V0TW9kYWxPcGVuICYmIChcclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei01MCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTQgYmctc2xhdGUtOTUwLzYwIGJhY2tkcm9wLWJsdXIteHNcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctY2FyZCBib3JkZXIgYm9yZGVyLWJvcmRlci84MCByb3VuZGVkLTN4bCBwLTYgc206cC04IG1heC13LW1kIHctZnVsbCBzaGFkb3ctMnhsIHNwYWNlLXktNiB0ZXh0LWxlZnRcIj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtM1wiPlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQtMnhsIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IGJvcmRlciBib3JkZXItcHJpbWFyeS8yMFwiPlxyXG4gICAgICAgICAgICAgICAgPFJvdGF0ZUNjdyBjbGFzc05hbWU9XCJoLTYgdy02XCIgLz5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtYmFzZSBmb250LWV4dHJhYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5FeGVjdXRlIEFubnVhbCBMZWF2ZSBSZXNldD88L2gzPlxyXG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW1cIj5cclxuICAgICAgICAgICAgICAgICAgQXBwbGllcyBjYXJyeS1mb3J3YXJkIGxpbWl0cywgZXhwaXJlcyBvbGQgYmFsYW5jZXMsIGFuZCBpbml0aWFsaXplcyBuZXcgYW5udWFsIGxlYXZlIGNyZWRpdHMgZm9yIGFsbCB1c2Vycy5cclxuICAgICAgICAgICAgICAgIDwvcD5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1lbmQgZ2FwLTMgcHQtNCBib3JkZXItdCBib3JkZXItYm9yZGVyLzYwXCI+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0UmVzZXRNb2RhbE9wZW4oZmFsc2UpfVxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtNCBweS0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOmJnLW11dGVkIGN1cnNvci1wb2ludGVyXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICBDYW5jZWxcclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVSdW5Bbm51YWxSZXNldH1cclxuICAgICAgICAgICAgICAgIGRpc2FibGVkPXtyZXNldHRpbmd9XHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC01IHB5LTIuNSByb3VuZGVkLXhsIGJnLXByaW1hcnkgaG92ZXI6YmctcHJpbWFyeS1ob3ZlciB0ZXh0LXdoaXRlIHRleHQteHMgZm9udC1ib2xkIHNoYWRvdy1tZCBjdXJzb3ItcG9pbnRlciBkaXNhYmxlZDpvcGFjaXR5LTUwXCJcclxuICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICB7cmVzZXR0aW5nID8gJ0V4ZWN1dGluZyBSZXNldC4uLicgOiAnQ29uZmlybSBSZXNldCd9XHJcbiAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgICl9XHJcblxyXG4gICAgICB7LyogREVMRVRFIENPTkZJUk0gTU9EQUwgKi99XHJcbiAgICAgIDxDb25maXJtTW9kYWxcclxuICAgICAgICBpc09wZW49e2RlbGV0ZUNvbmZpcm1PcGVufVxyXG4gICAgICAgIHRpdGxlPVwiRGVsZXRlIExlYXZlIFR5cGVcIlxyXG4gICAgICAgIG1lc3NhZ2U9e2BBcmUgeW91IHN1cmUgeW91IHdhbnQgdG8gZGVsZXRlIHRoZSBcIiR7dHlwZVRvRGVsZXRlPy5uYW1lfVwiIGxlYXZlIHR5cGU/IFVzZXJzIHdpbGwgbm8gbG9uZ2VyIGJlIGFibGUgdG8gcmVxdWVzdCB0aGlzIGxlYXZlIHR5cGUuIEV4aXN0aW5nIGxlYXZlIGhpc3RvcnkgcmVtYWlucyB1bmFmZmVjdGVkLmB9XHJcbiAgICAgICAgY29uZmlybVRleHQ9XCJEZWxldGUgTGVhdmUgVHlwZVwiXHJcbiAgICAgICAgY2FuY2VsVGV4dD1cIkNhbmNlbFwiXHJcbiAgICAgICAgbG9hZGluZz17ZGVsZXRpbmdUeXBlfVxyXG4gICAgICAgIG9uQ29uZmlybT17aGFuZGxlQ29uZmlybURlbGV0ZX1cclxuICAgICAgICBvbkNsb3NlPXsoKSA9PiB7XHJcbiAgICAgICAgICBpZiAoIWRlbGV0aW5nVHlwZSkge1xyXG4gICAgICAgICAgICBzZXREZWxldGVDb25maXJtT3BlbihmYWxzZSk7XHJcbiAgICAgICAgICAgIHNldFR5cGVUb0RlbGV0ZShudWxsKTtcclxuICAgICAgICAgIH1cclxuICAgICAgICB9fVxyXG4gICAgICAvPlxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxufTtcclxuXHJcbmV4cG9ydCBkZWZhdWx0IExlYXZlUG9saWN5U2V0dGluZ3M7XHJcbiJdLCJmaWxlIjoiRDovUCBSIE8gSiBFIEMgVCBTL1dlYi9NUkYtY3JtL2Zyb250ZW5kL3NyYy9wYWdlcy9zdXBlci1hZG1pbi9MZWF2ZVBvbGljeVNldHRpbmdzLmpzeCJ9

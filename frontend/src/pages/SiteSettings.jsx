@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Save, Shield, Clock, Mail, Building, CheckCircle2, MapPin, Navigation, AlertCircle, ToggleLeft, ToggleRight, Check, Sparkles, DollarSign } from 'lucide-react';
+import { Save, Shield, Clock, Mail, Building, CheckCircle2, AlertCircle, ToggleLeft, ToggleRight, Check, Sparkles, DollarSign } from 'lucide-react';
 import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
+import AttendanceLocationsSection from '../components/attendance/AttendanceLocationsSection';
 
 const SiteSettings = () => {
   const { selectedOrgId, loading: orgsLoading, selectedCompany } = useCompanyScope();
   const selectedOrgIdRef = useRef(selectedOrgId);
-
   const [settings, setSettings] = useState({
     companyName: '',
     senderEmail: 'no-reply@enterprise-crm.com',
@@ -29,9 +29,7 @@ const SiteSettings = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [gpsDetecting, setGpsDetecting] = useState(false);
   const [alert, setAlert] = useState(null);
-  const [capturedGps, setCapturedGps] = useState(null);
 
   const fetchSettings = async () => {
     try {
@@ -95,40 +93,6 @@ const SiteSettings = () => {
     }));
   };
 
-  const handleGPSAutofill = () => {
-    if (!navigator.geolocation) {
-      setAlert({ type: 'error', message: 'Geolocation is not supported by your browser.' });
-      return;
-    }
-
-    setGpsDetecting(true);
-    setAlert(null);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = parseFloat(position.coords.latitude.toFixed(6));
-        const lon = parseFloat(position.coords.longitude.toFixed(6));
-        
-        setSettings(prev => ({
-          ...prev,
-          officeLatitude: lat,
-          officeLongitude: lon
-        }));
-
-        setCapturedGps({ lat, lon });
-        setAlert({
-          type: 'success',
-          message: `Captured current GPS location (Lat: ${lat}, Lon: ${lon}). Click "Save Configuration" to update office geofence.`
-        });
-        setGpsDetecting(false);
-      },
-      (error) => {
-        setAlert({ type: 'error', message: 'Failed to fetch GPS location: ' + error.message });
-        setGpsDetecting(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -205,7 +169,6 @@ const SiteSettings = () => {
         companyName: selectedCompany?.name || res.data.companyName || 'Company Workspace'
       }));
       window.dispatchEvent(new CustomEvent('settings_updated', { detail: res.data }));
-      setCapturedGps(null);
       setAlert({ type: 'success', message: `Attendance settings for ${selectedCompany?.name || 'Company'} updated successfully.` });
       setLoading(false);
     } catch (err) {
@@ -234,7 +197,8 @@ const SiteSettings = () => {
       {loading ? (
         <div className="skeleton h-96 w-full rounded-2xl" />
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
+          <form id="site-settings-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Section 1: Company & Communication Identity */}
           <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-premium">
             <div className="flex items-center gap-2 border-b border-border/30 pb-4 mb-6">
@@ -342,73 +306,6 @@ const SiteSettings = () => {
             </div>
           </div>
 
-          {/* Section 3: Geofence Location Settings */}
-          <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-premium">
-            <div className="flex items-center justify-between border-b border-border/30 pb-4 mb-6">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <h2 className="text-sm font-bold uppercase tracking-tight">Geofence Office Boundaries</h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleGPSAutofill}
-                disabled={gpsDetecting}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 text-xs font-bold text-primary hover:bg-primary/20 transition-all"
-              >
-                <Navigation className="h-3.5 w-3.5 animate-spin-slow" />
-                <span>{gpsDetecting ? 'Detecting Location...' : 'Capture Current GPS'}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground">Office Location Name</label>
-                <input
-                  type="text"
-                  name="officeLocationName"
-                  value={settings.officeLocationName || ''}
-                  onChange={handleChange}
-                  className="bg-muted/20 border border-border rounded-xl p-3 text-xs font-semibold text-foreground"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground">Latitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  name="officeLatitude"
-                  value={settings.officeLatitude || 0}
-                  onChange={handleChange}
-                  className="bg-muted/20 border border-border rounded-xl p-3 text-xs font-mono font-semibold text-foreground"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground">Longitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  name="officeLongitude"
-                  value={settings.officeLongitude || 0}
-                  onChange={handleChange}
-                  className="bg-muted/20 border border-border rounded-xl p-3 text-xs font-mono font-semibold text-foreground"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-2 max-w-sm">
-              <label className="text-xs font-semibold text-muted-foreground">Allowed Radius Boundary (Meters)</label>
-              <input
-                type="number"
-                name="allowedRadiusMeters"
-                value={settings.allowedRadiusMeters || 200}
-                onChange={handleChange}
-                className="bg-muted/20 border border-border rounded-xl p-3 text-xs font-semibold text-foreground"
-              />
-            </div>
-          </div>
-
           {/* Section 4: Payroll Compensation Policies */}
           <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-premium">
             <div className="flex items-center gap-2 border-b border-border/30 pb-4 mb-6">
@@ -466,20 +363,25 @@ const SiteSettings = () => {
               </div>
             </div>
           </div>
-
-          {/* Submit Action Bar */}
-          <div className="flex justify-end pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-xs font-bold text-primary-foreground shadow-md hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              <span>Save Configuration ({selectedCompany?.name || 'Company Scope'})</span>
-            </button>
-          </div>
         </form>
-      )}
+
+        {/* Section: Attendance Locations */}
+        <AttendanceLocationsSection />
+
+        {/* Bottom Action Bar: Save Configuration */}
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            form="site-settings-form"
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-xs font-bold text-primary-foreground shadow-md hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            <Save className="h-4 w-4" />
+            <span>Save Configuration ({selectedCompany?.name || 'Company Scope'})</span>
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   );
 };

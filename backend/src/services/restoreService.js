@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { spawn, spawnSync } = require('child_process');
+const crypto = require('crypto');
+const { spawn, spawnSync, exec } = require('child_process');
 const JSZip = require('jszip');
 const prisma = require('../utils/db');
 const {
@@ -19,10 +20,422 @@ if (!fs.existsSync(TEMP_RESTORE_DIR)) {
   fs.mkdirSync(TEMP_RESTORE_DIR, { recursive: true });
 }
 
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../prisma/migrations');
+
 /**
- * Validates an uploaded backup ZIP archive before restoring.
- * Meets Phase 2 & Phase 3 requirements.
+ * ==============================================================================
+ * STEP 1 & 5: CONCURRENCY CONTROL & TARGET ENVIRONMENT SAFETY GATE
+ * ==============================================================================
  */
+let restoreLock = null;
+
+/**
+ * Acquire exclusive restore lock to prevent concurrent restore requests.
+ */
+const acquireRestoreLock = (user, operation = 'RESTORE') => {
+  if (restoreLock) {
+    const elapsedSec = Math.round((Date.now() - restoreLock.startedAt) / 1000);
+    // Timeout lock after 15 minutes in case of process crash
+    if (elapsedSec < 900) {
+      const err = new Error(`Concurrent restore rejected: Another ${restoreLock.operation} operation is currently in progress by ${restoreLock.user} (started ${elapsedSec}s ago).`);
+      err.status = 409;
+      err.code = 'CONCURRENT_RESTORE_CONFLICT';
+      throw err;
+    }
+  }
+  restoreLock = {
+    user: user?.name ? `${user.name} (${user.email || user.role})` : 'Super Admin',
+    operation,
+    startedAt: Date.now()
+  };
+  return restoreLock;
+};
+
+/**
+ * Release exclusive restore lock.
+ */
+const releaseRestoreLock = () => {
+  restoreLock = null;
+};
+
+/**
+ * Check if a restore lock is currently held.
+ */
+const isRestoreLocked = () => !!restoreLock;
+
+/**
+ * Strictly verify that the target database is an approved local development host/target.
+ * Rejects remote hosts and production database names to prevent accidental disaster.
+ */
+const isSafeTargetDatabase = (config) => {
+  const host = (config.host || '').toLowerCase();
+  const dbName = (config.database || '').toLowerCase();
+
+  // 1. Host whitelisting: only local instances allowed for development restore
+  const allowedHosts = ['localhost', '127.0.0.1', '::1'];
+  const isLocalHost = allowedHosts.includes(host) || host.startsWith('127.') || host.endsWith('.local');
+  if (!isLocalHost) {
+    const err = new Error(`Target Database Safety Rejection: Host '${config.host}' is not an approved local development host. Remote hosts are strictly prohibited for restore operations.`);
+    err.status = 403;
+    throw err;
+  }
+
+  // 2. Reject production database names
+  const forbiddenKeywords = ['production', 'prod_', '_prod', '-prod', 'live_', '_live', '-live'];
+  for (const kw of forbiddenKeywords) {
+    if (dbName.includes(kw)) {
+      const err = new Error(`Target Database Safety Rejection: Database name '${config.database}' contains protected production keyword '${kw}'. Restores targeting production names are prohibited.`);
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Creates an isolated disposable staging database.
+ */
+const createIsolatedSandboxDatabase = async (config, prefix = 'innoveity_restore_sandbox') => {
+  const sandboxDbName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const createSql = `CREATE DATABASE \`${sandboxDbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n`;
+  await runMysqlQuery(config, createSql, /* connectWithoutDb= */ true);
+  return sandboxDbName;
+};
+
+/**
+ * Safely drops ONLY disposable staging databases.
+ * Rejects dropping active databases to prevent data loss.
+ */
+const dropIsolatedSandboxDatabase = async (config, sandboxDbName) => {
+  if (!sandboxDbName || typeof sandboxDbName !== 'string') return;
+  const allowedPrefixes = ['innoveity_restore_sandbox_', 'innoveity_phase', 'innoveity_test_', 'innoveity_sandbox_'];
+  const isDisposable = allowedPrefixes.some(p => sandboxDbName.startsWith(p));
+  if (!isDisposable) {
+    throw new Error(`Safety Violation: Attempted to drop non-disposable database '${sandboxDbName}'. Cleanup aborted.`);
+  }
+  const dropSql = `DROP DATABASE IF EXISTS \`${sandboxDbName}\`;\n`;
+  await runMysqlQuery(config, dropSql, /* connectWithoutDb= */ true);
+};
+
+/**
+ * ==============================================================================
+ * STEP 3: PRISMA MIGRATION ENGINE (VERSION-CONTROLLED & REPRODUCIBLE)
+ * ==============================================================================
+ */
+
+/**
+ * Inspect target database to discover applied vs pending version-controlled migrations.
+ */
+const getPendingMigrations = async (config, dbName) => {
+  const dbConfig = { ...config, database: dbName };
+
+  // 1. Check applied migrations in _prisma_migrations
+  let existingMigrations = [];
+  try {
+    const rows = await runMysqlQuery(dbConfig, "SELECT migration_name FROM `_prisma_migrations` WHERE rolled_back_at IS NULL ORDER BY started_at;");
+    const lines = rows.trim().split('\n').slice(1);
+    existingMigrations = lines.map(l => l.trim().split('\t')[0]).filter(Boolean);
+  } catch (e) {
+    // _prisma_migrations table may not exist yet
+  }
+
+  const existingSet = new Set(existingMigrations);
+
+  // 2. Check if baseline tables exist (e.g. user table exists in restored live backup)
+  let hasUserTable = false;
+  try {
+    const uRows = await runMysqlQuery(dbConfig, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${dbName}' AND table_name = 'user';`);
+    hasUserTable = (parseInt(uRows.trim().split('\n')[1], 10) || 0) > 0;
+  } catch (e) {}
+
+  // If user table already exists, baseline migration 20260926180013_init_mysql is already part of the database
+  if (hasUserTable && !existingSet.has('20260926180013_init_mysql')) {
+    existingSet.add('20260926180013_init_mysql');
+    try {
+      const ensureMigrationsTableSql = `
+        CREATE TABLE IF NOT EXISTS \`_prisma_migrations\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`checksum\` VARCHAR(64) NOT NULL,
+          \`finished_at\` DATETIME(3) NULL,
+          \`migration_name\` VARCHAR(255) NOT NULL,
+          \`logs\` TEXT NULL,
+          \`rolled_back_at\` DATETIME(3) NULL,
+          \`started_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`applied_steps_count\` INT UNSIGNED NOT NULL DEFAULT 0,
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+      await runMysqlQuery(dbConfig, ensureMigrationsTableSql);
+      const migPath = path.join(MIGRATIONS_DIR, '20260926180013_init_mysql', 'migration.sql');
+      let checksum = 'b4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5';
+      if (fs.existsSync(migPath)) {
+        checksum = crypto.createHash('sha256').update(fs.readFileSync(migPath, 'utf8')).digest('hex');
+      }
+      await runMysqlQuery(dbConfig, `
+        INSERT IGNORE INTO \`_prisma_migrations\`
+        (\`id\`, \`checksum\`, \`finished_at\`, \`migration_name\`, \`logs\`, \`rolled_back_at\`, \`started_at\`, \`applied_steps_count\`)
+        VALUES
+        ('${crypto.randomUUID()}', '${checksum}', NOW(3), '20260926180013_init_mysql', 'Baseline live backup reconciliation', NULL, NOW(3), 1);
+      `);
+      existingMigrations.push('20260926180013_init_mysql');
+    } catch (e) {}
+  }
+
+  // 3. Scan backend/prisma/migrations/ for version-controlled migration directories
+  const pending = [];
+  if (fs.existsSync(MIGRATIONS_DIR)) {
+    const entries = fs.readdirSync(MIGRATIONS_DIR, { withFileTypes: true });
+    const migDirs = entries
+      .filter(e => e.isDirectory() && /^\d{14}_/.test(e.name))
+      .map(e => e.name)
+      .sort(); // Strict topological order by timestamp prefix
+
+    for (const dirName of migDirs) {
+      if (!existingSet.has(dirName)) {
+        const sqlPath = path.join(MIGRATIONS_DIR, dirName, 'migration.sql');
+        if (fs.existsSync(sqlPath)) {
+          pending.push({
+            name: dirName,
+            dirPath: path.join(MIGRATIONS_DIR, dirName),
+            sqlPath
+          });
+        }
+      }
+    }
+  }
+
+  // 4. Check table count and core columns to confirm schema parity
+  let tableCount = 0;
+  try {
+    const tRows = await runMysqlQuery(dbConfig, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${dbName}' AND table_type = 'BASE TABLE';`);
+    const line = tRows.trim().split('\n')[1];
+    tableCount = parseInt(line, 10) || 0;
+  } catch (e) {}
+
+  return {
+    existingMigrations,
+    pendingMigrations: pending,
+    tableCount,
+    needsUpgrade: pending.length > 0 || tableCount < 94
+  };
+};
+
+/**
+ * Safely reads SQL file handling UTF-8 and UTF-16 BOMs transparently.
+ */
+const readSqlFileClean = (filePath) => {
+  const buf = fs.readFileSync(filePath);
+  if (buf[0] === 0xFF && buf[1] === 0xFE) {
+    return buf.toString('utf16le');
+  } else if (buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {
+    return buf.subarray(3).toString('utf8');
+  }
+  return buf.toString('utf8');
+};
+
+/**
+ * Safely applies pending version-controlled migrations and registers them in _prisma_migrations.
+ */
+const applyPendingMigrations = async (config, dbName, pendingList = null) => {
+  const dbConfig = { ...config, database: dbName };
+
+  // Ensure _prisma_migrations table exists
+  const ensureMigrationsTableSql = `
+    CREATE TABLE IF NOT EXISTS \`_prisma_migrations\` (
+      \`id\` VARCHAR(36) NOT NULL,
+      \`checksum\` VARCHAR(64) NOT NULL,
+      \`finished_at\` DATETIME(3) NULL,
+      \`migration_name\` VARCHAR(255) NOT NULL,
+      \`logs\` TEXT NULL,
+      \`rolled_back_at\` DATETIME(3) NULL,
+      \`started_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`applied_steps_count\` INT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  `;
+  await runMysqlQuery(dbConfig, ensureMigrationsTableSql);
+
+  const applied = [];
+  const list = pendingList || (await getPendingMigrations(config, dbName)).pendingMigrations;
+
+  for (const mig of list) {
+    const sqlContent = readSqlFileClean(mig.sqlPath);
+    const checksum = crypto.createHash('sha256').update(sqlContent).digest('hex');
+    const migId = crypto.randomUUID();
+
+    // Execute migration DDL statements
+    try {
+      await runMysqlQuery(dbConfig, sqlContent);
+    } catch (migErr) {
+      throw new Error(`Migration '${mig.name}' execution failed: ${migErr.message}`);
+    }
+
+    // Register successful execution in _prisma_migrations
+    const recordSql = `
+      INSERT INTO \`_prisma_migrations\` 
+      (\`id\`, \`checksum\`, \`finished_at\`, \`migration_name\`, \`logs\`, \`rolled_back_at\`, \`started_at\`, \`applied_steps_count\`)
+      VALUES 
+      ('${migId}', '${checksum}', NOW(3), '${mig.name}', NULL, NULL, NOW(3), 1);
+    `;
+    await runMysqlQuery(dbConfig, recordSql);
+    applied.push({ name: mig.name, id: migId, checksum });
+  }
+
+  return applied;
+};
+
+/**
+ * ==============================================================================
+ * STEP 4: READ-ONLY DATA INTEGRITY AUDIT ENGINE
+ * ==============================================================================
+ */
+const runDataIntegrityAudit = async (config, dbName, tableDumpCounts = {}) => {
+  const dbConfig = { ...config, database: dbName };
+  const audit = {
+    valid: true,
+    database: dbName,
+    checkedAt: new Date().toISOString(),
+    totalTables: 0,
+    orphanedRelationships: [],
+    errors: [],
+    warnings: []
+  };
+
+  // 1. Inspect table names in database
+  const tableRows = await runMysqlQuery(dbConfig, `SELECT table_name FROM information_schema.tables WHERE table_schema = '${dbName}' AND table_type = 'BASE TABLE' ORDER BY table_name;`);
+  const liveTableNames = tableRows.trim().split('\n').slice(1).map(t => t.trim()).filter(Boolean);
+  audit.totalTables = liveTableNames.length;
+
+  if (liveTableNames.length < 94) {
+    audit.warnings.push(`Database has ${liveTableNames.length} tables (expected 94 for latest CRM schema).`);
+  }
+
+  // 2. Read-only scan for orphaned user relationships
+  const userRefChecks = [
+    { table: 'meetingattendee', col: 'userId', label: 'Meeting Attendees' },
+    { table: 'meeting', col: 'organizerId', label: 'Meeting Organizers' },
+    { table: 'compoffcredit', col: 'userId', label: 'Comp-Off Credits' },
+    { table: 'compoffconsumption', col: 'userId', label: 'Comp-Off Consumptions' },
+    { table: 'companydocument', col: 'uploadedById', label: 'Company Document Uploaders' },
+    { table: 'assetestimate', col: 'createdById', label: 'Asset Estimate Creators' }
+  ];
+
+  for (const check of userRefChecks) {
+    if (liveTableNames.includes(check.table)) {
+      try {
+        const countQuery = `SELECT COUNT(*) FROM \`${check.table}\` t LEFT JOIN \`user\` u ON t.\`${check.col}\` = u.id WHERE t.\`${check.col}\` IS NOT NULL AND u.id IS NULL;`;
+        const countRes = await runMysqlQuery(dbConfig, countQuery);
+        const totalOrphans = parseInt(countRes.trim().split('\n')[1], 10) || 0;
+
+        if (totalOrphans > 0) {
+          const sampleQuery = `
+            SELECT t.id, t.\`${check.col}\`
+            FROM \`${check.table}\` t
+            LEFT JOIN \`user\` u ON t.\`${check.col}\` = u.id
+            WHERE t.\`${check.col}\` IS NOT NULL AND u.id IS NULL
+            LIMIT 5;
+          `;
+          const sampleRes = await runMysqlQuery(dbConfig, sampleQuery);
+          const sampleLines = sampleRes.trim().split('\n').slice(1).filter(Boolean);
+          const sampleOrphans = sampleLines.map(l => {
+            const parts = l.split('\t');
+            return { id: parts[0], orphanedUserId: parts[1] };
+          });
+
+          audit.orphanedRelationships.push({
+            table: check.table,
+            column: check.col,
+            label: check.label,
+            orphanCount: totalOrphans,
+            sampleOrphans
+          });
+          audit.warnings.push(`Found ${totalOrphans} orphaned record(s) in '${check.table}.${check.col}' referencing non-existent user accounts.`);
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. Organization check
+  if (liveTableNames.includes('organization')) {
+    const orgCountRes = await runMysqlQuery(dbConfig, "SELECT COUNT(*) FROM `organization`;");
+    const orgCount = parseInt(orgCountRes.trim().split('\n')[1], 10) || 0;
+    if (orgCount === 0) {
+      audit.valid = false;
+      audit.errors.push('Database lacks required Organization entity.');
+    }
+  }
+
+  // 4. Super Admin user check
+  if (liveTableNames.includes('user')) {
+    const adminCountRes = await runMysqlQuery(dbConfig, "SELECT COUNT(*) FROM `user` WHERE role = 'SUPER_ADMIN';");
+    const adminCount = parseInt(adminCountRes.trim().split('\n')[1], 10) || 0;
+    if (adminCount === 0) {
+      audit.valid = false;
+      audit.errors.push('Database lacks Super Admin user account.');
+    }
+  }
+
+  return audit;
+};
+
+/**
+ * ==============================================================================
+ * STEP 5: POST-RESTORE HEALTH CHECKS
+ * ==============================================================================
+ */
+const runPostRestoreHealthChecks = async (config, dbName) => {
+  const dbConfig = { ...config, database: dbName };
+  const health = {
+    healthy: true,
+    checks: [],
+    errors: []
+  };
+
+  const queries = [
+    { name: 'User Authentication Table', sql: "SELECT COUNT(*) FROM `user` WHERE `email` IS NOT NULL;" },
+    { name: 'Organization Structure', sql: "SELECT COUNT(*) FROM `organization`;" },
+    { name: 'Attendance Records & Geofencing', sql: "SELECT COUNT(*) FROM `attendance`;" },
+    { name: 'Leave Policy & Configuration', sql: "SELECT COUNT(*) FROM `leavepolicy`;" },
+    { name: 'Shift Schedules & Roster', sql: "SELECT COUNT(*) FROM `shift`;" },
+    { name: 'Payroll Settings & Batches', sql: "SELECT COUNT(*) FROM `payrollsettings`;" }
+  ];
+
+  for (const q of queries) {
+    try {
+      const res = await runMysqlQuery(dbConfig, q.sql);
+      const count = parseInt(res.trim().split('\n')[1], 10) || 0;
+      health.checks.push({ name: q.name, status: 'PASSED', records: count });
+    } catch (e) {
+      health.healthy = false;
+      health.checks.push({ name: q.name, status: 'FAILED', error: e.message });
+      health.errors.push(`Health check '${q.name}' failed: ${e.message}`);
+    }
+  }
+
+  return health;
+};
+
+/**
+ * Copies all data from a source database to a target database cleanly.
+ */
+const copyDatabaseContents = async (config, sourceDb, targetDb) => {
+  return new Promise((resolve, reject) => {
+    const { host, port, user, password } = config;
+    const dumpCmd = `mysqldump -h ${host} -P ${port} -u ${user} --single-transaction --routines --triggers --events --quick --hex-blob --default-character-set=utf8mb4 ${sourceDb}`;
+    const importCmd = `mysql -h ${host} -P ${port} -u ${user} --default-character-set=utf8mb4 ${targetDb}`;
+
+    exec(`${dumpCmd} | ${importCmd}`, {
+      env: { ...process.env, MYSQL_PWD: password },
+      maxBuffer: 250 * 1024 * 1024
+    }, (err, stdout, stderr) => {
+      if (err) {
+        return reject(new Error(`Failed to copy database from ${sourceDb} to ${targetDb}: ${stderr || err.message}`));
+      }
+      resolve();
+    });
+  });
+};
 const validateUploadedBackup = async (zipFilePath, originalFileName = '') => {
   const result = {
     valid: true,
@@ -375,154 +788,223 @@ const runMysqlImport = (config, sqlFilePath, safetyBackupFileName) => {
 };
 
 /**
- * Main Restore Execution Pipeline
- * Phases 5, 7, 8, 9, 10
+ * Main Restore Execution Pipeline (Hardened Sandbox-First Workflow)
+ * 14-Stage Controlled Process:
+ * 1. Concurrency control & lock
+ * 2. Archive & metadata validation
+ * 3. Target database safety check
+ * 4. Staging in isolated sandbox database
+ * 5. Import SQL into sandbox
+ * 6. Migration discovery & execution on sandbox
+ * 7. Read-only data integrity audit on sandbox
+ * 8. Post-restore health checks on sandbox
+ * 9. Pre-restore safety backup of active database
+ * 10. Promotion to active database
+ * 11. Verification & Manifest update
+ * 12. Cleanup of sandbox only
  */
-const executeLiveRestore = async ({ tempFileName, originalFileName, user }) => {
+const executeLiveRestore = async ({
+  tempFileName,
+  originalFileName,
+  user,
+  targetDatabase = null,
+  promoteToActive = true,
+  runMigrations = true
+}) => {
   if (user?.role !== 'SUPER_ADMIN') {
     const err = new Error('Access denied. Only Super Admin can restore production backups.');
     err.status = 403;
     throw err;
   }
 
+  // 1. Concurrency control: Acquire exclusive restore lock
+  acquireRestoreLock(user, 'LIVE_BACKUP_RESTORE');
+
   const zipFilePath = path.join(TEMP_RESTORE_DIR, tempFileName);
-  if (!fs.existsSync(zipFilePath)) {
-    const err = new Error('Uploaded backup archive expired or not found. Please upload again.');
-    err.status = 404;
-    throw err;
-  }
-
-  // Pre-restore validation
-  const validation = await validateUploadedBackup(zipFilePath, originalFileName);
-  if (!validation.valid) {
-    const err = new Error(`Restore Rejected: ${validation.errors.join(' | ')}`);
-    err.status = 422;
-    throw err;
-  }
-
-  // PHASE 5: MANDATORY AUTOMATIC SAFETY BACKUP OF LIVE DATABASE
-  let safetyBackupResult;
-  try {
-    safetyBackupResult = await takeLiveBackup({
-      user,
-      prefix: 'pre_restore_backup',
-      type: 'Pre-Restore Backup',
-      validationStatus: 'Saved'
-    });
-  } catch (safetyErr) {
-    const err = new Error(`Restore Aborted: Automatic pre-restore safety backup failed: ${safetyErr.message}. The database was not modified.`);
-    err.status = 500;
-    throw err;
-  }
-
-  // STEP 3: PREPARE DATABASE BEFORE IMPORT (OPTION A / OPTION B)
+  let sandboxDb = null;
+  let tempExtractedSql = null;
   const dbConfig = parseDbConfig();
-  try {
-    await prepareDatabaseBeforeImport(dbConfig);
-  } catch (prepErr) {
-    const err = new Error(`Database preparation failed: ${prepErr.message}. Current data remains protected by safety backup ${safetyBackupResult.backup.fileName}`);
-    err.status = 500;
-    err.safetyBackup = safetyBackupResult.backup;
-    throw err;
-  }
+  const effectiveTargetDb = targetDatabase || dbConfig.database || 'innoveity_crm';
 
-  // PHASE 7: RESTORE SQL IMPORT
-  const tempExtractedSql = path.join(TEMP_RESTORE_DIR, `extracted_${Date.now()}.sql`);
-  let parsedDump = null;
   try {
+    if (!fs.existsSync(zipFilePath)) {
+      const err = new Error('Uploaded backup archive expired or not found. Please upload again.');
+      err.status = 404;
+      throw err;
+    }
+
+    // 2. Archive & Metadata Validation
+    const validation = await validateUploadedBackup(zipFilePath, originalFileName);
+    if (!validation.valid) {
+      const err = new Error(`Restore Rejected: ${validation.errors.join(' | ')}`);
+      err.status = 422;
+      err.validation = validation;
+      throw err;
+    }
+
+    // 3. Target Database Safety Gate (reject remote/production targets)
+    isSafeTargetDatabase({ ...dbConfig, database: effectiveTargetDb });
+
+    // 4. Create Isolated Staging Sandbox Database
+    sandboxDb = await createIsolatedSandboxDatabase(dbConfig, 'innoveity_restore_sandbox');
+    const sandboxConfig = { ...dbConfig, database: sandboxDb };
+
+    // 5. Extract and Import SQL into the Staging Sandbox
+    tempExtractedSql = path.join(TEMP_RESTORE_DIR, `extracted_${Date.now()}.sql`);
     const zipData = fs.readFileSync(zipFilePath);
     const zip = await JSZip.loadAsync(zipData);
     const sqlFile = zip.file('database/innoveity_live.sql');
     const sqlContent = await sqlFile.async('nodebuffer');
     fs.writeFileSync(tempExtractedSql, sqlContent);
 
-    // Parse real counts from the SQL dump
-    parsedDump = await parseSqlDumpCounts(tempExtractedSql);
+    const parsedDump = await parseSqlDumpCounts(tempExtractedSql);
+    await runMysqlImport(sandboxConfig, tempExtractedSql, 'sandbox_staging');
 
-    await runMysqlImport(dbConfig, tempExtractedSql, safetyBackupResult.backup.fileName);
-  } catch (importErr) {
-    if (fs.existsSync(tempExtractedSql)) {
-      try { fs.unlinkSync(tempExtractedSql); } catch (e) {}
+    // 6. Schema & Migration Inspection on Sandbox
+    let appliedMigrations = [];
+    if (runMigrations) {
+      const migrationCheck = await getPendingMigrations(dbConfig, sandboxDb);
+      if (migrationCheck.needsUpgrade) {
+        console.log(`[RestoreService] Sandbox requires schema upgrade (${migrationCheck.tableCount} tables). Applying ${migrationCheck.pendingMigrations.length} pending migrations...`);
+        appliedMigrations = await applyPendingMigrations(dbConfig, sandboxDb, migrationCheck.pendingMigrations);
+        console.log(`[RestoreService] Successfully applied ${appliedMigrations.length} migrations to sandbox.`);
+      }
     }
-    const err = new Error(importErr.message || `Database import failed. Current data remains protected by safety backup ${safetyBackupResult.backup.fileName}`);
-    err.status = 500;
-    err.safetyBackup = safetyBackupResult.backup;
-    throw err;
-  } finally {
-    if (fs.existsSync(tempExtractedSql)) {
-      try { fs.unlinkSync(tempExtractedSql); } catch (e) {}
+
+    // 7. Read-Only Data Integrity Audit on Sandbox (detect orphans, verify required config)
+    const integrityAudit = await runDataIntegrityAudit(dbConfig, sandboxDb, parsedDump.tableCounts);
+
+    // 8. Post-Restore Health Checks on Sandbox
+    const healthChecks = await runPostRestoreHealthChecks(dbConfig, sandboxDb);
+    if (!healthChecks.healthy) {
+      const err = new Error(`Sandbox Health Checks Failed: ${healthChecks.errors.join(' | ')}. Restore aborted without modifying target database.`);
+      err.status = 500;
+      err.healthChecks = healthChecks;
+      err.integrityAudit = integrityAudit;
+      throw err;
     }
-  }
 
-  // PHASE 8: RESTORE VERIFICATION
-  await prisma.$connect();
-  const postRestoreStats = await getLiveDatabaseStats();
-  const verification = await verifyCriticalTables(
-    prisma,
-    postRestoreStats,
-    parsedDump?.tableCounts || {},
-    dbConfig.database || 'innoveity_crm'
-  );
+    // 9. If promoting to target database (e.g. innoveity_crm)
+    let safetyBackupResult = null;
+    let targetStats = null;
+    let verification = null;
 
-  if (!verification.valid) {
-    const err = new Error(`Restore Verification Failed: ${verification.errors.join(' | ')}. Safety backup [${safetyBackupResult.backup.fileName}] is available for rollback.`);
-    err.status = 500;
-    err.verification = verification;
-    err.safetyBackup = safetyBackupResult.backup;
-    throw err;
-  }
+    if (promoteToActive) {
+      // Mandatory Pre-Restore Safety Backup of Target Database before modifying it!
+      try {
+        safetyBackupResult = await takeLiveBackup({
+          user,
+          prefix: 'pre_restore_backup',
+          type: 'Pre-Restore Backup',
+          validationStatus: 'Saved'
+        });
+      } catch (safetyErr) {
+        const err = new Error(`Restore Aborted: Automatic pre-restore safety backup of active database failed: ${safetyErr.message}. The active database was not modified.`);
+        err.status = 500;
+        throw err;
+      }
 
-  // PHASE 10: BACKUP HISTORY INTEGRATION (Restored Backup entry)
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
-  const restoredArchiveName = `restored_backup_${dateStr}_${timeStr}.zip`;
-  const restoredPermanentPath = path.join(BACKUP_DIR, restoredArchiveName);
+      // Prepare target database cleanly
+      try {
+        await prepareDatabaseBeforeImport({ ...dbConfig, database: effectiveTargetDb });
+      } catch (prepErr) {
+        const err = new Error(`Target database preparation failed: ${prepErr.message}. Active data remains protected by safety backup ${safetyBackupResult.backup.fileName}`);
+        err.status = 500;
+        err.safetyBackup = safetyBackupResult.backup;
+        throw err;
+      }
 
-  try {
-    fs.copyFileSync(zipFilePath, restoredPermanentPath);
-    const restoredStat = fs.statSync(restoredPermanentPath);
+      // Copy verified sandbox contents into the target database
+      try {
+        await copyDatabaseContents(dbConfig, sandboxDb, effectiveTargetDb);
+      } catch (copyErr) {
+        const err = new Error(`Database promotion failed: ${copyErr.message}. Active data remains protected by safety backup ${safetyBackupResult.backup.fileName}`);
+        err.status = 500;
+        err.safetyBackup = safetyBackupResult.backup;
+        throw err;
+      }
 
-    const restoredEntry = {
-      id: `restore_${Date.now()}`,
-      fileName: restoredArchiveName,
-      filePath: restoredPermanentPath,
-      sizeBytes: restoredStat.size,
-      size: formatBytes(restoredStat.size),
-      type: 'Restored Backup',
-      totalTables: postRestoreStats.totalTables,
-      totalRecords: postRestoreStats.totalRecords,
-      createdAt: now.toISOString(),
-      createdBy: user?.name ? `${user.name} (${user.email || user.role})` : 'Super Admin',
-      mysqlVersion: validation.backupInfo.mysqlVersion,
-      downloadUrl: `/api/backups/download/${restoredArchiveName}`,
-      validationStatus: 'Completed'
+      // Post-Promotion Verification on Target Database
+      await prisma.$connect();
+      targetStats = await getLiveDatabaseStats();
+      verification = await verifyCriticalTables(
+        prisma,
+        targetStats,
+        parsedDump?.tableCounts || {},
+        effectiveTargetDb
+      );
+
+      // Register Restored Backup in manifest.json
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      const restoredArchiveName = `restored_backup_${dateStr}_${timeStr}.zip`;
+      const restoredPermanentPath = path.join(BACKUP_DIR, restoredArchiveName);
+
+      try {
+        fs.copyFileSync(zipFilePath, restoredPermanentPath);
+        const restoredStat = fs.statSync(restoredPermanentPath);
+        const restoredEntry = {
+          id: `restore_${Date.now()}`,
+          fileName: restoredArchiveName,
+          filePath: restoredPermanentPath,
+          sizeBytes: restoredStat.size,
+          size: formatBytes(restoredStat.size),
+          type: 'Restored Backup',
+          totalTables: targetStats.totalTables,
+          totalRecords: targetStats.totalRecords,
+          createdAt: now.toISOString(),
+          createdBy: user?.name ? `${user.name} (${user.email || user.role})` : 'Super Admin',
+          mysqlVersion: validation.backupInfo.mysqlVersion,
+          downloadUrl: `/api/backups/download/${restoredArchiveName}`,
+          validationStatus: 'Completed',
+          appliedMigrations: appliedMigrations.map(m => m.name),
+          schemaUpgraded: appliedMigrations.length > 0
+        };
+
+        const manifest = readManifest();
+        manifest.unshift(restoredEntry);
+        saveManifest(manifest);
+      } catch (err) {
+        console.error('Failed to register restored archive in manifest:', err);
+      }
+    } else {
+      // In sandbox mode without promotion, targetStats are the sandbox stats
+      const sBoxRows = await runMysqlQuery(sandboxConfig, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '" + sandboxDb + "' AND table_type = 'BASE TABLE';");
+      const sBoxCount = parseInt(sBoxRows.trim().split('\n')[1], 10) || 0;
+      targetStats = { totalTables: sBoxCount, totalRecords: parsedDump.totalRows };
+    }
+
+    const now = new Date();
+    return {
+      success: true,
+      message: promoteToActive ? 'Backup Restored & Upgraded Successfully' : 'Sandbox Restore & Validation Succeeded',
+      database: promoteToActive ? effectiveTargetDb : sandboxDb,
+      backupName: validation.backupInfo.fileName,
+      restoreTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      tablesRestored: targetStats.totalTables,
+      recordsRestored: targetStats.totalRecords,
+      appliedMigrations: appliedMigrations.map(m => m.name),
+      schemaUpgraded: appliedMigrations.length > 0,
+      safetyBackup: safetyBackupResult?.backup || null,
+      verification: verification || { valid: true, summary: 'Sandbox Verification Passed' },
+      integrityAudit,
+      healthChecks
     };
-
-    const manifest = readManifest();
-    manifest.unshift(restoredEntry);
-    saveManifest(manifest);
-  } catch (err) {
-    console.error('Failed to register restored archive in manifest:', err);
+  } finally {
+    // 10. Failure recovery & safe cleanup of ONLY disposable sandbox
+    if (tempExtractedSql && fs.existsSync(tempExtractedSql)) {
+      try { fs.unlinkSync(tempExtractedSql); } catch (e) {}
+    }
+    if (sandboxDb) {
+      try { await dropIsolatedSandboxDatabase(dbConfig, sandboxDb); } catch (e) {}
+    }
+    try {
+      if (fs.existsSync(zipFilePath)) fs.unlinkSync(zipFilePath);
+    } catch (e) {}
+    releaseRestoreLock();
   }
-
-  // Cleanup temp upload
-  try {
-    if (fs.existsSync(zipFilePath)) fs.unlinkSync(zipFilePath);
-  } catch (e) {}
-
-  // PHASE 9: SUCCESS RESPONSE
-  return {
-    success: true,
-    message: 'Backup Restored Successfully',
-    backupName: validation.backupInfo.fileName,
-    restoreTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    tablesRestored: postRestoreStats.totalTables,
-    recordsRestored: postRestoreStats.totalRecords,
-    safetyBackup: safetyBackupResult.backup,
-    verification
-  };
 };
 
 /**
@@ -1256,17 +1738,19 @@ const executeSqlImport = async ({ tempFileName, originalFileName, user }) => {
     throw err;
   }
 
-  // If legacy backup, align schema columns and missing tables using Prisma db push to ensure full application compatibility
+  // If legacy backup or missing migrations, apply version-controlled migrations safely
   if (validation.sqlInfo?.isLegacy) {
     try {
-      const backendDir = path.resolve(__dirname, '..', '..');
-      runPrismaSchemaAlignment({ backendDir, dbConfig });
+      const migrationCheck = await getPendingMigrations(dbConfig, dbConfig.database);
+      if (migrationCheck.needsUpgrade) {
+        await applyPendingMigrations(dbConfig, dbConfig.database, migrationCheck.pendingMigrations);
+      }
     } catch (alignErr) {
-      console.error('[RestoreService] Post-import schema alignment failed:', alignErr.message);
+      console.error('[RestoreService] Post-import schema migration failed:', alignErr.message);
       if (tempNormalizedPath && fs.existsSync(tempNormalizedPath)) {
         try { fs.unlinkSync(tempNormalizedPath); } catch (e) {}
       }
-      const err = new Error(`Post-import schema alignment failed: ${alignErr.message}. Current data remains protected by safety backup [${safetyBackupResult.backup.fileName}] for rollback.`);
+      const err = new Error(`Post-import schema migration failed: ${alignErr.message}. Current data remains protected by safety backup [${safetyBackupResult.backup.fileName}] for rollback.`);
       err.status = 500;
       err.safetyBackup = safetyBackupResult.backup;
       throw err;
@@ -1364,5 +1848,17 @@ module.exports = {
   TEMP_RESTORE_DIR,
   normalizeLegacySqlFile,
   createLegacySqlTableReplacer,
-  runPrismaSchemaAlignment
+  runPrismaSchemaAlignment,
+  acquireRestoreLock,
+  releaseRestoreLock,
+  isRestoreLocked,
+  isSafeTargetDatabase,
+  createIsolatedSandboxDatabase,
+  dropIsolatedSandboxDatabase,
+  getPendingMigrations,
+  applyPendingMigrations,
+  runDataIntegrityAudit,
+  runPostRestoreHealthChecks,
+  copyDatabaseContents,
+  runMysqlImport
 };

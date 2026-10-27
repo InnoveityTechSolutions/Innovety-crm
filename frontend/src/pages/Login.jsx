@@ -225,6 +225,8 @@ const Login = () => {
     if (user && !isSubmittingRef.current && !isManualLogout()) {
       if (user.role === 'SUPER_ADMIN') {
         navigate('/super-admin/dashboard', { replace: true });
+      } else if (user.accessTemplateId) {
+        navigate('/profile', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
@@ -277,9 +279,12 @@ const Login = () => {
     setLoading(true);
     const res = await login(userId, password);
     if (res.success) {
-      const loggedUserRole = res.user?.role || user?.role;
+      const loggedUser = res.user || user;
+      const loggedUserRole = loggedUser?.role;
       if (loggedUserRole === 'SUPER_ADMIN') {
         navigate('/super-admin/dashboard', { replace: true });
+      } else if (loggedUser?.accessTemplateId) {
+        navigate('/profile', { replace: true });
       } else {
         navigate('/', { replace: true });
       }

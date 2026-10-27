@@ -13,8 +13,11 @@ import useClockOutWithReminder from '../../hooks/useClockOutWithReminder';
 import useShiftCountdown from '../../hooks/useShiftCountdown';
 import { getTargetShiftHours, getShiftProgressColor } from '../../utils/shiftProgress';
 import ClockInToast from '../common/ClockInToast';
+import CompOffSessionCard from '../leave/CompOffSessionCard';
 import TeamRosterStatus from './TeamRosterStatus';
 import TimeRollSuccessBanner from '../common/TimeRollSuccessBanner';
+import { captureDeviceCoordinates, reverseGeocodeCoordinates } from '../../utils/geolocationHelper';
+import { formatCompOffWorkedDuration } from '../../utils/attendanceFormatter';
 import {
   Clock,
   CheckCircle2,
@@ -94,6 +97,9 @@ export const EmployeeDashboard = () => {
   const [attendanceAlert, setAttendanceAlert] = useState('');
   const [clockInToast, setClockInToast] = useState(null);
   const [upcomingSchedule, setUpcomingSchedule] = useState(null);
+  const [compOffStatus, setCompOffStatus] = useState(null);
+  const [isCompOffLoginModalOpen, setIsCompOffLoginModalOpen] = useState(false);
+  const [compOffActionLoading, setCompOffActionLoading] = useState(false);
 
   const handleClockInSuccess = (resData) => {
     setIsClockInModalOpen(false);
@@ -126,10 +132,7 @@ export const EmployeeDashboard = () => {
 
   const isClockedIn = Boolean(clockedRecord && clockedRecord.clockIn && !clockedRecord.clockOut);
 
-  const isClockedOutToday = Boolean(
-    (clockedRecord && clockedRecord.clockIn && clockedRecord.clockOut) ||
-    (clockStatus && clockStatus.canClockIn === false && !isClockedIn && clockedRecord)
-  );
+  const isClockedOutToday = Boolean(clockedRecord && clockedRecord.clockIn && clockedRecord.clockOut);
 
   const getWorkedDurationText = (record) => {
     if (!record?.clockIn || !record?.clockOut) return null;
@@ -277,7 +280,8 @@ export const EmployeeDashboard = () => {
         teamsRes,
         logsRes,
         holidaysRes,
-        scheduleRes
+        scheduleRes,
+        compOffStatusRes
       ] = await Promise.all([
         api.get('/tasks').catch(() => ({ data: [] })),
         api.get('/projects').catch(() => ({ data: [] })),
@@ -288,7 +292,8 @@ export const EmployeeDashboard = () => {
         api.get('/teams').catch(() => ({ data: [] })),
         api.get('/logs?limit=20').catch(() => ({ data: { logs: [] } })),
         api.get('/payroll/holidays').catch(() => ({ data: [] })),
-        api.get('/shifts/my-schedule').catch(() => ({ data: {} }))
+        api.get('/shifts/my-schedule').catch(() => ({ data: {} })),
+        api.get('/comp-off/sessions/today-status').catch(() => ({ data: null }))
       ]);
 
       // 1. My Tasks (Strictly Filtered for logged-in Employee)
@@ -319,8 +324,13 @@ export const EmployeeDashboard = () => {
       const statusData = attendanceStatusRes.data;
       setClockStatus(statusData);
 
+      const compOffData = compOffStatusRes?.data || null;
+      setCompOffStatus(compOffData);
+
       const localDateStr = new Date().toLocaleDateString('en-CA');
-      const todayRec = statusData?.existingRecord || logs.find(l => new Date(l.date).toLocaleDateString('en-CA') === localDateStr);
+      const todayRec = (statusData?.existingRecord && statusData.existingRecord.clockIn)
+        ? statusData.existingRecord
+        : logs.find(l => !l.isSynthetic && Boolean(l.clockIn) && new Date(l.date).toLocaleDateString('en-CA') === localDateStr);
       setClockedRecord(todayRec || null);
 
       // 4. Announcements
@@ -356,6 +366,64 @@ export const EmployeeDashboard = () => {
     }
   };
 
+  const fetchCompOffStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/comp-off/sessions/today-status');
+      setCompOffStatus(res.data);
+    } catch (err) {
+      console.warn('Failed to fetch comp-off status in EmployeeDashboard:', err);
+    }
+  }, []);
+
+  const handleCompOffClockOut = async () => {
+    try {
+      setCompOffActionLoading(true);
+      await api.post('/comp-off/sessions/clock-out', {
+        sessionId: compOffStatus?.session?.id
+      });
+      await fetchCompOffStatus();
+      await fetchEmployeeDashboardData();
+    } catch (err) {
+      console.error('Comp-Off Clock Out error:', err);
+    } finally {
+      setCompOffActionLoading(false);
+    }
+  };
+
+  const compOffElapsedText = useMemo(() => {
+    if (!compOffStatus?.session?.loginTime || compOffStatus.session.clockOutTime) return '00h 00m 00s';
+    const start = new Date(compOffStatus.session.loginTime).getTime();
+    const diff = Math.max(0, time.getTime() - start);
+    const secs = Math.floor(diff / 1000);
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  }, [compOffStatus?.session?.loginTime, compOffStatus?.session?.clockOutTime, time]);
+
+  const isOffDay = useMemo(() => {
+    return Boolean(
+      clockStatus?.isOffDay ||
+      compOffStatus?.isOffDay ||
+      clockStatus?.state === 'HOLIDAY' ||
+      clockStatus?.reason === 'HOLIDAY' ||
+      clockStatus?.reason === 'WEEKLY_OFF' ||
+      clockStatus?.reason === 'SATURDAY_LEAVE' ||
+      upcomingSchedule?.today?.status === 'Holiday'
+    );
+  }, [clockStatus, compOffStatus, upcomingSchedule]);
+
+  const offDayLabel = useMemo(() => {
+    if (clockStatus?.offDayTitle) return clockStatus.offDayTitle;
+    if (clockStatus?.reason === 'SATURDAY_LEAVE') return 'Saturday Leave';
+    if (clockStatus?.reason === 'WEEKLY_OFF') return 'Weekly Off';
+    if (clockStatus?.reason === 'HOLIDAY') return 'Company Holiday';
+    if (compOffStatus?.offDayReason?.includes(':')) return compOffStatus.offDayReason.split(':')[1].trim();
+    if (compOffStatus?.offDayReason === 'SUNDAY_WEEKLY_OFF') return 'Sunday Weekly Off';
+    if (upcomingSchedule?.today?.dayName === 'Sunday') return 'Sunday Weekly Off';
+    return 'Holiday / Weekly Off';
+  }, [clockStatus, compOffStatus, upcomingSchedule]);
+
   // Helper for Geolocation Clock In/Out
   const getCoordinates = () => {
     return new Promise((resolve) => {
@@ -388,8 +456,18 @@ export const EmployeeDashboard = () => {
     try {
       setClockLoading(true);
       setAttendanceAlert('');
-      const locationStr = await getCoordinates();
-      const res = await api.post('/attendance/clock-out', { location: locationStr });
+      const coords = await captureDeviceCoordinates();
+      const address = await reverseGeocodeCoordinates(coords.latitude, coords.longitude);
+      const locationStr = address
+        ? `${address} (Lat: ${coords.latitude}, Lon: ${coords.longitude})`
+        : `Lat: ${coords.latitude}, Lon: ${coords.longitude}`;
+
+      const res = await api.post('/attendance/clock-out', {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        address: address || null,
+        location: locationStr
+      });
       const record = res.data;
       setClockedRecord(record);
 
@@ -833,8 +911,8 @@ export const EmployeeDashboard = () => {
             <div className="relative">
               <UserAvatar user={user} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl ring-4 ring-primary/20 shadow-lg object-cover" />
               <span className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card ${
-                clockedRecord && !clockedRecord.clockOut ? 'bg-success' : 'bg-amber-500'
-              }`} title={clockedRecord && !clockedRecord.clockOut ? 'Clocked In & Active' : 'Not Clocked In'} />
+                isClockedIn ? 'bg-success' : compOffStatus?.isSessionActive ? 'bg-purple-500' : 'bg-amber-500'
+              }`} title={isClockedIn ? 'Clocked In & Active' : compOffStatus?.isSessionActive ? 'Comp-Off Active' : 'Not Clocked In'} />
             </div>
 
             <div className="space-y-1.5 text-left">
@@ -889,30 +967,7 @@ export const EmployeeDashboard = () => {
                       Worked Today: {getWorkedDurationText(clockedRecord) || '0h 0m'}
                     </span>
                   </motion.div>
-                ) : !isClockedIn ? (
-                  <motion.button
-                    key="emp-btn-clock-in"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    onClick={handleClockIn}
-                    disabled={clockLoading || !clockStatus?.canClockIn}
-                    className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl text-xs font-extrabold shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed w-full"
-                  >
-                    {clockLoading ? (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                        <span>Clocking In...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-3.5 w-3.5 fill-current" />
-                        <span>Clock In</span>
-                      </>
-                    )}
-                  </motion.button>
-                ) : (
+                ) : isClockedIn ? (
                   <motion.button
                     key="emp-btn-clock-out"
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -935,6 +990,91 @@ export const EmployeeDashboard = () => {
                       <>
                         <Square className="h-3 w-3 fill-current" />
                         <span>Clock Out</span>
+                      </>
+                    )}
+                  </motion.button>
+                ) : compOffStatus?.isSessionActive ? (
+                  <motion.div
+                    key="emp-btn-compoff-active"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col gap-1 w-full"
+                  >
+                    <button
+                      onClick={handleCompOffClockOut}
+                      disabled={compOffActionLoading}
+                      className="w-full flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-700 hover:to-rose-700 shadow-sm transition active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      {compOffActionLoading ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                      )}
+                      <span>Comp-Off Clock-Out</span>
+                    </button>
+                    <span className="text-[10px] font-mono font-bold text-violet-600 dark:text-violet-400 text-center">
+                      Active: {compOffElapsedText}
+                    </span>
+                  </motion.div>
+                ) : compOffStatus?.isSessionCompleted ? (
+                  <motion.div
+                    key="emp-card-compoff-completed"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-[11px] font-bold text-center"
+                  >
+                    Comp-Off Worked: {formatCompOffWorkedDuration(compOffStatus.session?.durationHours, 'h', 'Completed')}
+                  </motion.div>
+                ) : isOffDay ? (
+                  compOffStatus?.canLogin ? (
+                    <motion.button
+                      key="emp-btn-compoff-login"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setIsCompOffLoginModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-sm transition active:scale-95 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                      <span>Comp-Off Login</span>
+                    </motion.button>
+                  ) : (
+                    <motion.div
+                      key="emp-card-offday-banner"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-bold text-center"
+                    >
+                      <span className="block truncate">{offDayLabel}</span>
+                    </motion.div>
+                  )
+                ) : (
+                  <motion.button
+                    key="emp-btn-clock-in"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={handleClockIn}
+                    disabled={clockLoading || !clockStatus?.canClockIn}
+                    className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl text-xs font-extrabold shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed w-full"
+                  >
+                    {clockLoading ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>Clocking In...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        <span>Clock In</span>
                       </>
                     )}
                   </motion.button>
@@ -1080,14 +1220,26 @@ export const EmployeeDashboard = () => {
                 <span className={`px-3.5 py-1 rounded-full text-xs font-black border ${
                   clockedRecord && clockedRecord.clockOut
                     ? 'bg-primary/10 text-primary border-primary/20'
-                    : clockedRecord
+                    : isClockedIn
                     ? 'bg-success/10 text-success border-success/20'
+                    : compOffStatus?.isSessionActive
+                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                    : compOffStatus?.isSessionCompleted
+                    ? 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20'
+                    : isOffDay
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
                     : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                 }`}>
                   {clockedRecord && clockedRecord.clockOut
                     ? 'Shift Completed'
-                    : clockedRecord
-                    ? (shiftCountdown.isExpired && !shiftCountdown.autoClockOutEnabled ? 'Shift Ended (Manual Clock-Out Required)' : `Active (${clockedRecord.status || 'PRESENT'})`)
+                    : isClockedIn
+                    ? (shiftCountdown.isExpired && !shiftCountdown.autoClockOutEnabled ? 'Shift Ended (Manual Clock-Out Required)' : `Active (${clockedRecord?.status || 'PRESENT'})`)
+                    : compOffStatus?.isSessionActive
+                    ? 'Comp-Off Active'
+                    : compOffStatus?.isSessionCompleted
+                    ? 'Comp-Off Completed'
+                    : isOffDay
+                    ? offDayLabel
                     : 'Not Clocked In'}
                 </span>
               </div>
@@ -1450,7 +1602,7 @@ export const EmployeeDashboard = () => {
                       {lt.available}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-medium block text-center">
-                      Days Left
+                      {lt.carryForward > 0 ? `Days Left (+${lt.carryForward} carried)` : 'Days Left'}
                     </span>
                   </div>
                 ))
@@ -1525,6 +1677,19 @@ export const EmployeeDashboard = () => {
         onClose={closeModal}
         onCompleteWorkLog={handleCompleteWorkLog}
         onClockOutAnyway={handleClockOutAnyway}
+      />
+
+      {/* Comp-Off Login Modal (Reusing ClockInModal in COMPOFF mode) */}
+      <ClockInModal
+        isOpen={isCompOffLoginModalOpen}
+        onClose={() => setIsCompOffLoginModalOpen(false)}
+        onSuccess={() => {
+          fetchEmployeeDashboardData();
+          fetchCompOffStatus();
+        }}
+        user={user}
+        mode="COMPOFF"
+        permission={compOffStatus?.permissionRequest}
       />
     </motion.div>
   );

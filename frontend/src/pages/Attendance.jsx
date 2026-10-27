@@ -12,6 +12,9 @@ import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
 import ClockInToast from '../components/common/ClockInToast';
 import TimeRollSuccessBanner from '../components/common/TimeRollSuccessBanner';
+import { captureDeviceCoordinates, reverseGeocodeCoordinates } from '../utils/geolocationHelper';
+import { formatCompOffWorkedDuration } from '../utils/attendanceFormatter';
+import CompOffSessionCard from '../components/leave/CompOffSessionCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
@@ -22,7 +25,8 @@ import {
   CheckCircle,
   AlertCircle,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 
 const Attendance = () => {
@@ -46,6 +50,9 @@ const Attendance = () => {
   const [clockInStatusError, setClockInStatusError] = useState(null);
   const consecutiveAuthErrorsRef = useRef(0);
   const [clockInToast, setClockInToast] = useState(null);
+  const [compOffStatus, setCompOffStatus] = useState(null);
+  const [compOffActionLoading, setCompOffActionLoading] = useState(false);
+  const [isCompOffLoginModalOpen, setIsCompOffLoginModalOpen] = useState(false);
 
   const handleClockInSuccess = (resData) => {
     setIsClockInModalOpen(false);
@@ -80,10 +87,7 @@ const Attendance = () => {
 
   const isClockedIn = Boolean(clockedRecord && clockedRecord.clockIn && !clockedRecord.clockOut);
 
-  const isClockedOutToday = Boolean(
-    (clockedRecord && clockedRecord.clockIn && clockedRecord.clockOut) ||
-    (clockInStatus && clockInStatus.canClockIn === false && !isClockedIn && clockedRecord)
-  );
+  const isClockedOutToday = Boolean(clockedRecord && clockedRecord.clockIn && clockedRecord.clockOut);
 
   const getWorkedDurationText = (record) => {
     if (!record?.clockIn || !record?.clockOut) return null;
@@ -167,7 +171,7 @@ const Attendance = () => {
       const localDateStr = new Date().toLocaleDateString('en-CA');
       const todayRecord = res.data.find(log => {
         const logDateStr = new Date(log.date).toLocaleDateString('en-CA');
-        return logDateStr === localDateStr;
+        return !log.isSynthetic && Boolean(log.clockIn) && logDateStr === localDateStr;
       });
       
       setClockedRecord(todayRecord || null);
@@ -226,9 +230,56 @@ const Attendance = () => {
     }, 100);
   }, []);
 
+  const fetchCompOffStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/comp-off/sessions/today-status');
+      setCompOffStatus(res.data);
+    } catch (err) {
+      console.warn('Failed to fetch comp-off status in Attendance:', err);
+    }
+  }, []);
+
+  const handleCompOffClockOut = async () => {
+    try {
+      setCompOffActionLoading(true);
+      await api.post('/comp-off/sessions/clock-out', {
+        sessionId: compOffStatus?.session?.id
+      });
+      await fetchCompOffStatus();
+      await fetchAttendanceStatus();
+      await fetchClockInStatus();
+    } catch (err) {
+      console.error('Comp-Off Clock Out error:', err);
+    } finally {
+      setCompOffActionLoading(false);
+    }
+  };
+
+  const isOffDay = useMemo(() => {
+    return Boolean(
+      clockInStatus?.isOffDay ||
+      compOffStatus?.isOffDay ||
+      clockInStatus?.state === 'HOLIDAY' ||
+      clockInStatus?.reason === 'HOLIDAY' ||
+      clockInStatus?.reason === 'WEEKLY_OFF' ||
+      clockInStatus?.reason === 'SATURDAY_LEAVE'
+    );
+  }, [clockInStatus, compOffStatus]);
+
+  const offDayLabel = useMemo(() => {
+    if (clockInStatus?.offDayTitle) return clockInStatus.offDayTitle;
+    if (clockInStatus?.reason === 'SATURDAY_LEAVE') return 'Saturday Leave';
+    if (clockInStatus?.reason === 'WEEKLY_OFF') return 'Weekly Off';
+    if (clockInStatus?.reason === 'HOLIDAY') return 'Company Holiday';
+    if (compOffStatus?.offDayReason?.includes(':')) return compOffStatus.offDayReason.split(':')[1].trim();
+    if (compOffStatus?.offDayReason === 'SUNDAY_WEEKLY_OFF') return 'Sunday Weekly Off';
+    return 'Holiday / Weekly Off';
+  }, [clockInStatus, compOffStatus]);
+
   useEffect(() => {
     fetchClockInStatus();
     fetchAttendanceStatus();
+    fetchCompOffStatus();
     fetchSettings();
     getCoordinatesObj().then(coords => {
       if (coords) {
@@ -347,17 +398,20 @@ const Attendance = () => {
   const executeClockOut = async () => {
     try {
       setLoading(true);
-      const coords = await getCoordinatesObj();
-      let location = 'Location not available';
-      if (coords) {
-        setCurrentCoords(coords);
-        const address = await geocodePosition(coords.lat, coords.lon);
-        location = address 
-          ? `${address} (Lat: ${coords.lat}, Lon: ${coords.lon})`
-          : `Lat: ${coords.lat}, Lon: ${coords.lon}`;
-      }
+      const coords = await captureDeviceCoordinates();
+      setCurrentCoords({ lat: coords.latitude, lon: coords.longitude });
 
-      const res = await api.post('/attendance/clock-out', { location });
+      const address = await reverseGeocodeCoordinates(coords.latitude, coords.longitude);
+      const location = address 
+        ? `${address} (Lat: ${coords.latitude}, Lon: ${coords.longitude})`
+        : `Lat: ${coords.latitude}, Lon: ${coords.longitude}`;
+
+      const res = await api.post('/attendance/clock-out', {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        address: address || null,
+        location
+      });
       const record = res.data;
       setClockedRecord(record);
 
@@ -605,6 +659,9 @@ const Attendance = () => {
         </>
       )}
 
+      {/* Comp-Off Session Section (Rendered only on approved holidays/weekly off) */}
+      <CompOffSessionCard onSessionChange={setCompOffStatus} />
+
       {/* Main clock portal */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Clock In / Out Panel */}
@@ -703,7 +760,89 @@ const Attendance = () => {
                     Worked Today: {getWorkedDurationText(clockedRecord) || '0h 0m'}
                   </span>
                 </motion.div>
-              ) : !isClockedIn ? (
+              ) : isClockedIn ? (
+                <motion.button
+                  key="btn-clock-out"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => {
+                    console.log("[CLOCKOUT] Button clicked");
+                    handleClockOut();
+                  }}
+                  disabled={loading || !clockInStatus?.canClockOut}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl text-white py-3.5 px-6 text-sm font-bold active:scale-95 disabled:opacity-40 shadow-lg shadow-rose-600/25 transition-all cursor-pointer bg-[linear-gradient(135deg,#FF6B6B_0%,#EF4444_55%,#DC2626_100%)] hover:bg-[linear-gradient(135deg,#EF4444_0%,#DC2626_100%)] border-none"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Clocking Out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Square className="h-4 w-4 fill-current" />
+                      <span>Clock Out</span>
+                    </>
+                  )}
+                </motion.button>
+              ) : compOffStatus?.isSessionActive ? (
+                <div className="w-full flex flex-col items-center gap-2">
+                  <motion.button
+                    key="btn-compoff-clockout"
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={handleCompOffClockOut}
+                    disabled={compOffActionLoading}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl text-white py-3.5 px-6 text-sm font-black active:scale-95 disabled:opacity-40 shadow-lg shadow-purple-600/25 transition-all cursor-pointer bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-700 hover:to-rose-700"
+                  >
+                    {compOffActionLoading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Clocking Out...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="h-4 w-4 fill-current" />
+                        <span>Comp-Off Clock-Out</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              ) : compOffStatus?.isSessionCompleted ? (
+                <div className="w-full flex items-center justify-center p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-bold">
+                  Comp-Off Session Completed Today ({formatCompOffWorkedDuration(compOffStatus.session?.durationHours, ' hrs', 'Logged Out')})
+                </div>
+              ) : isOffDay ? (
+                compOffStatus?.canLogin ? (
+                  <div className="w-full flex flex-col items-center gap-2">
+                    <motion.button
+                      key="btn-compoff-login"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setIsCompOffLoginModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl text-white py-3.5 px-6 text-sm font-black active:scale-95 shadow-lg shadow-violet-600/25 transition-all cursor-pointer bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                    >
+                      <Sparkles className="h-4 w-4 text-yellow-300" />
+                      <span>Comp-Off Login</span>
+                    </motion.button>
+                    <span className="text-[11px] text-violet-600 dark:text-violet-400 font-medium text-center">
+                      Approved off-day permission active for today
+                    </span>
+                  </div>
+                ) : (
+                  <div className="w-full flex flex-col items-center gap-2">
+                    <div className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-center">
+                      <p className="text-xs font-bold">{offDayLabel}</p>
+                      <p className="text-[11px] opacity-80 mt-0.5">Regular clock-in is disabled today.</p>
+                    </div>
+                  </div>
+                )
+              ) : (
                 <div className="w-full flex flex-col items-center gap-2">
                   <motion.button
                     key="btn-clock-in"
@@ -733,32 +872,6 @@ const Attendance = () => {
                     </span>
                   )}
                 </div>
-              ) : (
-                <motion.button
-                  key="btn-clock-out"
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={() => {
-                    console.log("[CLOCKOUT] Button clicked");
-                    handleClockOut();
-                  }}
-                  disabled={loading || !clockInStatus?.canClockOut}
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl text-white py-3.5 px-6 text-sm font-bold active:scale-95 disabled:opacity-40 shadow-lg shadow-rose-600/25 transition-all cursor-pointer bg-[linear-gradient(135deg,#FF6B6B_0%,#EF4444_55%,#DC2626_100%)] hover:bg-[linear-gradient(135deg,#EF4444_0%,#DC2626_100%)] border-none"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Clocking Out...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Square className="h-4 w-4 fill-current" />
-                      <span>Clock Out</span>
-                    </>
-                  )}
-                </motion.button>
               )}
             </AnimatePresence>
           </div>
@@ -830,6 +943,20 @@ const Attendance = () => {
         onClose={closeModal}
         onCompleteWorkLog={handleCompleteWorkLog}
         onClockOutAnyway={handleClockOutAnyway}
+      />
+
+      {/* Comp-Off Login Modal (Reusing ClockInModal in COMPOFF mode) */}
+      <ClockInModal
+        isOpen={isCompOffLoginModalOpen}
+        onClose={() => setIsCompOffLoginModalOpen(false)}
+        onSuccess={() => {
+          fetchAttendanceStatus();
+          fetchClockInStatus();
+          fetchCompOffStatus();
+        }}
+        user={user}
+        mode="COMPOFF"
+        permission={compOffStatus?.permissionRequest}
       />
 
 

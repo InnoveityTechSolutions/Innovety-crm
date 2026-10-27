@@ -1,4 +1,5 @@
 const prisma = require('../utils/db');
+const { generateNextAssetId } = require('../utils/assetIdGenerator');
 
 /**
  * Service to manage company assets with branch, condition, and issue/return tracking
@@ -19,49 +20,52 @@ const createAsset = async ({
   vendor,
   location,
   description
-}) => {
+}, tx = null) => {
   if (!name) {
     throw new Error('Asset name is required.');
   }
 
-  // Auto-generate Asset ID e.g. AST-1001
-  const count = await prisma.asset.count();
-  const assetId = `AST-${1001 + count}`;
+  const executeCreate = async (client) => {
+    if (serialNumber) {
+      const existing = await client.asset.findFirst({
+        where: { serialNumber }
+      });
+      if (existing) {
+        throw new Error(`Asset with serial number "${serialNumber}" already exists.`);
+      }
+    }
 
-  if (serialNumber) {
-    const existing = await prisma.asset.findFirst({
-      where: { serialNumber }
+    const assetId = await generateNextAssetId(organizationId, client);
+
+    return await client.asset.create({
+      data: {
+        organizationId,
+        assetId,
+        name: name.trim(),
+        category: category || 'LAPTOP',
+        brand: brand ? brand.trim() : null,
+        model: model ? model.trim() : null,
+        serialNumber: serialNumber ? serialNumber.trim() : null,
+        branchId: branchId || null,
+        condition: condition || 'EXCELLENT',
+        cost: cost ? parseFloat(cost) : null,
+        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+        warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : null,
+        vendor: vendor ? vendor.trim() : null,
+        location: location ? location.trim() : null,
+        description: description ? description.trim() : null,
+        status: 'AVAILABLE'
+      },
+      include: {
+        branch: true
+      }
     });
-    if (existing) {
-      throw new Error(`Asset with serial number "${serialNumber}" already exists.`);
-    }
+  };
+
+  if (tx) {
+    return await executeCreate(tx);
   }
-
-  const asset = await prisma.asset.create({
-    data: {
-      organizationId,
-      assetId,
-      name: name.trim(),
-      category: category || 'LAPTOP',
-      brand: brand ? brand.trim() : null,
-      model: model ? model.trim() : null,
-      serialNumber: serialNumber ? serialNumber.trim() : null,
-      branchId: branchId || null,
-      condition: condition || 'EXCELLENT',
-      cost: cost ? parseFloat(cost) : null,
-      purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
-      warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : null,
-      vendor: vendor ? vendor.trim() : null,
-      location: location ? location.trim() : null,
-      description: description ? description.trim() : null,
-      status: 'AVAILABLE'
-    },
-    include: {
-      branch: true
-    }
-  });
-
-  return asset;
+  return await prisma.$transaction(async (trx) => executeCreate(trx));
 };
 
 const getAssets = async ({

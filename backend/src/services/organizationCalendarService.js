@@ -22,7 +22,8 @@ const getUnifiedCalendar = async ({
     'SHIFT_OVERRIDE',
     'BIRTHDAY',
     'WORK_ANNIVERSARY',
-    'COMPANY_EVENT'
+    'COMPANY_EVENT',
+    'COMP_OFF'
   ];
 
   const events = [];
@@ -220,6 +221,37 @@ const getUnifiedCalendar = async ({
           }
         }
       }
+    }
+  }
+
+  // 7. Approved Comp-Off Work Dates
+  if (filterTypes.includes('COMP_OFF')) {
+    const compOffWhere = {
+      workDate: { gte: start, lte: end },
+      status: 'APPROVED'
+    };
+    if (organizationId) compOffWhere.organizationId = organizationId;
+    if (branchId && branchId !== 'ALL') compOffWhere.user = { branchId };
+    if (department && department !== 'ALL') compOffWhere.user = { ...compOffWhere.user, department };
+
+    const approvedPerms = await prisma.compOffPermissionRequest.findMany({
+      where: compOffWhere,
+      include: { user: { select: { id: true, name: true, employeeId: true } } }
+    });
+
+    for (const p of approvedPerms) {
+      events.push({
+        id: `compoff-${p.id}`,
+        type: 'COMP_OFF',
+        category: 'COMP_OFF',
+        title: `⏰ Comp-Off Work: ${p.user?.name || 'Employee'}`,
+        description: p.reason || 'Approved Comp-Off work session',
+        startDate: p.workDate,
+        endDate: p.workDate,
+        isAllDay: true,
+        employeeName: p.user?.name,
+        color: '#8B5CF6' // Purple/Violet
+      });
     }
   }
 

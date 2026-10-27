@@ -25,6 +25,7 @@ const milestoneRoutes = require('./routes/milestoneRoutes');
 const taskDependencyRoutes = require('./routes/taskDependencyRoutes');
 const workLogRoutes = require('./routes/workLogRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const meetingRoutes = require('./routes/meetingRoutes');
 
 
 // Payroll Route modules
@@ -180,7 +181,9 @@ app.get('/api/download-file', authenticate, (req, res) => {
 
 const superAdminRoutes = require('./routes/superAdminRoutes');
 const platformBuilderRoutes = require('./routes/platformBuilderRoutes');
+const accessTemplateRoutes = require('./routes/accessTemplateRoutes');
 
+app.use('/api/super-admin/access-templates', accessTemplateRoutes);
 app.use('/api/super-admin/platform-builder', platformBuilderRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.get('/api/platform/settings', async (req, res) => {
@@ -297,8 +300,11 @@ app.post('/api/admin/users/:id/reset-welcome', authenticate, requireRole(['ADMIN
 app.use('/api/teams', teamRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/attendance', attendanceRoutes);
+const attendanceLocationRoutes = require('./routes/attendanceLocationRoutes');
+app.use('/api/attendance-locations', attendanceLocationRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/meetings', meetingRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -309,7 +315,13 @@ const latePolicyRoutes = require('./routes/latePolicyRoutes');
 app.use('/api/leave-policy', leavePolicyRoutes);
 app.use('/api/late-policy', latePolicyRoutes);
 app.use('/api/leaves', leaveRoutes);
+const compOffRoutes = require('./routes/compOffRoutes');
+app.use('/api/comp-off', compOffRoutes);
+const estimateRoutes = require('./routes/estimateRoutes');
+app.use('/api/assets/estimates', estimateRoutes);
 app.use('/api/assets', assetRoutes);
+const companyDocumentRoutes = require('./routes/companyDocumentRoutes');
+app.use('/api/company-documents', companyDocumentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/milestones', milestoneRoutes);
@@ -375,6 +387,7 @@ socketManager.init(server);
 
 const { ensureCompanyChatRoom } = require('./services/companyChatService');
 const { initAutoClockOutService } = require('./services/autoClockOutService');
+const { initCompOffScheduler } = require('./services/compOffExpirySchedulerService');
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, async () => {
@@ -394,6 +407,7 @@ server.listen(PORT, async () => {
   try {
     await ensureCompanyChatRoom();
     initAutoClockOutService();
+    initCompOffScheduler();
     console.log('[STARTUP] Background services initialized.');
   } catch (err) {
     console.warn('[STARTUP WARNING] Background service init warning:', err.message);

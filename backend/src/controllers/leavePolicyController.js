@@ -32,8 +32,9 @@ const generateLeaveCode = (name) => {
 const recalculateCompanyUserBalances = async (organizationId) => {
   try {
     let policy = null;
+    let orgSettings = null;
     if (organizationId) {
-      const orgSettings = await prisma.organizationSettings.findUnique({
+      orgSettings = await prisma.organizationSettings.findUnique({
         where: { organizationId }
       });
       policy = orgSettings?.leavePolicy || getCompanyLeavePolicy(organizationId);
@@ -54,7 +55,7 @@ const recalculateCompanyUserBalances = async (organizationId) => {
     const userWhere = organizationId ? { organizationId } : {};
     const companyUsers = await prisma.user.findMany({
       where: userWhere,
-      select: { id: true, role: true }
+      select: { id: true, role: true, joiningDate: true, createdAt: true }
     });
 
     const now = new Date();
@@ -62,6 +63,19 @@ const recalculateCompanyUserBalances = async (organizationId) => {
     const currentMonth = now.getMonth();
 
     for (const u of companyUsers) {
+      const userJoinDate = u.joiningDate ? new Date(u.joiningDate) : new Date(u.createdAt || now);
+      const validJoinDate = isNaN(userJoinDate.getTime()) ? now : userJoinDate;
+      const joinYear = validJoinDate.getFullYear();
+      const joinMonth = validJoinDate.getMonth();
+
+      let startMonthIndex = 0;
+      if (joinYear === currentYear) {
+        startMonthIndex = Math.min(currentMonth, Math.max(0, joinMonth));
+      } else if (joinYear > currentYear) {
+        startMonthIndex = currentMonth + 1; // Future joiner
+      }
+      const priorMonthsCount = Math.max(0, currentMonth - startMonthIndex);
+
       const userRole = normalizeRole(u.role);
       let userPolicy = null;
       if (organizationId) {
@@ -98,8 +112,15 @@ const recalculateCompanyUserBalances = async (organizationId) => {
       for (const lt of companyLeaveTypes) {
         if (!lt.isActive) continue;
 
+        // CRITICAL INVARIANT: Comp-Off is a dedicated ledger-derived balance.
+        // It must NOT be overwritten by static baseline annualDays or monthly credit days.
+        if (lt.code === 'COMP_OFF' || (lt.code || '').toUpperCase() === 'COMP_OFF') {
+          continue;
+        }
+
         let usedThisYear = 0;
         let usedThisMonth = 0;
+        let usedPriorMonths = 0;
 
         for (const l of userApprovedLeaves) {
           const lType = (l.leaveType || l.type || '').toUpperCase();
@@ -108,8 +129,11 @@ const recalculateCompanyUserBalances = async (organizationId) => {
             const days = l.totalDays !== undefined ? parseFloat(l.totalDays) : 1.0;
             if (start.getFullYear() === currentYear) {
               usedThisYear += days;
-              if (start.getMonth() === currentMonth) {
+              const startMonth = start.getMonth();
+              if (startMonth === currentMonth) {
                 usedThisMonth += days;
+              } else if (startMonth < currentMonth) {
+                usedPriorMonths += days;
               }
             }
           }
@@ -132,17 +156,7 @@ const recalculateCompanyUserBalances = async (organizationId) => {
           }
         }
 
-        const existing = await prisma.userLeaveBalance.findUnique({
-          where: {
-            userId_leaveTypeId: {
-              userId: u.id,
-              leaveTypeId: lt.id
-            }
-          }
-        });
-
         const roleAllowance = roleAllowances[lt.code] || roleAllowances[lt.id] || roleAllowances[lt.name];
-        const carryForward = existing?.carryForward || 0;
         const annualDays = (roleAllowance?.annualDays !== undefined && roleAllowance?.annualDays !== null)
           ? parseFloat(roleAllowance.annualDays)
           : (lt.annualDays !== undefined ? parseFloat(lt.annualDays) : 12.0);
@@ -162,17 +176,43 @@ const recalculateCompanyUserBalances = async (organizationId) => {
         let used = 0;
         let pending = 0;
         let available = 0;
+        let calculatedCarryForward = 0;
+        let calculatedExpired = 0;
 
-        if (userAllocationMode === 'MONTHLY') {
+        if (lt.code === 'COMP_OFF' || (lt.code || '').toUpperCase() === 'COMP_OFF') {
+          const compOffService = require('../services/compOffService');
+          const ledgerBal = await compOffService.getUserCompOffLedgerBalance(u.id, new Date());
+          allocated = 0;
+          used = ledgerBal.totalUsed;
+          pending = ledgerBal.pendingDays;
+          available = ledgerBal.netAvailable;
+          calculatedCarryForward = 0;
+        } else if (userAllocationMode === 'MONTHLY') {
           allocated = monthlyCreditDays;
           used = usedThisMonth;
           pending = pendingThisMonth;
-          available = Math.max(0, monthlyCreditDays + carryForward - usedThisMonth - pendingThisMonth);
+
+          if (lt.allowCarryForward) {
+            // Unused monthly credits from prior months of current year accumulate into following months
+            const priorEarned = priorMonthsCount * monthlyCreditDays;
+            calculatedCarryForward = Math.max(0, priorEarned - usedPriorMonths);
+            const totalAccrued = priorEarned + monthlyCreditDays;
+            const totalUsedAndPending = usedPriorMonths + usedThisMonth + pendingThisMonth;
+            available = Math.max(0, totalAccrued - totalUsedAndPending);
+          } else {
+            // When Carry Forward is disabled, unused monthly credits expire at month-end
+            calculatedCarryForward = 0;
+            available = Math.max(0, monthlyCreditDays - usedThisMonth - pendingThisMonth);
+            const priorEarned = priorMonthsCount * monthlyCreditDays;
+            calculatedExpired = Math.max(0, priorEarned - usedPriorMonths);
+          }
         } else {
+          // ANNUAL mode: Unused annual leave does NOT carry forward to the next year
           allocated = annualDays;
           used = usedThisYear;
           pending = pendingThisYear;
-          available = Math.max(0, annualDays + carryForward - usedThisYear - pendingThisYear);
+          calculatedCarryForward = 0;
+          available = Math.max(0, annualDays - usedThisYear - pendingThisYear);
         }
 
         await prisma.userLeaveBalance.upsert({
@@ -187,6 +227,8 @@ const recalculateCompanyUserBalances = async (organizationId) => {
             used,
             pending,
             available,
+            carryForward: calculatedCarryForward,
+            expired: calculatedExpired,
             lastCreditedAt: new Date()
           },
           create: {
@@ -196,8 +238,8 @@ const recalculateCompanyUserBalances = async (organizationId) => {
             used,
             pending,
             available,
-            carryForward: 0,
-            expired: 0,
+            carryForward: calculatedCarryForward,
+            expired: calculatedExpired,
             lastCreditedAt: new Date()
           }
         });
@@ -246,18 +288,73 @@ const ensureSystemLeaveTypesSeeded = async (organizationId = null) => {
             allowCarryForward: false,
             isSystem: true,
             isActive: true
+          },
+          {
+            name: 'Work From Home',
+            code: 'WFH',
+            description: 'Remote work leave',
+            color: '#3B82F6',
+            icon: 'Home',
+            displayOrder: 3,
+            isPaid: true,
+            annualDays: 24.0,
+            monthlyCreditDays: 2.0,
+            allowCarryForward: false,
+            isSystem: true,
+            isActive: true
           }
         ]
       });
     }
 
+    // Ensure WFH exists as a permanent protected system leave type
+    const existingWfh = await prisma.leaveType.findFirst({
+      where: {
+        OR: [
+          { code: 'WFH' },
+          { name: 'Work From Home' },
+          { name: 'WFH' }
+        ]
+      }
+    });
+
+    if (existingWfh) {
+      // Safely preserve existing WFH record while ensuring code is 'WFH' and isSystem is true
+      await prisma.leaveType.update({
+        where: { id: existingWfh.id },
+        data: {
+          code: 'WFH',
+          isSystem: true,
+          // If previously non-system, default to enabled state
+          ...(existingWfh.isSystem === false ? { isActive: true } : {})
+        }
+      });
+    } else {
+      await prisma.leaveType.create({
+        data: {
+          name: 'Work From Home',
+          code: 'WFH',
+          description: 'Remote work leave',
+          color: '#3B82F6',
+          icon: 'Home',
+          displayOrder: 3,
+          isPaid: true,
+          annualDays: 24.0,
+          monthlyCreditDays: 2.0,
+          allowCarryForward: false,
+          isSystem: true,
+          isActive: true
+        }
+      });
+    }
+
     await prisma.leaveType.updateMany({
-      where: { code: { in: ['CL', 'SL'] } },
+      where: { code: { in: ['CL', 'SL', 'COMP_OFF', 'WFH'] } },
       data: { isSystem: true }
     });
 
     await prisma.leaveType.updateMany({
-      where: { code: { notIn: ['CL', 'SL'] }, isSystem: true },
+      where: { code: { notIn: ['CL', 'SL', 'COMP_OFF', 'WFH'] }, isSystem: true },
       data: { isSystem: false }
     });
   } catch (err) {
@@ -313,7 +410,7 @@ const getGlobalLeavePolicy = async (req, res) => {
       const companyTypeIds = getCompanyLeaveTypeIds(organizationId);
       if (!companyTypeIds) {
         allLeaveTypes
-          .filter((lt) => ['CL', 'SL'].includes((lt.code || '').toUpperCase()) || lt.isActive)
+          .filter((lt) => ['CL', 'SL', 'COMP_OFF', 'WFH'].includes((lt.code || '').toUpperCase()) || lt.isActive)
           .forEach((lt) => addLeaveTypeToCompany(organizationId, lt.id));
       }
     }
@@ -371,6 +468,9 @@ const updateGlobalLeavePolicy = async (req, res) => {
       halfDayAllowed: halfDayAllowed !== undefined ? halfDayAllowed : true,
       workingDaysOnly: workingDaysOnly !== undefined ? workingDaysOnly : true,
       autoApproval: autoApproval !== undefined ? autoApproval : false,
+      compOffValidityDays: req.body.compOffValidityDays !== undefined ? parseInt(req.body.compOffValidityDays, 10) : 90,
+      compOffClaimWindowDays: req.body.compOffClaimWindowDays !== undefined ? parseInt(req.body.compOffClaimWindowDays, 10) : 30,
+      compOffClaimWindowEnabled: req.body.compOffClaimWindowEnabled !== undefined ? Boolean(req.body.compOffClaimWindowEnabled) : true,
       updatedAt: new Date().toISOString()
     };
 
@@ -496,7 +596,10 @@ const updateGlobalLeavePolicy = async (req, res) => {
           maxCarryForwardDays: parseFloat(maxCarryForwardDays) || 5.0,
           halfDayAllowed: halfDayAllowed !== undefined ? halfDayAllowed : true,
           workingDaysOnly: workingDaysOnly !== undefined ? workingDaysOnly : true,
-          autoApproval: autoApproval !== undefined ? autoApproval : false
+          autoApproval: autoApproval !== undefined ? autoApproval : false,
+          compOffValidityDays: policyData.compOffValidityDays,
+          compOffClaimWindowDays: policyData.compOffClaimWindowDays,
+          compOffClaimWindowEnabled: policyData.compOffClaimWindowEnabled
         }
       });
     } else {
@@ -508,7 +611,10 @@ const updateGlobalLeavePolicy = async (req, res) => {
           maxCarryForwardDays: maxCarryForwardDays !== undefined ? parseFloat(maxCarryForwardDays) : policy.maxCarryForwardDays,
           halfDayAllowed: halfDayAllowed !== undefined ? halfDayAllowed : policy.halfDayAllowed,
           workingDaysOnly: workingDaysOnly !== undefined ? workingDaysOnly : policy.workingDaysOnly,
-          autoApproval: autoApproval !== undefined ? autoApproval : policy.autoApproval
+          autoApproval: autoApproval !== undefined ? autoApproval : policy.autoApproval,
+          compOffValidityDays: policyData.compOffValidityDays,
+          compOffClaimWindowDays: policyData.compOffClaimWindowDays,
+          compOffClaimWindowEnabled: policyData.compOffClaimWindowEnabled
         }
       });
     }
@@ -557,7 +663,8 @@ const createLeaveType = async (req, res) => {
       monthlyCreditDays,
       allowCarryForward,
       requireDoc,
-      allowHalfDay
+      allowHalfDay,
+      minNoticeDays
     } = req.body;
 
     const organizationId = getEffectiveOrgId(req) || bodyOrgId;
@@ -572,9 +679,22 @@ const createLeaveType = async (req, res) => {
     if (monthlyCreditDays !== undefined && parseFloat(monthlyCreditDays) < 0) {
       return res.status(400).json({ message: 'Monthly credit days cannot be negative.' });
     }
+    if (minNoticeDays !== undefined && minNoticeDays !== null && minNoticeDays !== '') {
+      const noticeNum = Number(minNoticeDays);
+      if (isNaN(noticeNum) || noticeNum < 0 || !Number.isInteger(noticeNum)) {
+        return res.status(400).json({ message: 'Minimum notice must be a non-negative whole number of days.' });
+      }
+    }
+    const finalMinNoticeDays = (minNoticeDays !== undefined && minNoticeDays !== null && minNoticeDays !== '')
+      ? parseInt(minNoticeDays, 10)
+      : 0;
 
     const cleanName = name.trim();
     const finalCode = (code && code.trim()) ? code.trim().toUpperCase() : generateLeaveCode(cleanName);
+
+    if (finalCode === 'WFH' || cleanName.toLowerCase() === 'work from home' || cleanName.toLowerCase() === 'wfh') {
+      return res.status(400).json({ message: 'Work From Home (WFH) is a built-in system leave type and cannot be created as a custom leave type.' });
+    }
 
     // Per-company duplicate check
     const allTypes = await prisma.leaveType.findMany();
@@ -611,6 +731,7 @@ const createLeaveType = async (req, res) => {
         allowCarryForward: allowCarryForward !== undefined ? allowCarryForward : false,
         requireDoc: requireDoc !== undefined ? requireDoc : false,
         allowHalfDay: allowHalfDay !== undefined ? allowHalfDay : true,
+        minNoticeDays: finalMinNoticeDays,
         isSystem: false,
         isActive: true
       }
@@ -705,7 +826,8 @@ const updateLeaveType = async (req, res) => {
       monthlyCredit,
       allowCarryForward,
       requireDoc,
-      allowHalfDay
+      allowHalfDay,
+      minNoticeDays
     } = req.body;
 
     const orgId = getEffectiveOrgId(req);
@@ -730,15 +852,24 @@ const updateLeaveType = async (req, res) => {
         return res.status(400).json({ message: 'Monthly credit must be a non-negative number.' });
       }
     }
+    if (minNoticeDays !== undefined && minNoticeDays !== null && minNoticeDays !== '') {
+      const noticeNum = Number(minNoticeDays);
+      if (isNaN(noticeNum) || noticeNum < 0 || !Number.isInteger(noticeNum)) {
+        return res.status(400).json({ message: 'Minimum notice must be a non-negative whole number of days.' });
+      }
+    }
 
     const finalAnnualDays = rawAnnual !== undefined ? parseFloat(rawAnnual) : existingLT.annualDays;
     const finalMonthlyCreditDays = rawMonthly !== undefined ? parseFloat(rawMonthly) : existingLT.monthlyCreditDays;
+    const finalMinNoticeDays = (minNoticeDays !== undefined && minNoticeDays !== null && minNoticeDays !== '')
+      ? parseInt(minNoticeDays, 10)
+      : (existingLT.minNoticeDays ?? 0);
 
     const updated = await prisma.leaveType.update({
       where: { id },
       data: {
         name: name ? name.trim() : existingLT.name,
-        code: existingLT.isSystem ? existingLT.code : (code ? code.trim().toUpperCase() : existingLT.code),
+        code: (existingLT.isSystem || ['CL', 'SL', 'COMP_OFF', 'WFH'].includes((existingLT.code || '').toUpperCase())) ? existingLT.code : (code ? code.trim().toUpperCase() : existingLT.code),
         description: description !== undefined ? description : existingLT.description,
         color: color || existingLT.color,
         icon: icon || existingLT.icon,
@@ -748,7 +879,8 @@ const updateLeaveType = async (req, res) => {
         monthlyCreditDays: finalMonthlyCreditDays,
         allowCarryForward: allowCarryForward !== undefined ? allowCarryForward : existingLT.allowCarryForward,
         requireDoc: requireDoc !== undefined ? requireDoc : existingLT.requireDoc,
-        allowHalfDay: allowHalfDay !== undefined ? allowHalfDay : existingLT.allowHalfDay
+        allowHalfDay: allowHalfDay !== undefined ? allowHalfDay : existingLT.allowHalfDay,
+        minNoticeDays: finalMinNoticeDays
       }
     });
 
@@ -1121,7 +1253,17 @@ const deleteLeaveType = async (req, res) => {
   try {
     const { id } = req.params;
     const orgId = getEffectiveOrgId(req);
-    const lt = await prisma.leaveType.findUnique({ where: { id } });
+    let lt = await prisma.leaveType.findUnique({ where: { id } }).catch(() => null);
+    if (!lt) {
+      lt = await prisma.leaveType.findFirst({
+        where: {
+          OR: [
+            { code: id.toUpperCase() },
+            { name: { equals: id } }
+          ]
+        }
+      });
+    }
 
     if (!lt) {
       return res.status(404).json({ success: false, message: 'Leave type not found.' });
@@ -1130,10 +1272,23 @@ const deleteLeaveType = async (req, res) => {
     const code = (lt.code || '').toUpperCase();
     const name = (lt.name || '').trim();
 
-    // 1. Mandatory system policies (Casual Leave / Sick Leave) cannot be deleted
-    const isProtected = ['CL', 'SL'].includes(code) || name.toLowerCase() === 'casual leave' || name.toLowerCase() === 'sick leave';
+    // 1. Mandatory system policies (Casual Leave / Sick Leave / Compensatory Off / Work From Home) cannot be deleted
+    const isProtected = ['CL', 'SL', 'COMP_OFF', 'WFH'].includes(code) ||
+      name.toLowerCase() === 'casual leave' ||
+      name.toLowerCase() === 'sick leave' ||
+      name.toLowerCase() === 'compensatory off' ||
+      name.toLowerCase() === 'comp-off' ||
+      name.toLowerCase() === 'work from home' ||
+      name.toLowerCase() === 'wfh' ||
+      lt.isSystem === true;
     if (isProtected) {
-      const displayName = code === 'CL' ? 'Casual Leave' : code === 'SL' ? 'Sick Leave' : name;
+      if (code === 'WFH' || name.toLowerCase() === 'work from home' || name.toLowerCase() === 'wfh') {
+        return res.status(400).json({
+          success: false,
+          message: 'Work From Home (WFH) is a built-in system leave type and cannot be deleted. It can only be disabled.'
+        });
+      }
+      const displayName = code === 'CL' ? 'Casual Leave' : code === 'SL' ? 'Sick Leave' : (code === 'COMP_OFF' || name.toLowerCase().includes('comp')) ? 'Compensatory Off' : name;
       return res.status(400).json({
         success: false,
         message: `${displayName} is a mandatory system policy and cannot be deleted.`
@@ -1341,6 +1496,7 @@ const getUserLeaveBalances = async (req, res) => {
         allocated: b.allocated,
         used: b.used,
         available: b.available,
+        carryForward: b.carryForward || 0,
         monthlyCredit: monthlyCreditDays,
         allowHalfDay: lt.allowHalfDay,
         allowCarryForward: lt.allowCarryForward
@@ -1435,29 +1591,45 @@ const executeAnnualReset = async (req, res) => {
     const { organizationId } = req.body;
     const orgId = organizationId || req.query.organizationId;
 
-    const policy = orgId ? getCompanyLeavePolicy(orgId) : await prisma.leavePolicy.findFirst({ where: { isGlobal: true } });
-    const maxCF = policy?.maxCarryForwardDays || 5.0;
-
     const balanceWhere = orgId ? { user: { organizationId: orgId } } : {};
 
     const allBalances = await prisma.userLeaveBalance.findMany({
       where: balanceWhere,
-      include: { leaveType: true }
+      include: {
+        leaveType: true,
+        user: {
+          select: { id: true, role: true, organizationId: true }
+        }
+      }
     });
 
     let resetCount = 0;
     for (const b of allBalances) {
-      let cfDays = 0;
-      let expiredDays = 0;
-
-      if (policy?.carryForwardEnabled && b.leaveType.allowCarryForward) {
-        cfDays = Math.min(b.available, maxCF);
-        expiredDays = Math.max(0, b.available - cfDays);
-      } else {
-        expiredDays = b.available;
+      // Comp-Off credits have dedicated per-credit expiration dates (e.g. 90 days from work date)
+      // and must never be wiped or overwritten by the annual calendar reset.
+      if (b.leaveType?.code === 'COMP_OFF' || (b.leaveType?.code || '').toUpperCase() === 'COMP_OFF') {
+        continue;
       }
 
-      const newAllocated = b.leaveType.annualDays + cfDays;
+      const userOrgId = b.user?.organizationId || orgId;
+      const userRole = b.user?.role ? normalizeRole(b.user.role) : null;
+      const userPolicy = userOrgId ? getCompanyLeavePolicy(userOrgId, userRole) : null;
+      const userAllocationMode = userPolicy?.allocationType || 'ANNUAL';
+      const roleAllowances = userPolicy?.allowances || {};
+      const roleAllowance = roleAllowances[b.leaveType.code] || roleAllowances[b.leaveType.id] || roleAllowances[b.leaveType.name];
+
+      const annualDays = (roleAllowance?.annualDays !== undefined && roleAllowance?.annualDays !== null)
+        ? parseFloat(roleAllowance.annualDays)
+        : (b.leaveType.annualDays !== undefined ? parseFloat(b.leaveType.annualDays) : 12.0);
+      const monthlyCreditDays = (roleAllowance?.monthlyCreditDays !== undefined && roleAllowance?.monthlyCreditDays !== null)
+        ? parseFloat(roleAllowance.monthlyCreditDays)
+        : (b.leaveType.monthlyCreditDays !== undefined ? parseFloat(b.leaveType.monthlyCreditDays) : 1.0);
+
+      // Annual allocation: unused leave must NEVER carry forward to next year
+      // Expire previous unused balance, carryForward = 0
+      const expiredDays = Math.max(0, b.available);
+      const newAllocated = userAllocationMode === 'MONTHLY' ? monthlyCreditDays : annualDays;
+      const newAvailable = newAllocated;
 
       await prisma.userLeaveBalance.update({
         where: { id: b.id },
@@ -1465,8 +1637,8 @@ const executeAnnualReset = async (req, res) => {
           allocated: newAllocated,
           used: 0,
           pending: 0,
-          available: newAllocated,
-          carryForward: cfDays,
+          available: newAvailable,
+          carryForward: 0,
           expired: expiredDays,
           lastCreditedAt: new Date()
         }

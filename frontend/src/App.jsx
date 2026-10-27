@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompanyScopeProvider } from './context/CompanyScopeContext';
 import { SocketProvider } from './context/SocketContext';
@@ -25,9 +25,11 @@ import Reports from './pages/Reports';
 import AuditLogs from './pages/AuditLogs';
 import SiteSettings from './pages/SiteSettings';
 import AssetManagement from './pages/AssetManagement';
+import CompanyDocuments from './pages/CompanyDocuments';
 import Projects from './pages/Projects';
 import WorkLogs from './pages/WorkLogs';
 import WorkCalendar from './pages/WorkCalendar';
+const Meetings = React.lazy(() => import('./pages/Meetings'));
 
 
 
@@ -38,7 +40,6 @@ import SalaryStructuresPage from './pages/finance/SalaryStructuresPage';
 import PayrollProcessingPage from './pages/finance/PayrollProcessingPage';
 import PayslipsPage from './pages/finance/PayslipsPage';
 import HolidayCalendarPage from './pages/finance/HolidayCalendarPage';
-import PayrollReportsPage from './pages/finance/PayrollReportsPage';
 import PayrollSettingsPage from './pages/finance/PayrollSettingsPage';
 import EmployeePayrollPage from './pages/finance/EmployeePayrollPage';
 
@@ -53,15 +54,60 @@ import PlatformOperationsDashboard from './pages/super-admin/operations/Platform
 import LeavePolicySettings from './pages/super-admin/LeavePolicySettings';
 import LatePolicySettings from './pages/super-admin/LatePolicySettings';
 import BackupRestore from './pages/super-admin/BackupRestore';
+import RoleAccessManagement from './pages/super-admin/access/RoleAccessManagement';
 import EmployeeSelfService from './components/intelligence/EmployeeSelfService';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Enterprise Branding Center
 import BrandingCenter from './components/enterprise/BrandingCenter';
+import { usePermissions } from './hooks/usePermissions';
+import { CRM_MODULE_KEYS } from './config/crmModules';
+import { ShieldAlert } from 'lucide-react';
 
-// Protected Route wrapper with Role Check
-const ProtectedRoute = ({ children, allowedRoles }) => {
+// Access Denied view when a user is restricted by their assigned access template
+const AccessDeniedView = ({ moduleKey }) => {
+  const { user } = useAuth();
+  const { canView } = usePermissions();
+
+  // For template-assigned users who cannot access dashboard, provide safe route to /profile
+  const hasDashboardAccess = canView ? canView(CRM_MODULE_KEYS.DASHBOARD) : false;
+  const isTemplateUser = Boolean(user?.accessTemplateId);
+  const returnPath = (!hasDashboardAccess || isTemplateUser) ? '/profile' : '/';
+  const returnLabel = (!hasDashboardAccess || isTemplateUser) ? 'Return to My Profile' : 'Return to Dashboard';
+
+  return (
+    <div className="flex-1 flex items-center justify-center p-6 text-center min-h-[60vh]">
+      <div className="max-w-md w-full bg-card border border-border/80 rounded-3xl p-8 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your assigned role access template does not authorize access to this module
+            {moduleKey ? <span className="font-mono font-bold text-foreground"> ({moduleKey})</span> : ''}.
+          </p>
+          <p className="text-[11px] text-muted-foreground/80">
+            If you require access to this operational workspace, please request an access update from your system administrator.
+          </p>
+        </div>
+        <div className="pt-2">
+          <Link
+            to={returnPath}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary-hover transition-all"
+          >
+            {returnLabel}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Protected Route wrapper with Role Check & Dynamic Access Template Module Check
+const ProtectedRoute = ({ children, allowedRoles, moduleKey, requiredPermission = 'VIEW' }) => {
   const { user, loading } = useAuth();
+  const { canView, canEdit } = usePermissions();
 
   if (loading) {
     return (
@@ -75,11 +121,27 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // 1. Role-based baseline checks (Super Admin platform routes or explicit allowed roles)
   if (allowedRoles && allowedRoles.length > 0 && user?.role) {
     const userRoleUpper = String(user.role).toUpperCase();
     const allowedUpper = allowedRoles.map(r => String(r).toUpperCase());
     if (!allowedUpper.includes(userRoleUpper)) {
       return <Navigate to="/" replace />;
+    }
+  }
+
+  // 2. Dynamic Template Module Permission Check (Phase 4)
+  if (moduleKey && user?.role !== 'SUPER_ADMIN') {
+    // Universal self-service: Profile is always allowed
+    if (moduleKey !== CRM_MODULE_KEYS.PROFILE && moduleKey !== 'profile') {
+      const isAllowed = requiredPermission === 'EDIT' ? canEdit(moduleKey) : canView(moduleKey);
+      if (!isAllowed) {
+        return (
+          <DashboardLayout>
+            <AccessDeniedView moduleKey={moduleKey} />
+          </DashboardLayout>
+        );
+      }
     }
   }
 
@@ -118,7 +180,12 @@ const App = () => {
           <BrandProvider>
             <ThemeProvider>
               <SocketProvider>
-                <Routes>
+                <React.Suspense fallback={
+                  <div className="flex h-screen items-center justify-center bg-background">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                }>
+                  <Routes>
                   {/* Public Auth Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/company/:slug" element={<CompanyLogin />} />
@@ -166,6 +233,14 @@ const App = () => {
                     element={
                       <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                         <AdminManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/super-admin/role-access"
+                    element={
+                      <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                        <RoleAccessManagement />
                       </ProtectedRoute>
                     }
                   />
@@ -221,7 +296,7 @@ const App = () => {
                   <Route
                     path="/self-service"
                     element={
-                      <ProtectedRoute allowedRoles={['EMPLOYEE', 'INTERN', 'TEAM_LEADER', 'ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['EMPLOYEE', 'INTERN', 'TEAM_LEADER', 'ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.SELF_SERVICE}>
                         <div className="p-6 max-w-7xl mx-auto">
                           <EmployeeSelfService />
                         </div>
@@ -229,12 +304,11 @@ const App = () => {
                     }
                   />
 
-
                   {/* Protected Role-Based Routes */}
                   <Route
                     path="/"
                     element={
-                      <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN']}>
+                      <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN']} moduleKey={CRM_MODULE_KEYS.DASHBOARD}>
                         <RootDashboardRedirect />
                       </ProtectedRoute>
                     }
@@ -242,7 +316,7 @@ const App = () => {
                   <Route
                     path="/interns"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.REGISTRY_INTERNS}>
                         <Interns />
                       </ProtectedRoute>
                     }
@@ -250,7 +324,7 @@ const App = () => {
                   <Route
                     path="/team-leaders"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.REGISTRY_TEAMLEADERS}>
                         <TeamLeaders />
                       </ProtectedRoute>
                     }
@@ -258,7 +332,7 @@ const App = () => {
                   <Route
                     path="/employees"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.REGISTRY_EMPLOYEES}>
                         <Employees />
                       </ProtectedRoute>
                     }
@@ -266,7 +340,7 @@ const App = () => {
                   <Route
                     path="/projects"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PROJECTS}>
                         <Projects />
                       </ProtectedRoute>
                     }
@@ -274,7 +348,7 @@ const App = () => {
                   <Route
                     path="/teams"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.TEAMS_HUB}>
                         <Teams />
                       </ProtectedRoute>
                     }
@@ -282,7 +356,7 @@ const App = () => {
                   <Route
                     path="/tasks"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.TASKS}>
                         <Tasks />
                       </ProtectedRoute>
                     }
@@ -290,7 +364,7 @@ const App = () => {
                   <Route
                     path="/attendance"
                     element={
-                      <ProtectedRoute allowedRoles={['INTERN', 'TEAM_LEADER', 'EMPLOYEE', 'ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['INTERN', 'TEAM_LEADER', 'EMPLOYEE', 'ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.ATTENDANCE}>
                         <Attendance />
                       </ProtectedRoute>
                     }
@@ -298,7 +372,7 @@ const App = () => {
                   <Route
                     path="/attendance-audit"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.ATTENDANCE_AUDIT}>
                         <AttendanceAudit />
                       </ProtectedRoute>
                     }
@@ -306,7 +380,7 @@ const App = () => {
                   <Route
                     path="/leave-management"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'EMPLOYEE', 'INTERN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'EMPLOYEE', 'INTERN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.LEAVE_MANAGEMENT}>
                         <LeaveManagementPage />
                       </ProtectedRoute>
                     }
@@ -317,7 +391,7 @@ const App = () => {
                   <Route
                     path="/operations/work-calendar"
                     element={
-                      <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER', 'EMPLOYEE', 'INTERN']}>
+                      <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'TEAM_LEADER', 'EMPLOYEE', 'INTERN']} moduleKey={CRM_MODULE_KEYS.WORK_CALENDAR}>
                         <WorkCalendar />
                       </ProtectedRoute>
                     }
@@ -326,7 +400,7 @@ const App = () => {
                   <Route
                     path="/tickets"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.TICKETS}>
                         <Tickets />
                       </ProtectedRoute>
                     }
@@ -334,7 +408,7 @@ const App = () => {
                   <Route
                     path="/announcements"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.ANNOUNCEMENTS}>
                         <Announcements />
                       </ProtectedRoute>
                     }
@@ -342,7 +416,7 @@ const App = () => {
                   <Route
                     path="/chat"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.CHAT}>
                         <ChatProtectedRoute>
                           <Chat />
                         </ChatProtectedRoute>
@@ -350,17 +424,33 @@ const App = () => {
                     }
                   />
                   <Route
+                    path="/meetings"
+                    element={
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.MEETINGS}>
+                        <Meetings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/assets"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.ASSETS}>
                         <AssetManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/company-documents"
+                    element={
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.COMPANY_DOCUMENTS}>
+                        <CompanyDocuments />
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/profile"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PROFILE}>
                         <Profile />
                       </ProtectedRoute>
                     }
@@ -368,7 +458,7 @@ const App = () => {
                   <Route
                     path="/reports"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.REPORTS}>
                         <Reports />
                       </ProtectedRoute>
                     }
@@ -376,7 +466,7 @@ const App = () => {
                   <Route
                     path="/audit-logs"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.AUDIT_LOGS}>
                         <AuditLogs />
                       </ProtectedRoute>
                     }
@@ -384,7 +474,7 @@ const App = () => {
                   <Route
                     path="/settings"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.SITE_SETTINGS}>
                         <SiteSettings />
                       </ProtectedRoute>
                     }
@@ -392,19 +482,18 @@ const App = () => {
                   <Route
                     path="/worklogs"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.WORKLOGS}>
                         <WorkLogs />
                       </ProtectedRoute>
                     }
                   />
-
 
                   {/* Finance & Payroll Module Routes */}
                   <Route path="/payroll" element={<Navigate to="/payroll/dashboard" replace />} />
                   <Route
                     path="/payroll/dashboard"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_DASHBOARD}>
                         <PayrollDashboardPage />
                       </ProtectedRoute>
                     }
@@ -412,7 +501,7 @@ const App = () => {
                   <Route
                     path="/payroll/templates"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_TEMPLATES}>
                         <SalaryTemplatesPage />
                       </ProtectedRoute>
                     }
@@ -420,7 +509,7 @@ const App = () => {
                   <Route
                     path="/payroll/structures"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_STRUCTURES}>
                         <SalaryStructuresPage />
                       </ProtectedRoute>
                     }
@@ -428,7 +517,7 @@ const App = () => {
                   <Route
                     path="/payroll/processing"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_PROCESS}>
                         <PayrollProcessingPage />
                       </ProtectedRoute>
                     }
@@ -436,7 +525,7 @@ const App = () => {
                   <Route
                     path="/payroll/payslips"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_PAYSLIPS}>
                         <PayslipsPage />
                       </ProtectedRoute>
                     }
@@ -444,23 +533,15 @@ const App = () => {
                   <Route
                     path="/payroll/holidays"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_HOLIDAYS}>
                         <HolidayCalendarPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/payroll/reports"
-                    element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
-                        <PayrollReportsPage />
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/payroll/settings"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} moduleKey={CRM_MODULE_KEYS.PAYROLL_SETTINGS}>
                         <PayrollSettingsPage />
                       </ProtectedRoute>
                     }
@@ -468,7 +549,7 @@ const App = () => {
                   <Route
                     path="/my-payroll"
                     element={
-                      <ProtectedRoute allowedRoles={['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN']}>
+                      <ProtectedRoute allowedRoles={['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN']} moduleKey={CRM_MODULE_KEYS.MY_PAYROLL}>
                         <EmployeePayrollPage />
                       </ProtectedRoute>
                     }
@@ -477,6 +558,7 @@ const App = () => {
                   {/* Catch-all fallback */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                </React.Suspense>
               </SocketProvider>
             </ThemeProvider>
           </BrandProvider>

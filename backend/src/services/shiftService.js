@@ -826,9 +826,6 @@ const getDayName = (date = new Date(), timeZone = 'Asia/Kolkata') => {
  */
 const getShiftDayStatus = (shift, dayName, date = null) => {
   const normDay = String(dayName || '').toUpperCase();
-  if (normDay === 'SUNDAY') {
-    return 'Holiday';
-  }
 
   if (!shift || !shift.workingDays) {
     return normDay === 'SUNDAY' ? 'Holiday' : 'Working';
@@ -853,6 +850,7 @@ const getShiftDayStatus = (shift, dayName, date = null) => {
       if (match.isWorking === false) return 'Holiday';
       if (match.isWorking === true) return 'Working';
     }
+    return normDay === 'SUNDAY' ? 'Holiday' : 'Working';
   }
 
   // Handle Object format: { MONDAY: 'Working', TUESDAY: 'WFH', SATURDAY: { status: 'WORKING', pattern: { ... } }, ... }
@@ -876,15 +874,18 @@ const getShiftDayStatus = (shift, dayName, date = null) => {
       return satStatus === 'WFH' ? 'WFH' : satStatus === 'HOLIDAY' ? 'Holiday' : 'Working';
     }
 
-    if (val === 'Working' || val === 'WFH' || val === 'Holiday') return val;
-    if (typeof val === 'string') {
-      const uVal = val.toUpperCase();
-      if (uVal === 'WORKING') return 'Working';
-      if (uVal === 'WFH') return 'WFH';
-      if (uVal === 'HOLIDAY') return 'Holiday';
+    if (val !== undefined && val !== null) {
+      if (val === 'Working' || val === 'WFH' || val === 'Holiday') return val;
+      if (typeof val === 'string') {
+        const uVal = val.toUpperCase();
+        if (uVal === 'WORKING') return 'Working';
+        if (uVal === 'WFH') return 'WFH';
+        if (uVal === 'HOLIDAY') return 'Holiday';
+      }
+      if (val === true) return 'Working';
+      if (val === false) return 'Holiday';
     }
-    if (val === true) return 'Working';
-    if (val === false) return 'Holiday';
+    return normDay === 'SUNDAY' ? 'Holiday' : 'Working';
   }
 
   return normDay === 'SUNDAY' ? 'Holiday' : 'Working';

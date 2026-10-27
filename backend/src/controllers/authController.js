@@ -193,10 +193,23 @@ const login = async (req, res) => {
       ipAddress: ip
     }).catch(err => console.warn('Log activity warning:', err.message));
 
+    const { getUserEffectivePermissions } = require('../services/permissionService');
+    const effectivePermissions = await getUserEffectivePermissions(user);
+
+    let accessTemplate = null;
+    if (user.accessTemplateId) {
+      accessTemplate = await prisma.accessTemplate.findUnique({
+        where: { id: user.accessTemplateId },
+        select: { id: true, name: true, description: true, baseRole: true, status: true }
+      });
+    }
+
     const { password: _, ...userWithoutPassword } = user;
     const formattedUser = {
       ...userWithoutPassword,
-      profilePhoto: userWithoutPassword.profilePic || null
+      profilePhoto: userWithoutPassword.profilePic || null,
+      effectivePermissions,
+      accessTemplate
     };
 
     return res.json({
@@ -242,10 +255,24 @@ const getProfile = async (req, res) => {
     // Resolve user's latest shift schedule dynamically
     const assignedShift = await shiftService.getEmployeeShiftWithSchedule(user.id);
 
+    // Resolve user's effective module permissions (Role-Based Access Management Phase 2)
+    const { getUserEffectivePermissions } = require('../services/permissionService');
+    const effectivePermissions = await getUserEffectivePermissions(user);
+
+    let accessTemplate = null;
+    if (user.accessTemplateId) {
+      accessTemplate = await prisma.accessTemplate.findUnique({
+        where: { id: user.accessTemplateId },
+        select: { id: true, name: true, description: true, baseRole: true, status: true }
+      });
+    }
+
     const { password: _, ...userWithoutPassword } = user;
     res.json({
       ...userWithoutPassword,
       profilePhoto: userWithoutPassword.profilePic || null,
+      effectivePermissions,
+      accessTemplate,
       shift: assignedShift ? {
         id: assignedShift.id,
         name: assignedShift.name,

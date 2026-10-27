@@ -44,67 +44,74 @@ import {
   Award,
   Loader2,
   Activity,
-  HardDrive
+  HardDrive,
+  Folder,
+  KeyRound,
+  Video
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import UserAvatar from '../common/UserAvatar';
 import CompanyWelcomeModal from '../common/CompanyWelcomeModal';
 import { useOrganizationBranding } from '../../context/BrandContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../../config/crmModules';
 
 // Comprehensive Quick Navigation Module Registry with Partial Keyword Support & Role Security
 const QUICK_NAV_ITEMS = [
   // Overview
-  { label: 'Dashboard', path: '/', keywords: ['dashboard', 'home', 'main', 'overview'], category: 'Overview', icon: LayoutDashboard, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Dashboard', path: '/', moduleKey: CRM_MODULE_KEYS.DASHBOARD, keywords: ['dashboard', 'home', 'main', 'overview'], category: 'Overview', icon: LayoutDashboard, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
   { label: 'Platform Dashboard', path: '/super-admin/dashboard', keywords: ['super admin', 'platform dashboard', 'superadmin', 'control center'], category: 'Platform Control', icon: LayoutDashboard, roles: ['SUPER_ADMIN'] },
-  { label: 'My Profile', path: '/profile', keywords: ['profile', 'account', 'me', 'my profile', 'details'], category: 'Overview', icon: UserIcon, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'My Profile', path: '/profile', moduleKey: CRM_MODULE_KEYS.PROFILE, keywords: ['profile', 'account', 'me', 'my profile', 'details'], category: 'Overview', icon: UserIcon, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
 
   // Workspaces & Tasks
-  { label: 'Projects', path: '/projects', keywords: ['projects', 'proj', 'project list', 'client projects'], category: 'Workspaces', icon: FolderOpen, roles: ['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE'] },
-  { label: 'Active Board', path: '/tasks?tab=Board', keywords: ['active board', 'board', 'kanban', 'active project', 'sprint', 'active'], category: 'Workspaces', icon: Layers, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-  { label: 'My Tasks / Task Board', path: '/tasks', keywords: ['tasks', 'task', 'task board', 'my tasks', 'todo'], category: 'Workspaces', icon: FileText, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-  { label: 'Roadmap', path: '/tasks?tab=Timeline', keywords: ['roadmap', 'timeline', 'schedule', 'gantt'], category: 'Workspaces', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Projects', path: '/projects', moduleKey: CRM_MODULE_KEYS.PROJECTS, keywords: ['projects', 'proj', 'project list', 'client projects'], category: 'Workspaces', icon: FolderOpen, roles: ['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE'] },
+  { label: 'Active Board', path: '/tasks?tab=Board', moduleKey: CRM_MODULE_KEYS.TASKS, keywords: ['active board', 'board', 'kanban', 'active project', 'sprint', 'active'], category: 'Workspaces', icon: Layers, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'My Tasks / Task Board', path: '/tasks', moduleKey: CRM_MODULE_KEYS.TASKS, keywords: ['tasks', 'task', 'task board', 'my tasks', 'todo'], category: 'Workspaces', icon: FileText, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Roadmap', path: '/tasks?tab=Timeline', moduleKey: CRM_MODULE_KEYS.TASKS, keywords: ['roadmap', 'timeline', 'schedule', 'gantt'], category: 'Workspaces', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
 
   // Communication
-  { label: 'Chat Room', path: '/chat', keywords: ['chat', 'messages', 'chat room', 'messaging', 'dm', 'discussion'], category: 'Communication', icon: MessageSquare, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-  { label: 'Announcements', path: '/announcements', keywords: ['announcements', 'announcement', 'broadcast', 'news', 'notice'], category: 'Communication', icon: Megaphone, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Chat Room', path: '/chat', moduleKey: CRM_MODULE_KEYS.CHAT, keywords: ['chat', 'messages', 'chat room', 'messaging', 'dm', 'discussion'], category: 'Communication', icon: MessageSquare, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Announcements', path: '/announcements', moduleKey: CRM_MODULE_KEYS.ANNOUNCEMENTS, keywords: ['announcements', 'announcement', 'broadcast', 'news', 'notice'], category: 'Communication', icon: Megaphone, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Meetings', path: '/meetings', moduleKey: CRM_MODULE_KEYS.MEETINGS, keywords: ['meetings', 'meeting', 'meet', 'google meet', 'schedule meeting', 'calendar meeting'], category: 'Communication', icon: Video, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
 
   // Operations
-  { label: 'My Work Logs', path: '/worklogs', keywords: ['work logs', 'worklogs', 'log', 'time tracking', 'hours'], category: 'Operations', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-  { label: 'Attendance', path: '/attendance', keywords: ['attendance', 'atten', 'clock in', 'clock out', 'timesheet'], category: 'Operations', icon: Clock, roles: ['INTERN', 'TEAM_LEADER', 'EMPLOYEE'] },
-  { label: 'Attendance Audit', path: '/attendance-audit', keywords: ['attendance audit', 'attendance logs', 'attendance history', 'atten'], category: 'Operations', icon: Clock, roles: ['ADMIN', 'TEAM_LEADER'] },
-  { label: 'Apply Leave / Leave Management', path: '/leave-management', keywords: ['leave', 'leaves', 'apply leave', 'leave management', 'vacation', 'time off', 'pto'], category: 'Operations', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-  { label: 'Work Calendar', path: '/operations/work-calendar', keywords: ['work calendar', 'calendar', 'holidays', 'schedule', 'wfh', 'working days'], category: 'Operations', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-  { label: 'Sanction WFH & Leaves', path: '/leave-management?tab=Sanction', keywords: ['sanction', 'wfh', 'leaves', 'approve leave', 'sanction wfh', 'sanction leaves'], category: 'Operations', icon: CheckCircle2, roles: ['ADMIN', 'TEAM_LEADER'] },
+  { label: 'My Work Logs', path: '/worklogs', moduleKey: CRM_MODULE_KEYS.WORKLOGS, keywords: ['work logs', 'worklogs', 'log', 'time tracking', 'hours'], category: 'Operations', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Attendance', path: '/attendance', moduleKey: CRM_MODULE_KEYS.ATTENDANCE, keywords: ['attendance', 'atten', 'clock in', 'clock out', 'timesheet'], category: 'Operations', icon: Clock, roles: ['INTERN', 'TEAM_LEADER', 'EMPLOYEE'] },
+  { label: 'Attendance Audit', path: '/attendance-audit', moduleKey: CRM_MODULE_KEYS.ATTENDANCE_AUDIT, keywords: ['attendance audit', 'attendance logs', 'attendance history', 'atten'], category: 'Operations', icon: Clock, roles: ['ADMIN', 'TEAM_LEADER'] },
+  { label: 'Apply Leave / Leave Management', path: '/leave-management', moduleKey: CRM_MODULE_KEYS.LEAVE_MANAGEMENT, keywords: ['leave', 'leaves', 'apply leave', 'leave management', 'vacation', 'time off', 'pto'], category: 'Operations', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+  { label: 'Work Calendar', path: '/operations/work-calendar', moduleKey: CRM_MODULE_KEYS.WORK_CALENDAR, keywords: ['work calendar', 'calendar', 'holidays', 'schedule', 'wfh', 'working days'], category: 'Operations', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+  { label: 'Sanction WFH & Leaves', path: '/leave-management?tab=Sanction', moduleKey: CRM_MODULE_KEYS.LEAVE_MANAGEMENT, keywords: ['sanction', 'wfh', 'leaves', 'approve leave', 'sanction wfh', 'sanction leaves'], category: 'Operations', icon: CheckCircle2, roles: ['ADMIN', 'TEAM_LEADER'] },
 
-  { label: 'Ticket Desk', path: '/tickets', keywords: ['tickets', 'ticket', 'ticket desk', 'support', 'help', 'issue'], category: 'Operations', icon: Ticket, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-  { label: 'Assets', path: '/assets', keywords: ['assets', 'asset', 'hardware', 'laptop', 'inventory', 'devices'], category: 'Operations', icon: Laptop, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Ticket Desk', path: '/tickets', moduleKey: CRM_MODULE_KEYS.TICKETS, keywords: ['tickets', 'ticket', 'ticket desk', 'support', 'help', 'issue'], category: 'Operations', icon: Ticket, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Assets', path: '/assets', moduleKey: CRM_MODULE_KEYS.ASSETS, keywords: ['assets', 'asset', 'hardware', 'laptop', 'inventory', 'devices'], category: 'Operations', icon: Laptop, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+  { label: 'Company Documents', path: '/company-documents', moduleKey: CRM_MODULE_KEYS.COMPANY_DOCUMENTS, keywords: ['company documents', 'documents', 'files', 'contracts', 'legal', 'doc'], category: 'Operations', icon: Folder, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] },
 
   // Finance & Payroll
-  { label: 'Payroll', path: '/payroll/dashboard', keywords: ['payroll', 'pay', 'salary', 'finance', 'payroll dashboard'], category: 'Finance & Payroll', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { label: 'My Payslips & Salary', path: '/my-payroll', keywords: ['payroll', 'pay', 'my payslips', 'salary', 'my payroll', 'payslip'], category: 'Finance & Payroll', icon: FileText, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER'] },
-  { label: 'Salary Templates', path: '/payroll/templates', keywords: ['salary templates', 'templates', 'payroll templates'], category: 'Finance & Payroll', icon: FileText, roles: ['ADMIN'] },
-  { label: 'Salary Structures', path: '/payroll/structures', keywords: ['salary structures', 'structures'], category: 'Finance & Payroll', icon: Users, roles: ['ADMIN'] },
-  { label: 'Payroll Processing', path: '/payroll/processing', keywords: ['payroll processing', 'process salary', 'disburse'], category: 'Finance & Payroll', icon: Layers, roles: ['ADMIN'] },
-  { label: 'Payslips Desk', path: '/payroll/payslips', keywords: ['payslips desk', 'all payslips', 'generate payslip'], category: 'Finance & Payroll', icon: FileCode, roles: ['ADMIN'] },
-  { label: 'Calendar / Holiday Calendar', path: '/payroll/holidays', keywords: ['calendar', 'holidays', 'holiday calendar', 'vacation calendar'], category: 'Finance & Payroll', icon: Calendar, roles: ['ADMIN'] },
-  { label: 'Payroll Reports', path: '/payroll/reports', keywords: ['payroll reports', 'financial reports'], category: 'Finance & Payroll', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { label: 'Payroll', path: '/payroll/dashboard', moduleKey: CRM_MODULE_KEYS.PAYROLL_DASHBOARD, keywords: ['payroll', 'pay', 'salary', 'finance', 'payroll dashboard'], category: 'Finance & Payroll', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { label: 'My Payslips & Salary', path: '/my-payroll', moduleKey: CRM_MODULE_KEYS.MY_PAYROLL, keywords: ['payroll', 'pay', 'my payslips', 'salary', 'my payroll', 'payslip'], category: 'Finance & Payroll', icon: FileText, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER'] },
+  { label: 'Salary Templates', path: '/payroll/templates', moduleKey: CRM_MODULE_KEYS.PAYROLL_TEMPLATES, keywords: ['salary templates', 'templates', 'payroll templates'], category: 'Finance & Payroll', icon: FileText, roles: ['ADMIN'] },
+  { label: 'Salary Structures', path: '/payroll/structures', moduleKey: CRM_MODULE_KEYS.PAYROLL_STRUCTURES, keywords: ['salary structures', 'structures'], category: 'Finance & Payroll', icon: Users, roles: ['ADMIN'] },
+  { label: 'Payroll Processing', path: '/payroll/processing', moduleKey: CRM_MODULE_KEYS.PAYROLL_PROCESS, keywords: ['payroll processing', 'process salary', 'disburse'], category: 'Finance & Payroll', icon: Layers, roles: ['ADMIN'] },
+  { label: 'Payslips Desk', path: '/payroll/payslips', moduleKey: CRM_MODULE_KEYS.PAYROLL_PAYSLIPS, keywords: ['payslips desk', 'all payslips', 'generate payslip'], category: 'Finance & Payroll', icon: FileCode, roles: ['ADMIN'] },
+  { label: 'Calendar / Holiday Calendar', path: '/payroll/holidays', moduleKey: CRM_MODULE_KEYS.PAYROLL_HOLIDAYS, keywords: ['calendar', 'holidays', 'holiday calendar', 'vacation calendar'], category: 'Finance & Payroll', icon: Calendar, roles: ['ADMIN'] },
 
   // System Control & Directories
-  { label: 'Employees Directory', path: '/employees', keywords: ['employees', 'emp', 'employee directory', 'staff'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
-  { label: 'Interns Directory', path: '/interns', keywords: ['interns', 'intern', 'intern directory'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
-  { label: 'Team Leaders Directory', path: '/team-leaders', keywords: ['team leaders', 'tl', 'leads', 'managers'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
-  { label: 'Teams', path: '/teams', keywords: ['teams', 'departments', 'groups'], category: 'System Control', icon: Briefcase, roles: ['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE'] },
-  { label: 'Reports', path: '/reports', keywords: ['reports', 'analytics', 'metrics'], category: 'System Control', icon: BarChart3, roles: ['ADMIN', 'TEAM_LEADER'] },
-  { label: 'Audit Logs', path: '/audit-logs', keywords: ['audit logs', 'audit', 'activity log', 'history'], category: 'System Control', icon: History, roles: ['ADMIN'] },
-  { label: 'Settings', path: '/settings', keywords: ['settings', 'site settings', 'config', 'preferences'], category: 'System Control', icon: Settings, roles: ['ADMIN'] },
+  { label: 'Employees Directory', path: '/employees', moduleKey: CRM_MODULE_KEYS.REGISTRY_EMPLOYEES, keywords: ['employees', 'emp', 'employee directory', 'staff'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
+  { label: 'Interns Directory', path: '/interns', moduleKey: CRM_MODULE_KEYS.REGISTRY_INTERNS, keywords: ['interns', 'intern', 'intern directory'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
+  { label: 'Team Leaders Directory', path: '/team-leaders', moduleKey: CRM_MODULE_KEYS.REGISTRY_TEAMLEADERS, keywords: ['team leaders', 'tl', 'leads', 'managers'], category: 'System Control', icon: Users, roles: ['ADMIN'] },
+  { label: 'Teams', path: '/teams', moduleKey: CRM_MODULE_KEYS.TEAMS_HUB, keywords: ['teams', 'departments', 'groups'], category: 'System Control', icon: Briefcase, roles: ['ADMIN', 'TEAM_LEADER', 'INTERN', 'EMPLOYEE'] },
+  { label: 'Reports', path: '/reports', moduleKey: CRM_MODULE_KEYS.REPORTS, keywords: ['reports', 'analytics', 'metrics'], category: 'System Control', icon: BarChart3, roles: ['ADMIN', 'TEAM_LEADER'] },
+  { label: 'Audit Logs', path: '/audit-logs', moduleKey: CRM_MODULE_KEYS.AUDIT_LOGS, keywords: ['audit logs', 'audit', 'activity log', 'history'], category: 'System Control', icon: History, roles: ['ADMIN'] },
+  { label: 'Settings', path: '/settings', moduleKey: CRM_MODULE_KEYS.SITE_SETTINGS, keywords: ['settings', 'site settings', 'config', 'preferences'], category: 'System Control', icon: Settings, roles: ['ADMIN'] },
 
   // Super Admin Control & Builder
   { label: 'Organization Manager', path: '/super-admin/organization', keywords: ['organization', 'positions', 'position', 'pos-mgr', 'pos-snr', 'pos-int', 'ranks', 'senior', 'lead', 'manager', 'director', 'branches', 'departments'], category: 'Platform Control', icon: Award, roles: ['SUPER_ADMIN'] },
   { label: 'Users Directory', path: '/super-admin/users', keywords: ['users directory', 'all users', 'superadmin users', 'senior', 'junior', 'lead', 'manager'], category: 'Platform Control', icon: Users, roles: ['SUPER_ADMIN'] },
   { label: 'Team Directory', path: '/super-admin/teams', keywords: ['team directory', 'superadmin teams'], category: 'Platform Control', icon: Briefcase, roles: ['SUPER_ADMIN'] },
-  { label: 'Employee Self-Service', path: '/self-service', keywords: ['self service', 'my shift', 'portal', 'timeline', 'punches', 'attendance'], category: 'Operations', icon: UserIcon, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER', 'ADMIN', 'SUPER_ADMIN'] },
+  { label: 'Employee Self-Service', path: '/self-service', moduleKey: CRM_MODULE_KEYS.SELF_SERVICE, keywords: ['self service', 'my shift', 'portal', 'timeline', 'punches', 'attendance'], category: 'Operations', icon: UserIcon, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER', 'ADMIN', 'SUPER_ADMIN'] },
   { label: 'Admin Management', path: '/super-admin/admins', keywords: ['admin management', 'admins', 'admin list'], category: 'Platform Control', icon: ShieldCheck, roles: ['SUPER_ADMIN'] },
+  { label: 'Role-Based Access Management', path: '/super-admin/role-access', keywords: ['role access', 'permissions', 'access templates', 'roles', 'template', 'role-based access management'], category: 'Platform Control', icon: KeyRound, roles: ['SUPER_ADMIN'] },
   { label: 'Branding & Theme', path: '/super-admin/branding', keywords: ['branding', 'theme', 'logo', 'colors'], category: 'Platform Control', icon: Sparkles, roles: ['SUPER_ADMIN'] },
   { label: 'Late Policy', path: '/super-admin/late-policy', keywords: ['late policy', 'late', 'warning', 'deduction', 'lates'], category: 'Platform Control', icon: Clock, roles: ['SUPER_ADMIN'] },
   { label: 'Backup & Restore', path: '/super-admin/backup-restore', keywords: ['backup', 'restore', 'live backup', 'disaster recovery', 'sql dump', 'snapshot', 'mysql'], category: 'Platform Control', icon: HardDrive, roles: ['SUPER_ADMIN'] }
@@ -116,6 +123,7 @@ const DashboardLayout = ({ children }) => {
   const currentFull = location.pathname + location.search;
 
   const { user, logout } = useAuth();
+  const { canView } = usePermissions();
   const { notifications, unreadCount, markRead, markAllAsRead, deleteNotification, clearAllNotifications } = useSocket();
   const { companyName, companyLogo, themeMode, updateThemeSettings, canUseChat } = useTheme();
 
@@ -237,7 +245,14 @@ const DashboardLayout = ({ children }) => {
       const hasPermission = item.roles.includes(userRoleUpper);
       if (!hasPermission) return false;
 
-      // 2. Partial matching on label, category, path, or keywords
+      // 2. Dynamic Access Template Permission Check (Phase 4)
+      if (item.moduleKey && userRoleUpper !== 'SUPER_ADMIN') {
+        if (item.moduleKey !== CRM_MODULE_KEYS.PROFILE && item.moduleKey !== 'profile' && !canView(item.moduleKey)) {
+          return false;
+        }
+      }
+
+      // 3. Partial matching on label, category, path, or keywords
       const labelMatch = item.label.toLowerCase().includes(q);
       const categoryMatch = item.category.toLowerCase().includes(q);
       const pathMatch = item.path.toLowerCase().includes(q);
@@ -245,7 +260,7 @@ const DashboardLayout = ({ children }) => {
 
       return labelMatch || categoryMatch || pathMatch || keywordMatch;
     });
-  }, [searchQuery, userRoleUpper, canUseChat]);
+  }, [searchQuery, userRoleUpper, canUseChat, canView]);
 
   // Handle outside click for Search Dropdown
   useEffect(() => {
@@ -346,6 +361,7 @@ const DashboardLayout = ({ children }) => {
         { label: 'Users Directory', path: '/super-admin/users', icon: Users, roles: ['SUPER_ADMIN'] },
         { label: 'Team Directory', path: '/super-admin/teams', icon: Briefcase, roles: ['SUPER_ADMIN'] },
         { label: 'Admin Management', path: '/super-admin/admins', icon: ShieldCheck, roles: ['SUPER_ADMIN'] },
+        { label: 'Role-Based Access Management', path: '/super-admin/role-access', icon: KeyRound, roles: ['SUPER_ADMIN'] },
         { label: 'Organization Manager', path: '/super-admin/organization', icon: Award, roles: ['SUPER_ADMIN'] },
         { label: 'Leave Policy', path: '/super-admin/leave-policy', icon: Calendar, roles: ['SUPER_ADMIN'] },
         { label: 'Late Policy', path: '/super-admin/late-policy', icon: Clock, roles: ['SUPER_ADMIN'] },
@@ -355,70 +371,71 @@ const DashboardLayout = ({ children }) => {
     {
       title: 'Overview',
       items: [
-        { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-        { label: 'My Profile', path: '/profile', icon: UserIcon, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] }
+        { label: 'Dashboard', path: '/', moduleKey: CRM_MODULE_KEYS.DASHBOARD, icon: LayoutDashboard, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+        { label: 'My Profile', path: '/profile', moduleKey: CRM_MODULE_KEYS.PROFILE, icon: UserIcon, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] }
       ]
     },
     {
       title: 'Workspaces',
       items: [
-        { label: 'Projects', path: '/projects', icon: FolderOpen, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] },
-        { label: 'Active Board', path: '/tasks?tab=Board', icon: Layers, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-        { label: 'Roadmap', path: '/tasks?tab=Timeline', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] }
+        { label: 'Projects', path: '/projects', moduleKey: CRM_MODULE_KEYS.PROJECTS, icon: FolderOpen, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] },
+        { label: 'Active Board', path: '/tasks?tab=Board', moduleKey: CRM_MODULE_KEYS.TASKS, icon: Layers, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Roadmap', path: '/tasks?tab=Timeline', moduleKey: CRM_MODULE_KEYS.TASKS, icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] }
       ]
     },
     {
       title: 'Communication',
       items: [
-        { label: 'Chat', path: '/chat', icon: MessageSquare, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-        { label: 'Announcements', path: '/announcements', icon: Megaphone, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] }
+        { label: 'Chat', path: '/chat', moduleKey: CRM_MODULE_KEYS.CHAT, icon: MessageSquare, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Announcements', path: '/announcements', moduleKey: CRM_MODULE_KEYS.ANNOUNCEMENTS, icon: Megaphone, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Meetings', path: '/meetings', moduleKey: CRM_MODULE_KEYS.MEETINGS, icon: Video, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] }
       ]
     },
 
     {
       title: 'Operations',
       items: [
-        { label: 'My Work Logs', path: '/worklogs', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-        { label: 'Attendance Portal', path: '/attendance', icon: Clock, roles: ['INTERN', 'TEAM_LEADER', 'EMPLOYEE'] },
-        { label: 'Attendance', path: '/attendance-audit', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Attendance Audit', path: '/attendance-audit', icon: Clock, roles: ['TEAM_LEADER'] },
-        { label: 'Leave Management', path: '/leave-management', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-        { label: 'Work Calendar', path: '/operations/work-calendar', icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
-        { label: 'Ticket Desk', path: '/tickets', icon: Ticket, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'My Work Logs', path: '/worklogs', moduleKey: CRM_MODULE_KEYS.WORKLOGS, icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Attendance Portal', path: '/attendance', moduleKey: CRM_MODULE_KEYS.ATTENDANCE, icon: Clock, roles: ['INTERN', 'TEAM_LEADER', 'EMPLOYEE'] },
+        { label: 'Attendance', path: '/attendance-audit', moduleKey: CRM_MODULE_KEYS.ATTENDANCE_AUDIT, icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Attendance Audit', path: '/attendance-audit', moduleKey: CRM_MODULE_KEYS.ATTENDANCE_AUDIT, icon: Clock, roles: ['TEAM_LEADER'] },
+        { label: 'Leave Management', path: '/leave-management', moduleKey: CRM_MODULE_KEYS.LEAVE_MANAGEMENT, icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Work Calendar', path: '/operations/work-calendar', moduleKey: CRM_MODULE_KEYS.WORK_CALENDAR, icon: Calendar, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Ticket Desk', path: '/tickets', moduleKey: CRM_MODULE_KEYS.TICKETS, icon: Ticket, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
 
-        { label: 'Asset Management', path: '/assets', icon: Laptop, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] }
+        { label: 'Asset Management', path: '/assets', moduleKey: CRM_MODULE_KEYS.ASSETS, icon: Laptop, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN', 'SUPER_ADMIN'] },
+        { label: 'Company Documents', path: '/company-documents', moduleKey: CRM_MODULE_KEYS.COMPANY_DOCUMENTS, icon: Folder, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] }
       ]
     },
     {
       title: 'Finance & Payroll',
       items: [
-        { label: 'Payroll Dashboard', path: '/payroll/dashboard', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Salary Templates', path: '/payroll/templates', icon: FileText, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Salary Structures', path: '/payroll/structures', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Payroll Processing', path: '/payroll/processing', icon: Layers, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Payslips Desk', path: '/payroll/payslips', icon: FileCode, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Holiday Calendar', path: '/payroll/holidays', icon: Calendar, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Payroll Reports', path: '/payroll/reports', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Payroll Settings', path: '/payroll/settings', icon: Settings, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'My Payslips & Salary', path: '/my-payroll', icon: FileText, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER'] }
+        { label: 'Payroll Dashboard', path: '/payroll/dashboard', moduleKey: CRM_MODULE_KEYS.PAYROLL_DASHBOARD, icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Salary Templates', path: '/payroll/templates', moduleKey: CRM_MODULE_KEYS.PAYROLL_TEMPLATES, icon: FileText, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Salary Structures', path: '/payroll/structures', moduleKey: CRM_MODULE_KEYS.PAYROLL_STRUCTURES, icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Payroll Processing', path: '/payroll/processing', moduleKey: CRM_MODULE_KEYS.PAYROLL_PROCESS, icon: Layers, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Payslips Desk', path: '/payroll/payslips', moduleKey: CRM_MODULE_KEYS.PAYROLL_PAYSLIPS, icon: FileCode, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Holiday Calendar', path: '/payroll/holidays', moduleKey: CRM_MODULE_KEYS.PAYROLL_HOLIDAYS, icon: Calendar, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Payroll Settings', path: '/payroll/settings', moduleKey: CRM_MODULE_KEYS.PAYROLL_SETTINGS, icon: Settings, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'My Payslips & Salary', path: '/my-payroll', moduleKey: CRM_MODULE_KEYS.MY_PAYROLL, icon: FileText, roles: ['EMPLOYEE', 'INTERN', 'TEAM_LEADER'] }
       ]
     },
     {
       title: 'System Control',
       items: [
-        { label: 'Intern Registry', path: '/interns', icon: Users, roles: ['ADMIN'] },
-        { label: 'Employee Registry', path: '/employees', icon: Users, roles: ['ADMIN'] },
-        { label: 'Team Leader Registry', path: '/team-leaders', icon: Users, roles: ['ADMIN'] },
-        { label: 'Team Hub', path: '/teams', icon: Briefcase, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
-        { label: 'Report Center', path: '/reports', icon: BarChart3, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] },
-        { label: 'Audit Logs', path: '/audit-logs', icon: History, roles: ['ADMIN', 'SUPER_ADMIN'] },
-        { label: 'Site Settings', path: '/settings', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN'] }
+        { label: 'Intern Registry', path: '/interns', moduleKey: CRM_MODULE_KEYS.REGISTRY_INTERNS, icon: Users, roles: ['ADMIN'] },
+        { label: 'Employee Registry', path: '/employees', moduleKey: CRM_MODULE_KEYS.REGISTRY_EMPLOYEES, icon: Users, roles: ['ADMIN'] },
+        { label: 'Team Leader Registry', path: '/team-leaders', moduleKey: CRM_MODULE_KEYS.REGISTRY_TEAMLEADERS, icon: Users, roles: ['ADMIN'] },
+        { label: 'Team Hub', path: '/teams', moduleKey: CRM_MODULE_KEYS.TEAMS_HUB, icon: Briefcase, roles: ['ADMIN', 'EMPLOYEE', 'TEAM_LEADER', 'INTERN'] },
+        { label: 'Report Center', path: '/reports', moduleKey: CRM_MODULE_KEYS.REPORTS, icon: BarChart3, roles: ['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN'] },
+        { label: 'Audit Logs', path: '/audit-logs', moduleKey: CRM_MODULE_KEYS.AUDIT_LOGS, icon: History, roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { label: 'Site Settings', path: '/settings', moduleKey: CRM_MODULE_KEYS.SITE_SETTINGS, icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN'] }
       ]
     },
     {
       title: 'Account',
       items: [
-        { label: 'My Profile', path: '/profile', icon: UserIcon, roles: ['SUPER_ADMIN'] }
+        { label: 'My Profile', path: '/profile', moduleKey: CRM_MODULE_KEYS.PROFILE, icon: UserIcon, roles: ['SUPER_ADMIN'] }
       ]
     }
   ];
@@ -493,6 +510,9 @@ const DashboardLayout = ({ children }) => {
     } else if (pathname === '/chat') {
       parts.push({ label: 'Communication', path: '/chat' });
       parts.push({ label: 'Chat', path: '/chat' });
+    } else if (pathname === '/meetings') {
+      parts.push({ label: 'Communication', path: '/meetings' });
+      parts.push({ label: 'Meetings', path: '/meetings' });
     } else if (pathname === '/announcements') {
       parts.push({ label: 'Operations', path: '/announcements' });
       parts.push({ label: 'Announcements', path: '/announcements' });
@@ -576,7 +596,15 @@ const DashboardLayout = ({ children }) => {
             {categories.map((cat) => {
               const filteredItems = cat.items.filter(item => {
                 if (item.path === '/chat' && !canUseChat) return false;
-                return item.roles.includes(user?.role);
+                if (!item.roles.includes(user?.role)) return false;
+
+                // Phase 4: Dynamic Access Template Permission filtering
+                if (item.moduleKey && user?.role !== 'SUPER_ADMIN') {
+                  if (item.moduleKey !== CRM_MODULE_KEYS.PROFILE && item.moduleKey !== 'profile' && !canView(item.moduleKey)) {
+                    return false;
+                  }
+                }
+                return true;
               });
               if (filteredItems.length === 0) return null;
 

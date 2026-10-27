@@ -200,14 +200,26 @@ const createUser = async (req, res) => {
     // Set intern default values automatically for intern onboarding
     let finalEmploymentType = employmentType || null;
     let finalStatus = req.body.status || 'ACTIVE';
-    let finalJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
+
+    let finalJoiningDate = new Date();
+    if (joiningDate) {
+      const parsedJoining = new Date(joiningDate);
+      if (isNaN(parsedJoining.getTime())) {
+        return res.status(400).json({ message: 'Invalid joining date format.' });
+      }
+      if (typeof joiningDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(joiningDate.trim())) {
+        finalJoiningDate = new Date(`${joiningDate.trim()}T00:00:00.000Z`);
+      } else {
+        finalJoiningDate = parsedJoining;
+      }
+    }
+
     let finalProbationPeriod = probationPeriod || null;
     let finalShiftId = shiftId || null;
 
     if (finalRole === 'INTERN') {
       finalEmploymentType = 'Internship';
       finalStatus = 'ACTIVE';
-      finalJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
       finalProbationPeriod = null;
       if (!finalShiftId) {
         const defaultShift = await prisma.shiftMaster.findFirst({ where: { status: 'ACTIVE' } });
@@ -291,6 +303,9 @@ const createUser = async (req, res) => {
             costCenter: costCenter || null,
             businessUnit: businessUnit || null,
             workLocation: workLocation || null,
+            autoClockOutEnabled: (req.body.autoClockOutEnabled !== undefined)
+              ? (req.body.autoClockOutEnabled === true || req.body.autoClockOutEnabled === 'true')
+              : true,
             customData: Object.keys(customData).length > 0 ? customData : undefined
           }
         });
@@ -328,6 +343,29 @@ const createUser = async (req, res) => {
         broadcastShiftUpdate(finalOrganizationId, { action: 'USER_SHIFT_ASSIGNED', userId: newUser.id, shiftId: finalShiftId });
       } catch (smErr) {
         console.warn('[createUser] Failed to sync shiftMember:', smErr.message);
+      }
+    }
+
+    // Sync attendanceLocationIds if provided
+    if (req.body.attendanceLocationIds && Array.isArray(req.body.attendanceLocationIds)) {
+      try {
+        const validLocs = await prisma.attendanceLocation.findMany({
+          where: {
+            id: { in: req.body.attendanceLocationIds },
+            organizationId: newUser.organizationId
+          },
+          select: { id: true }
+        });
+        if (validLocs.length > 0) {
+          await prisma.userAttendanceLocation.createMany({
+            data: validLocs.map(l => ({
+              userId: newUser.id,
+              attendanceLocationId: l.id
+            }))
+          });
+        }
+      } catch (lErr) {
+        console.warn('[onboardUser] Failed to sync attendance locations:', lErr.message);
       }
     }
 
@@ -441,6 +479,11 @@ const getAllUsers = async (req, res) => {
           shiftRef: true,
           teamMembers: {
             include: { team: true }
+          },
+          assignedAttendanceLocations: {
+            include: {
+              attendanceLocation: true
+            }
           }
         }
       }),
@@ -452,7 +495,9 @@ const getAllUsers = async (req, res) => {
       return {
         ...details,
         department: details.department || details.departmentRef?.name || null,
-        profilePhoto: details.profilePic || null
+        profilePhoto: details.profilePic || null,
+        assignedLocations: details.assignedAttendanceLocations ? details.assignedAttendanceLocations.map(a => a.attendanceLocation) : [],
+        attendanceLocationIds: details.assignedAttendanceLocations ? details.assignedAttendanceLocations.map(a => a.attendanceLocationId) : []
       };
     });
 
@@ -508,6 +553,11 @@ const getUserById = async (req, res) => {
         },
         assignedAssets: {
           orderBy: { createdAt: 'desc' }
+        },
+        assignedAttendanceLocations: {
+          include: {
+            attendanceLocation: true
+          }
         }
       }
     });
@@ -534,7 +584,9 @@ const getUserById = async (req, res) => {
     res.json({
       ...details,
       shiftAssignment,
-      department: details.department || details.departmentRef?.name || null
+      department: details.department || details.departmentRef?.name || null,
+      assignedLocations: details.assignedAttendanceLocations ? details.assignedAttendanceLocations.map(a => a.attendanceLocation) : [],
+      attendanceLocationIds: details.assignedAttendanceLocations ? details.assignedAttendanceLocations.map(a => a.attendanceLocationId) : []
     });
   } catch (error) {
     console.error('Get user by ID error:', error);
@@ -589,15 +641,66 @@ const editUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
+    // Organization tenant isolation enforcement
+    if (req.user?.role !== 'SUPER_ADMIN' && existingUser.organizationId && req.user?.organizationId && existingUser.organizationId !== req.user.organizationId) {
+      return res.status(403).json({ message: 'Access denied: Employee belongs to a different organization.' });
+    }
+
+    // Auto Clock-Out individual setting update enforcement: only ADMIN or SUPER_ADMIN
+    if (req.body.autoClockOutEnabled !== undefined) {
+      if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({ message: 'Unauthorized: Only Administrators can modify employee Auto Clock-Out settings.' });
+      }
+    }
+
     const data = {
       name,
       email,
       phone,
       college: college !== undefined ? (college || companyName || null) : existingUser.college,
-      department: department !== undefined ? department : existingUser.department,
-      role,
-      status
+      department: department !== undefined ? department : existingUser.department
     };
+
+    // Role & status modification safeguards:
+    // Only SUPER_ADMIN or ADMIN can change roles or status.
+    // Users cannot change their own role or elevate anyone to SUPER_ADMIN.
+    if (role !== undefined) {
+      if (req.user?.role === 'SUPER_ADMIN') {
+        data.role = role;
+      } else if (req.user?.role === 'ADMIN' && existingUser.id !== req.user?.id && role !== 'SUPER_ADMIN') {
+        data.role = role;
+      }
+    }
+    if (status !== undefined) {
+      if (req.user?.role === 'SUPER_ADMIN' || (req.user?.role === 'ADMIN' && existingUser.id !== req.user?.id)) {
+        data.status = status;
+      }
+    }
+
+    // Access Template assignment safeguards:
+    // Only SUPER_ADMIN can change accessTemplateId, and template must belong to target user's organization
+    if (req.body.accessTemplateId !== undefined) {
+      if (req.user?.role === 'SUPER_ADMIN') {
+        if (req.body.accessTemplateId === null || req.body.accessTemplateId === '') {
+          data.accessTemplateId = null;
+        } else {
+          const targetTemplate = await prisma.accessTemplate.findUnique({
+            where: { id: req.body.accessTemplateId }
+          });
+          if (!targetTemplate) {
+            return res.status(400).json({ message: 'Selected access template does not exist.' });
+          }
+          if (targetTemplate.organizationId !== (data.organizationId || existingUser.organizationId)) {
+            return res.status(403).json({ message: 'Access template belongs to a different organization.' });
+          }
+          data.accessTemplateId = req.body.accessTemplateId;
+        }
+      }
+    }
+
+    if (req.body.autoClockOutEnabled !== undefined) {
+      data.autoClockOutEnabled = req.body.autoClockOutEnabled === true || req.body.autoClockOutEnabled === 'true';
+    }
 
     if (req.user?.role === 'SUPER_ADMIN' && req.body.organizationId !== undefined && req.body.organizationId !== null && req.body.organizationId !== '') {
       const targetOrg = await prisma.organization.findUnique({ where: { id: req.body.organizationId } });
@@ -734,8 +837,19 @@ const editUser = async (req, res) => {
       }
     }
 
-    if (joiningDate) {
-      data.joiningDate = new Date(joiningDate);
+    if (joiningDate !== undefined && joiningDate !== null && joiningDate !== '') {
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role)) {
+        return res.status(403).json({ message: 'Unauthorized: Only Administrators can modify employee Joining Date.' });
+      }
+      const parsedJoining = new Date(joiningDate);
+      if (isNaN(parsedJoining.getTime())) {
+        return res.status(400).json({ message: 'Invalid joining date format.' });
+      }
+      if (typeof joiningDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(joiningDate.trim())) {
+        data.joiningDate = new Date(`${joiningDate.trim()}T00:00:00.000Z`);
+      } else {
+        data.joiningDate = parsedJoining;
+      }
     }
 
     const updatedUser = await prisma.user.update({
@@ -759,6 +873,49 @@ const editUser = async (req, res) => {
         broadcastShiftUpdate(updatedUser.organizationId, { action: 'USER_SHIFT_UPDATED', userId: id, shiftId });
       } catch (smErr) {
         console.warn('[editUser] Failed to sync shiftMember:', smErr.message);
+      }
+    }
+
+    // Phase 4: Notify active user session on template assignment change
+    if (req.body.accessTemplateId !== undefined) {
+      try {
+        const { getIo } = require('../socket');
+        const io = getIo();
+        if (io) {
+          io.emit('user_permissions_updated', {
+            userId: id,
+            accessTemplateId: updatedUser.accessTemplateId,
+            organizationId: updatedUser.organizationId
+          });
+        }
+      } catch (e) {}
+    }
+
+    // Sync attendanceLocationIds if provided
+    const { attendanceLocationIds } = req.body;
+    if (attendanceLocationIds !== undefined) {
+      try {
+        const locIds = Array.isArray(attendanceLocationIds) ? attendanceLocationIds : [];
+        const validLocs = locIds.length > 0 ? await prisma.attendanceLocation.findMany({
+          where: {
+            id: { in: locIds },
+            organizationId: updatedUser.organizationId
+          },
+          select: { id: true }
+        }) : [];
+        const validIds = validLocs.map(l => l.id);
+
+        await prisma.$transaction([
+          prisma.userAttendanceLocation.deleteMany({ where: { userId: id } }),
+          prisma.userAttendanceLocation.createMany({
+            data: validIds.map(locId => ({
+              userId: id,
+              attendanceLocationId: locId
+            }))
+          })
+        ]);
+      } catch (locErr) {
+        console.warn('[editUser] Failed to sync attendance locations:', locErr.message);
       }
     }
 
@@ -962,7 +1119,7 @@ const bulkImport = async (req, res) => {
     const skippedUsers = [];
 
     for (let u of usersList) {
-      const { name, email, phone, dob, college, department, role } = u;
+      const { name, email, phone, dob, college, department, role, joiningDate } = u;
 
       if (!name || !email || !dob || !role) {
         skippedUsers.push({ email, reason: 'Missing required fields.' });
@@ -985,6 +1142,18 @@ const bulkImport = async (req, res) => {
         continue;
       }
 
+      let parsedJoining = new Date();
+      if (joiningDate) {
+        const p = new Date(joiningDate);
+        if (!isNaN(p.getTime())) {
+          if (typeof joiningDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(joiningDate.trim())) {
+            parsedJoining = new Date(`${joiningDate.trim()}T00:00:00.000Z`);
+          } else {
+            parsedJoining = p;
+          }
+        }
+      }
+
       const created = await prisma.user.create({
         data: {
           employeeId,
@@ -993,6 +1162,7 @@ const bulkImport = async (req, res) => {
           password: hashedPassword,
           phone,
           dob: parsedDob,
+          joiningDate: parsedJoining,
           college,
           department,
           role,
@@ -1051,6 +1221,100 @@ const bulkDelete = async (req, res) => {
   } catch (error) {
     console.error('Bulk delete error:', error);
     res.status(500).json({ message: 'Failed to process bulk delete.' });
+  }
+};
+
+const bulkUpdateAutoClockOut = async (req, res) => {
+  try {
+    const ids = req.body.userIds || req.body.ids;
+    const enabledInput = req.body.enabled !== undefined ? req.body.enabled : req.body.autoClockOutEnabled;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Invalid or empty list of employee IDs.' });
+    }
+
+    if (enabledInput === undefined || enabledInput === null) {
+      return res.status(400).json({ message: 'The "enabled" boolean property is required.' });
+    }
+
+    const enabled = enabledInput === true || enabledInput === 'true';
+
+    // Retrieve candidate users to validate existence, role, and tenant boundaries
+    const candidateUsers = await prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        name: true,
+        employeeId: true,
+        email: true,
+        role: true,
+        organizationId: true
+      }
+    });
+
+    const foundIdMap = new Map(candidateUsers.map(u => [u.id, u]));
+    const eligibleIds = [];
+    const failedItems = [];
+
+    for (const targetId of ids) {
+      const userObj = foundIdMap.get(targetId);
+      if (!userObj) {
+        failedItems.push({ id: targetId, reason: 'Employee record not found.' });
+        continue;
+      }
+
+      // Prevent modifying super admin account
+      if (userObj.role === 'SUPER_ADMIN' || userObj.employeeId === 'AD-0001' || userObj.email === 'superadmin@enterprise-crm.com') {
+        failedItems.push({ id: targetId, employeeId: userObj.employeeId, reason: 'Super Admin account setting cannot be modified.' });
+        continue;
+      }
+
+      // Enforce organization isolation: non-super-admins cannot modify users of another organization
+      if (req.user?.role !== 'SUPER_ADMIN' && userObj.organizationId && req.user?.organizationId && userObj.organizationId !== req.user.organizationId) {
+        failedItems.push({ id: targetId, employeeId: userObj.employeeId, reason: 'Access denied: Employee belongs to a different organization.' });
+        continue;
+      }
+
+      eligibleIds.push(targetId);
+    }
+
+    let updatedCount = 0;
+    if (eligibleIds.length > 0) {
+      const updateResult = await prisma.user.updateMany({
+        where: { id: { in: eligibleIds } },
+        data: { autoClockOutEnabled: enabled }
+      });
+      updatedCount = updateResult.count;
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      action: 'USER_BULK_AUTO_CLOCK_OUT_UPDATE',
+      details: `Bulk updated Auto Clock-Out to ${enabled ? 'ENABLED' : 'DISABLED'} for ${updatedCount} employees. Total requested: ${ids.length}. Failed: ${failedItems.length}.`
+    }).catch(() => {});
+
+    const failedCount = failedItems.length;
+    let message = '';
+    if (failedCount === 0) {
+      message = `Successfully ${enabled ? 'enabled' : 'disabled'} Auto Clock-Out for all ${updatedCount} selected employees.`;
+    } else if (updatedCount === 0) {
+      message = `Failed to update Auto Clock-Out. None of the ${failedCount} selected employees could be updated.`;
+    } else {
+      message = `Updated ${updatedCount} employees successfully (${failedCount} failed or skipped due to security restrictions).`;
+    }
+
+    res.json({
+      success: true,
+      enabled,
+      updatedCount,
+      failedCount,
+      totalCount: ids.length,
+      failedItems,
+      message
+    });
+  } catch (error) {
+    console.error('Bulk update auto clock out error:', error);
+    res.status(500).json({ message: 'Failed to process bulk auto clock-out update.' });
   }
 };
 
@@ -1453,6 +1717,7 @@ module.exports = {
   resetUserPassword,
   bulkImport,
   bulkDelete,
+  bulkUpdateAutoClockOut,
   promoteUser,
   getUserPromotionHistory,
   removeProfilePicture,

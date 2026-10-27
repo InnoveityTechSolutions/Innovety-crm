@@ -57,6 +57,7 @@ export const clearAuthStorage = () => {
         key.startsWith('mrf_login_theme_') ||
         key.startsWith('mrf_theme_') ||
         key.startsWith('mrf_mode_') ||
+        key.startsWith('attendance_audit_selected_members_') ||
         key === 'sidebar_pinned'
       ) {
         preserved[key] = localStorage.getItem(key);
@@ -151,12 +152,13 @@ api.interceptors.response.use(
 );
 
 export const getUploadUrl = (path) => {
-  if (!path || typeof path !== 'string') return '';
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
-    return encodeURI(path);
+  if (!path || typeof path !== 'string' || !path.trim()) return '';
+  const trimmed = path.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return encodeURI(trimmed);
   }
 
-  let cleanPath = path.startsWith('/') ? path : `/${path}`;
+  let cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 
   if (cleanPath.startsWith('/uploads/')) {
     cleanPath = `/api${cleanPath}`;

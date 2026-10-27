@@ -153,9 +153,10 @@ export default function AttendanceHistorySection({ user, refreshTrigger }) {
   const getLocationBadge = (log) => {
     const loc = log.workLocation;
     if (loc === 'OFFICE') {
+      const locationName = log.attendanceLocation?.name;
       return (
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
-          <Building2 className="w-3.5 h-3.5 text-blue-500" /> Office
+          <Building2 className="w-3.5 h-3.5 text-blue-500" /> {locationName ? locationName : 'Office'}
         </span>
       );
     }
@@ -202,7 +203,8 @@ export default function AttendanceHistorySection({ user, refreshTrigger }) {
       const isSunday = dayDateObj.getUTCDay() === 0;
       const rec = dateRecordMap.get(dateStr);
 
-      const userJoiningDateStr = user?.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : '';
+      const userJoining = user?.joiningDate || user?.createdAt;
+      const userJoiningDateStr = userJoining ? new Date(userJoining).toISOString().split('T')[0] : '';
       const isBeforeJoining = Boolean(userJoiningDateStr && dateStr < userJoiningDateStr);
 
       let cellBg = 'bg-card border-border/50';

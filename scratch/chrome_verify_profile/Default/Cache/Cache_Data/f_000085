@@ -1,0 +1,598 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/organization/ShiftSwapModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion, AnimatePresence } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import {
+  X,
+  ArrowRightLeft,
+  Calendar,
+  User,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  RefreshCw,
+  ArrowRight
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const ShiftSwapModal = ({
+  isOpen,
+  onClose,
+  organizationId,
+  onSuccess
+}) => {
+  _s();
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [userAId, setUserAId] = useState("");
+  const [userBId, setUserBId] = useState("");
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("Peer schedule swap request");
+  const [previewA, setPreviewA] = useState(null);
+  const [previewB, setPreviewB] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  useEffect(() => {
+    if (isOpen && organizationId) {
+      setLoadingEmployees(true);
+      api.get("/users", {
+        params: { organizationId, limit: 1e3 }
+      }).then((res) => {
+        if (res.data?.users) {
+          setEmployees(res.data.users.filter((u) => u.status === "ACTIVE"));
+        }
+      }).catch((err) => console.warn("Error fetching employees:", err)).finally(() => setLoadingEmployees(false));
+    }
+  }, [isOpen, organizationId]);
+  useEffect(() => {
+    if (isOpen) {
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1e3);
+      setDate(tomorrow.toISOString().split("T")[0]);
+      setUserAId("");
+      setUserBId("");
+      setReason("Peer schedule swap request");
+      setError(null);
+      setPreviewA(null);
+      setPreviewB(null);
+    }
+  }, [isOpen]);
+  useEffect(() => {
+    if (userAId && userBId && date && userAId !== userBId) {
+      setLoadingPreview(true);
+      api.get("/schedules/day", {
+        params: { organizationId, date }
+      }).then((res) => {
+        if (res.data?.roster) {
+          const rA = res.data.roster.find((r) => r.userId === userAId);
+          const rB = res.data.roster.find((r) => r.userId === userBId);
+          setPreviewA(rA);
+          setPreviewB(rB);
+        }
+      }).catch(() => {
+      }).finally(() => setLoadingPreview(false));
+    } else {
+      setPreviewA(null);
+      setPreviewB(null);
+    }
+  }, [userAId, userBId, date, organizationId]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!userAId || !userBId || !date) return;
+    if (userAId === userBId) {
+      setError("Cannot swap shifts between the same employee.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await api.post("/schedules/swap", {
+        organizationId,
+        userAId,
+        userBId,
+        date,
+        reason
+      });
+      if (res.data?.success) {
+        onSuccess(res.data.message || "Shifts swapped successfully.");
+        onClose();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to swap shifts.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxDEV(AnimatePresence, { children: /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4", children: /* @__PURE__ */ jsxDEV(
+    motion.div,
+    {
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.95 },
+      className: "w-full max-w-xl rounded-3xl border border-border/70 bg-card p-6 sm:p-7 shadow-2xl space-y-5 text-left my-6",
+      children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/50 pb-3.5", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center justify-center", children: /* @__PURE__ */ jsxDEV(ArrowRightLeft, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 144,
+              columnNumber: 17
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 143,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-black text-foreground", children: "Shift Swap" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 147,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Swap shifts between two employees for a designated working day." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 148,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 146,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 142,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: onClose,
+              className: "p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer",
+              children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 157,
+                columnNumber: 15
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 153,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+          lineNumber: 141,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Target Swap Date *" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 164,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "date",
+                required: true,
+                value: date,
+                onChange: (e) => setDate(e.target.value),
+                className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 font-bold text-foreground focus:bg-background outline-none cursor-pointer"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 165,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 163,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3.5", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "First Employee (A) *" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 177,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "select",
+                {
+                  required: true,
+                  value: userAId,
+                  onChange: (e) => setUserAId(e.target.value),
+                  className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2 font-semibold text-foreground focus:bg-background outline-none cursor-pointer",
+                  children: [
+                    /* @__PURE__ */ jsxDEV("option", { value: "", children: "-- Choose Employee A --" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                      lineNumber: 184,
+                      columnNumber: 19
+                    }, this),
+                    employees.map(
+                      (emp) => /* @__PURE__ */ jsxDEV("option", { value: emp.id, disabled: emp.id === userBId, children: [
+                        emp.name,
+                        " (",
+                        emp.employeeId || emp.email,
+                        ")"
+                      ] }, emp.id, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                        lineNumber: 186,
+                        columnNumber: 19
+                      }, this)
+                    )
+                  ]
+                },
+                void 0,
+                true,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 178,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 176,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Second Employee (B) *" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 194,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "select",
+                {
+                  required: true,
+                  value: userBId,
+                  onChange: (e) => setUserBId(e.target.value),
+                  className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2 font-semibold text-foreground focus:bg-background outline-none cursor-pointer",
+                  children: [
+                    /* @__PURE__ */ jsxDEV("option", { value: "", children: "-- Choose Employee B --" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                      lineNumber: 201,
+                      columnNumber: 19
+                    }, this),
+                    employees.map(
+                      (emp) => /* @__PURE__ */ jsxDEV("option", { value: emp.id, disabled: emp.id === userAId, children: [
+                        emp.name,
+                        " (",
+                        emp.employeeId || emp.email,
+                        ")"
+                      ] }, emp.id, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                        lineNumber: 203,
+                        columnNumber: 19
+                      }, this)
+                    )
+                  ]
+                },
+                void 0,
+                true,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 195,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 193,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 175,
+            columnNumber: 13
+          }, this),
+          previewA && previewB && /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: [
+                "Shift Swap Preview for ",
+                date
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 215,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-blue-600 dark:text-blue-400 font-bold", children: "Both Employees Reassigned" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 216,
+                columnNumber: 19
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 214,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-xl bg-card border border-border/60 space-y-1.5", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "font-black text-xs text-foreground", children: previewA.name }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 222,
+                  columnNumber: 21
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "text-[10px] text-muted-foreground", children: [
+                  "Current: ",
+                  /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground", children: previewA.shiftName }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 224,
+                    columnNumber: 32
+                  }, this),
+                  " (",
+                  previewA.startTime,
+                  " – ",
+                  previewA.endTime,
+                  ")"
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 223,
+                  columnNumber: 21
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 pt-1 border-t border-border/40", children: [
+                  /* @__PURE__ */ jsxDEV("span", { children: "Will Receive:" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 227,
+                    columnNumber: 23
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { className: "font-black", children: previewB.shiftName }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 228,
+                    columnNumber: 23
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: [
+                    "(",
+                    previewB.startTime,
+                    " – ",
+                    previewB.endTime,
+                    ")"
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 229,
+                    columnNumber: 23
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 226,
+                  columnNumber: 21
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 221,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-xl bg-card border border-border/60 space-y-1.5", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "font-black text-xs text-foreground", children: previewB.name }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 235,
+                  columnNumber: 21
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "text-[10px] text-muted-foreground", children: [
+                  "Current: ",
+                  /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground", children: previewB.shiftName }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 237,
+                    columnNumber: 32
+                  }, this),
+                  " (",
+                  previewB.startTime,
+                  " – ",
+                  previewB.endTime,
+                  ")"
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 236,
+                  columnNumber: 21
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 pt-1 border-t border-border/40", children: [
+                  /* @__PURE__ */ jsxDEV("span", { children: "Will Receive:" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 240,
+                    columnNumber: 23
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { className: "font-black", children: previewA.shiftName }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 241,
+                    columnNumber: 23
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: [
+                    "(",
+                    previewA.startTime,
+                    " – ",
+                    previewA.endTime,
+                    ")"
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 242,
+                    columnNumber: 23
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                  lineNumber: 239,
+                  columnNumber: 21
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 234,
+                columnNumber: 19
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 219,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 213,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Swap Reason" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 251,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "text",
+                value: reason,
+                onChange: (e) => setReason(e.target.value),
+                placeholder: "e.g. Schedule accommodation, mutual agreement",
+                className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 font-semibold text-foreground focus:bg-background outline-none"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 252,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 250,
+            columnNumber: 13
+          }, this),
+          error && /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-4 w-4 shrink-0 text-rose-500" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 264,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: error }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+              lineNumber: 265,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 263,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-2.5 border-t border-border/50 pt-4", children: [
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "button",
+                onClick: onClose,
+                className: "px-4 py-2 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-all cursor-pointer",
+                children: "Cancel"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 271,
+                columnNumber: 15
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "submit",
+                disabled: submitting || !userAId || !userBId || userAId === userBId,
+                className: "px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-md shadow-blue-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                children: [
+                  submitting && /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5 animate-spin" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 283,
+                    columnNumber: 32
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Confirm & Swap Shifts" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                    lineNumber: 284,
+                    columnNumber: 17
+                  }, this)
+                ]
+              },
+              void 0,
+              true,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+                lineNumber: 278,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+            lineNumber: 270,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+          lineNumber: 161,
+          columnNumber: 11
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+      lineNumber: 134,
+      columnNumber: 9
+    },
+    this
+  ) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+    lineNumber: 133,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx",
+    lineNumber: 132,
+    columnNumber: 5
+  }, this);
+};
+_s(ShiftSwapModal, "uZvj7kyHQawQx15yLm69YUSQGvI=");
+_c = ShiftSwapModal;
+export default ShiftSwapModal;
+var _c;
+$RefreshReg$(_c, "ShiftSwapModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftSwapModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QXpKRjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsRUEwSkEsS0EzSkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQTRKQSxLQTdKRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBOEpBO0FBRUo7QUFBRUwsR0F4UUlMLGdCQUFjO0FBQUEsS0FBZEE7QUEwUU4sZUFBZUE7QUFBZSxJQUFBMEU7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsIm1vdGlvbiIsIkFuaW1hdGVQcmVzZW5jZSIsIlgiLCJBcnJvd1JpZ2h0TGVmdCIsIkNhbGVuZGFyIiwiVXNlciIsIkNsb2NrIiwiQWxlcnRDaXJjbGUiLCJDaGVja0NpcmNsZTIiLCJSZWZyZXNoQ3ciLCJBcnJvd1JpZ2h0IiwiYXBpIiwiU2hpZnRTd2FwTW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwib3JnYW5pemF0aW9uSWQiLCJvblN1Y2Nlc3MiLCJfcyIsImVtcGxveWVlcyIsInNldEVtcGxveWVlcyIsImxvYWRpbmdFbXBsb3llZXMiLCJzZXRMb2FkaW5nRW1wbG95ZWVzIiwic3VibWl0dGluZyIsInNldFN1Ym1pdHRpbmciLCJlcnJvciIsInNldEVycm9yIiwidXNlckFJZCIsInNldFVzZXJBSWQiLCJ1c2VyQklkIiwic2V0VXNlckJJZCIsImRhdGUiLCJzZXREYXRlIiwicmVhc29uIiwic2V0UmVhc29uIiwicHJldmlld0EiLCJzZXRQcmV2aWV3QSIsInByZXZpZXdCIiwic2V0UHJldmlld0IiLCJsb2FkaW5nUHJldmlldyIsInNldExvYWRpbmdQcmV2aWV3IiwiZ2V0IiwicGFyYW1zIiwibGltaXQiLCJ0aGVuIiwicmVzIiwiZGF0YSIsInVzZXJzIiwiZmlsdGVyIiwidSIsInN0YXR1cyIsImNhdGNoIiwiZXJyIiwiY29uc29sZSIsIndhcm4iLCJmaW5hbGx5IiwidG9tb3Jyb3ciLCJEYXRlIiwibm93IiwidG9JU09TdHJpbmciLCJzcGxpdCIsInJvc3RlciIsInJBIiwiZmluZCIsInIiLCJ1c2VySWQiLCJyQiIsImhhbmRsZVN1Ym1pdCIsImUiLCJwcmV2ZW50RGVmYXVsdCIsInBvc3QiLCJzdWNjZXNzIiwibWVzc2FnZSIsInJlc3BvbnNlIiwib3BhY2l0eSIsInNjYWxlIiwidGFyZ2V0IiwidmFsdWUiLCJtYXAiLCJlbXAiLCJpZCIsIm5hbWUiLCJlbXBsb3llZUlkIiwiZW1haWwiLCJzaGlmdE5hbWUiLCJzdGFydFRpbWUiLCJlbmRUaW1lIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiU2hpZnRTd2FwTW9kYWwuanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCwgeyB1c2VTdGF0ZSwgdXNlRWZmZWN0IH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IHsgbW90aW9uLCBBbmltYXRlUHJlc2VuY2UgfSBmcm9tICdmcmFtZXItbW90aW9uJztcbmltcG9ydCB7XG4gIFgsIEFycm93UmlnaHRMZWZ0LCBDYWxlbmRhciwgVXNlciwgQ2xvY2ssIEFsZXJ0Q2lyY2xlLFxuICBDaGVja0NpcmNsZTIsIFJlZnJlc2hDdywgQXJyb3dSaWdodFxufSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IGFwaSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9hcGknO1xuXG5jb25zdCBTaGlmdFN3YXBNb2RhbCA9ICh7XG4gIGlzT3BlbixcbiAgb25DbG9zZSxcbiAgb3JnYW5pemF0aW9uSWQsXG4gIG9uU3VjY2Vzc1xufSkgPT4ge1xuICBjb25zdCBbZW1wbG95ZWVzLCBzZXRFbXBsb3llZXNdID0gdXNlU3RhdGUoW10pO1xuICBjb25zdCBbbG9hZGluZ0VtcGxveWVlcywgc2V0TG9hZGluZ0VtcGxveWVlc10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFtzdWJtaXR0aW5nLCBzZXRTdWJtaXR0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW2Vycm9yLCBzZXRFcnJvcl0gPSB1c2VTdGF0ZShudWxsKTtcblxuICBjb25zdCBbdXNlckFJZCwgc2V0VXNlckFJZF0gPSB1c2VTdGF0ZSgnJyk7XG4gIGNvbnN0IFt1c2VyQklkLCBzZXRVc2VyQklkXSA9IHVzZVN0YXRlKCcnKTtcbiAgY29uc3QgW2RhdGUsIHNldERhdGVdID0gdXNlU3RhdGUoJycpO1xuICBjb25zdCBbcmVhc29uLCBzZXRSZWFzb25dID0gdXNlU3RhdGUoJ1BlZXIgc2NoZWR1bGUgc3dhcCByZXF1ZXN0Jyk7XG5cbiAgY29uc3QgW3ByZXZpZXdBLCBzZXRQcmV2aWV3QV0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW3ByZXZpZXdCLCBzZXRQcmV2aWV3Ql0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW2xvYWRpbmdQcmV2aWV3LCBzZXRMb2FkaW5nUHJldmlld10gPSB1c2VTdGF0ZShmYWxzZSk7XG5cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBpZiAoaXNPcGVuICYmIG9yZ2FuaXphdGlvbklkKSB7XG4gICAgICBzZXRMb2FkaW5nRW1wbG95ZWVzKHRydWUpO1xuICAgICAgYXBpLmdldCgnL3VzZXJzJywge1xuICAgICAgICBwYXJhbXM6IHsgb3JnYW5pemF0aW9uSWQsIGxpbWl0OiAxMDAwIH1cbiAgICAgIH0pXG4gICAgICAgIC50aGVuKChyZXMpID0+IHtcbiAgICAgICAgICBpZiAocmVzLmRhdGE/LnVzZXJzKSB7XG4gICAgICAgICAgICBzZXRFbXBsb3llZXMocmVzLmRhdGEudXNlcnMuZmlsdGVyKHUgPT4gdS5zdGF0dXMgPT09ICdBQ1RJVkUnKSk7XG4gICAgICAgICAgfVxuICAgICAgICB9KVxuICAgICAgICAuY2F0Y2goKGVycikgPT4gY29uc29sZS53YXJuKCdFcnJvciBmZXRjaGluZyBlbXBsb3llZXM6JywgZXJyKSlcbiAgICAgICAgLmZpbmFsbHkoKCkgPT4gc2V0TG9hZGluZ0VtcGxveWVlcyhmYWxzZSkpO1xuICAgIH1cbiAgfSwgW2lzT3Blbiwgb3JnYW5pemF0aW9uSWRdKTtcblxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGlmIChpc09wZW4pIHtcbiAgICAgIGNvbnN0IHRvbW9ycm93ID0gbmV3IERhdGUoRGF0ZS5ub3coKSArIDI0ICogNjAgKiA2MCAqIDEwMDApO1xuICAgICAgc2V0RGF0ZSh0b21vcnJvdy50b0lTT1N0cmluZygpLnNwbGl0KCdUJylbMF0pO1xuICAgICAgc2V0VXNlckFJZCgnJyk7XG4gICAgICBzZXRVc2VyQklkKCcnKTtcbiAgICAgIHNldFJlYXNvbignUGVlciBzY2hlZHVsZSBzd2FwIHJlcXVlc3QnKTtcbiAgICAgIHNldEVycm9yKG51bGwpO1xuICAgICAgc2V0UHJldmlld0EobnVsbCk7XG4gICAgICBzZXRQcmV2aWV3QihudWxsKTtcbiAgICB9XG4gIH0sIFtpc09wZW5dKTtcblxuICAvLyBMb2FkIHByZXZpZXcgb2YgY3VycmVudCBzaGlmdHMgb24gc2VsZWN0ZWQgZGF0ZVxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGlmICh1c2VyQUlkICYmIHVzZXJCSWQgJiYgZGF0ZSAmJiB1c2VyQUlkICE9PSB1c2VyQklkKSB7XG4gICAgICBzZXRMb2FkaW5nUHJldmlldyh0cnVlKTtcbiAgICAgIGFwaS5nZXQoJy9zY2hlZHVsZXMvZGF5Jywge1xuICAgICAgICBwYXJhbXM6IHsgb3JnYW5pemF0aW9uSWQsIGRhdGUgfVxuICAgICAgfSlcbiAgICAgICAgLnRoZW4oKHJlcykgPT4ge1xuICAgICAgICAgIGlmIChyZXMuZGF0YT8ucm9zdGVyKSB7XG4gICAgICAgICAgICBjb25zdCByQSA9IHJlcy5kYXRhLnJvc3Rlci5maW5kKHIgPT4gci51c2VySWQgPT09IHVzZXJBSWQpO1xuICAgICAgICAgICAgY29uc3QgckIgPSByZXMuZGF0YS5yb3N0ZXIuZmluZChyID0+IHIudXNlcklkID09PSB1c2VyQklkKTtcbiAgICAgICAgICAgIHNldFByZXZpZXdBKHJBKTtcbiAgICAgICAgICAgIHNldFByZXZpZXdCKHJCKTtcbiAgICAgICAgICB9XG4gICAgICAgIH0pXG4gICAgICAgIC5jYXRjaCgoKSA9PiB7fSlcbiAgICAgICAgLmZpbmFsbHkoKCkgPT4gc2V0TG9hZGluZ1ByZXZpZXcoZmFsc2UpKTtcbiAgICB9IGVsc2Uge1xuICAgICAgc2V0UHJldmlld0EobnVsbCk7XG4gICAgICBzZXRQcmV2aWV3QihudWxsKTtcbiAgICB9XG4gIH0sIFt1c2VyQUlkLCB1c2VyQklkLCBkYXRlLCBvcmdhbml6YXRpb25JZF0pO1xuXG4gIGNvbnN0IGhhbmRsZVN1Ym1pdCA9IGFzeW5jIChlKSA9PiB7XG4gICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xuICAgIGlmICghdXNlckFJZCB8fCAhdXNlckJJZCB8fCAhZGF0ZSkgcmV0dXJuO1xuICAgIGlmICh1c2VyQUlkID09PSB1c2VyQklkKSB7XG4gICAgICBzZXRFcnJvcignQ2Fubm90IHN3YXAgc2hpZnRzIGJldHdlZW4gdGhlIHNhbWUgZW1wbG95ZWUuJyk7XG4gICAgICByZXR1cm47XG4gICAgfVxuXG4gICAgc2V0U3VibWl0dGluZyh0cnVlKTtcbiAgICBzZXRFcnJvcihudWxsKTtcbiAgICB0cnkge1xuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnBvc3QoJy9zY2hlZHVsZXMvc3dhcCcsIHtcbiAgICAgICAgb3JnYW5pemF0aW9uSWQsXG4gICAgICAgIHVzZXJBSWQsXG4gICAgICAgIHVzZXJCSWQsXG4gICAgICAgIGRhdGUsXG4gICAgICAgIHJlYXNvblxuICAgICAgfSk7XG4gICAgICBpZiAocmVzLmRhdGE/LnN1Y2Nlc3MpIHtcbiAgICAgICAgb25TdWNjZXNzKHJlcy5kYXRhLm1lc3NhZ2UgfHwgJ1NoaWZ0cyBzd2FwcGVkIHN1Y2Nlc3NmdWxseS4nKTtcbiAgICAgICAgb25DbG9zZSgpO1xuICAgICAgfVxuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgc2V0RXJyb3IoZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gc3dhcCBzaGlmdHMuJyk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldFN1Ym1pdHRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICBpZiAoIWlzT3BlbikgcmV0dXJuIG51bGw7XG5cbiAgcmV0dXJuIChcbiAgICA8QW5pbWF0ZVByZXNlbmNlPlxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmaXhlZCBpbnNldC0wIHotNTAgb3ZlcmZsb3cteS1hdXRvIGJnLWJsYWNrLzYwIGJhY2tkcm9wLWJsdXIteHMgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcC00XCI+XG4gICAgICAgIDxtb3Rpb24uZGl2XG4gICAgICAgICAgaW5pdGlhbD17eyBvcGFjaXR5OiAwLCBzY2FsZTogMC45NSB9fVxuICAgICAgICAgIGFuaW1hdGU9e3sgb3BhY2l0eTogMSwgc2NhbGU6IDEgfX1cbiAgICAgICAgICBleGl0PXt7IG9wYWNpdHk6IDAsIHNjYWxlOiAwLjk1IH19XG4gICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LXhsIHJvdW5kZWQtM3hsIGJvcmRlciBib3JkZXItYm9yZGVyLzcwIGJnLWNhcmQgcC02IHNtOnAtNyBzaGFkb3ctMnhsIHNwYWNlLXktNSB0ZXh0LWxlZnQgbXktNlwiXG4gICAgICAgID5cbiAgICAgICAgICB7LyogSGVhZGVyICovfVxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGJvcmRlci1iIGJvcmRlci1ib3JkZXIvNTAgcGItMy41XCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0zXCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0xMCB3LTEwIHJvdW5kZWQtMnhsIGJnLWJsdWUtNTAwLzEwIHRleHQtYmx1ZS02MDAgYm9yZGVyIGJvcmRlci1ibHVlLTUwMC8yMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlclwiPlxuICAgICAgICAgICAgICAgIDxBcnJvd1JpZ2h0TGVmdCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtYmFzZSBmb250LWJsYWNrIHRleHQtZm9yZWdyb3VuZFwiPlNoaWZ0IFN3YXA8L2gzPlxuICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICBTd2FwIHNoaWZ0cyBiZXR3ZWVuIHR3byBlbXBsb3llZXMgZm9yIGEgZGVzaWduYXRlZCB3b3JraW5nIGRheS5cbiAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMS41IHJvdW5kZWQteGwgaG92ZXI6YmctbXV0ZWQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZm9yZWdyb3VuZCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIDxYIGNsYXNzTmFtZT1cImgtNSB3LTVcIiAvPlxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICA8Zm9ybSBvblN1Ym1pdD17aGFuZGxlU3VibWl0fSBjbGFzc05hbWU9XCJzcGFjZS15LTQgdGV4dC14c1wiPlxuICAgICAgICAgICAgey8qIFRhcmdldCBEYXRlICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5UYXJnZXQgU3dhcCBEYXRlICo8L2xhYmVsPlxuICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICB0eXBlPVwiZGF0ZVwiXG4gICAgICAgICAgICAgICAgcmVxdWlyZWRcbiAgICAgICAgICAgICAgICB2YWx1ZT17ZGF0ZX1cbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldERhdGUoZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLW11dGVkLzIwIHB4LTMuNSBweS0yIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZm9jdXM6YmctYmFja2dyb3VuZCBvdXRsaW5lLW5vbmUgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgIHsvKiBFbXBsb3llZSBTZWxlY3Rpb24gR3JpZCAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtMy41XCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xXCI+XG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5GaXJzdCBFbXBsb3llZSAoQSkgKjwvbGFiZWw+XG4gICAgICAgICAgICAgICAgPHNlbGVjdFxuICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXt1c2VyQUlkfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRVc2VyQUlkKGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLW11dGVkLzIwIHB4LTMgcHktMiBmb250LXNlbWlib2xkIHRleHQtZm9yZWdyb3VuZCBmb2N1czpiZy1iYWNrZ3JvdW5kIG91dGxpbmUtbm9uZSBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlwiPi0tIENob29zZSBFbXBsb3llZSBBIC0tPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgICB7ZW1wbG95ZWVzLm1hcChlbXAgPT4gKFxuICAgICAgICAgICAgICAgICAgICA8b3B0aW9uIGtleT17ZW1wLmlkfSB2YWx1ZT17ZW1wLmlkfSBkaXNhYmxlZD17ZW1wLmlkID09PSB1c2VyQklkfT5cbiAgICAgICAgICAgICAgICAgICAgICB7ZW1wLm5hbWV9ICh7ZW1wLmVtcGxveWVlSWQgfHwgZW1wLmVtYWlsfSlcbiAgICAgICAgICAgICAgICAgICAgPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlNlY29uZCBFbXBsb3llZSAoQikgKjwvbGFiZWw+XG4gICAgICAgICAgICAgICAgPHNlbGVjdFxuICAgICAgICAgICAgICAgICAgcmVxdWlyZWRcbiAgICAgICAgICAgICAgICAgIHZhbHVlPXt1c2VyQklkfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRVc2VyQklkKGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLW11dGVkLzIwIHB4LTMgcHktMiBmb250LXNlbWlib2xkIHRleHQtZm9yZWdyb3VuZCBmb2N1czpiZy1iYWNrZ3JvdW5kIG91dGxpbmUtbm9uZSBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlwiPi0tIENob29zZSBFbXBsb3llZSBCIC0tPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgICB7ZW1wbG95ZWVzLm1hcChlbXAgPT4gKFxuICAgICAgICAgICAgICAgICAgICA8b3B0aW9uIGtleT17ZW1wLmlkfSB2YWx1ZT17ZW1wLmlkfSBkaXNhYmxlZD17ZW1wLmlkID09PSB1c2VyQUlkfT5cbiAgICAgICAgICAgICAgICAgICAgICB7ZW1wLm5hbWV9ICh7ZW1wLmVtcGxveWVlSWQgfHwgZW1wLmVtYWlsfSlcbiAgICAgICAgICAgICAgICAgICAgPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgey8qIExpdmUgRHVhbCBTd2FwIFByZXZpZXcgKi99XG4gICAgICAgICAgICB7cHJldmlld0EgJiYgcHJldmlld0IgJiYgKFxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNCByb3VuZGVkLTJ4bCBiZy1tdXRlZC8zMCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBzcGFjZS15LTNcIj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuPlNoaWZ0IFN3YXAgUHJldmlldyBmb3Ige2RhdGV9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1ibHVlLTYwMCBkYXJrOnRleHQtYmx1ZS00MDAgZm9udC1ib2xkXCI+Qm90aCBFbXBsb3llZXMgUmVhc3NpZ25lZDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtM1wiPlxuICAgICAgICAgICAgICAgICAgey8qIEFudG8ncyBjaGFuZ2UgKi99XG4gICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMyByb3VuZGVkLXhsIGJnLWNhcmQgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgc3BhY2UteS0xLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmb250LWJsYWNrIHRleHQteHMgdGV4dC1mb3JlZ3JvdW5kXCI+e3ByZXZpZXdBLm5hbWV9PC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgICAgICAgICAgQ3VycmVudDogPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZFwiPntwcmV2aWV3QS5zaGlmdE5hbWV9PC9zcGFuPiAoe3ByZXZpZXdBLnN0YXJ0VGltZX0g4oCTIHtwcmV2aWV3QS5lbmRUaW1lfSlcbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1ibHVlLTYwMCBkYXJrOnRleHQtYmx1ZS00MDAgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEgcHQtMSBib3JkZXItdCBib3JkZXItYm9yZGVyLzQwXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4+V2lsbCBSZWNlaXZlOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJsYWNrXCI+e3ByZXZpZXdCLnNoaWZ0TmFtZX08L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4+KHtwcmV2aWV3Qi5zdGFydFRpbWV9IOKAkyB7cHJldmlld0IuZW5kVGltZX0pPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICB7LyogUHJhdmVlbidzIGNoYW5nZSAqL31cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQteGwgYmctY2FyZCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBzcGFjZS15LTEuNVwiPlxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZvbnQtYmxhY2sgdGV4dC14cyB0ZXh0LWZvcmVncm91bmRcIj57cHJldmlld0IubmFtZX08L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cbiAgICAgICAgICAgICAgICAgICAgICBDdXJyZW50OiA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+e3ByZXZpZXdCLnNoaWZ0TmFtZX08L3NwYW4+ICh7cHJldmlld0Iuc3RhcnRUaW1lfSDigJMge3ByZXZpZXdCLmVuZFRpbWV9KVxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWJsdWUtNjAwIGRhcms6dGV4dC1ibHVlLTQwMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSBwdC0xIGJvcmRlci10IGJvcmRlci1ib3JkZXIvNDBcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj5XaWxsIFJlY2VpdmU6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYmxhY2tcIj57cHJldmlld0Euc2hpZnROYW1lfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj4oe3ByZXZpZXdBLnN0YXJ0VGltZX0g4oCTIHtwcmV2aWV3QS5lbmRUaW1lfSk8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgKX1cblxuICAgICAgICAgICAgey8qIFJlYXNvbiAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xXCI+XG4gICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+U3dhcCBSZWFzb248L2xhYmVsPlxuICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXG4gICAgICAgICAgICAgICAgdmFsdWU9e3JlYXNvbn1cbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFJlYXNvbihlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJlLmcuIFNjaGVkdWxlIGFjY29tbW9kYXRpb24sIG11dHVhbCBhZ3JlZW1lbnRcIlxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGJnLW11dGVkLzIwIHB4LTMuNSBweS0yIGZvbnQtc2VtaWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZvY3VzOmJnLWJhY2tncm91bmQgb3V0bGluZS1ub25lXCJcbiAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogRXJyb3IgTWVzc2FnZSAqL31cbiAgICAgICAgICAgIHtlcnJvciAmJiAoXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQtMnhsIGJnLXJvc2UtNTAwLzEwIGJvcmRlciBib3JkZXItcm9zZS01MDAvMjAgdGV4dC1yb3NlLTcwMCBkYXJrOnRleHQtcm9zZS0zMDAgdGV4dC14cyBmb250LXNlbWlib2xkIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgPEFsZXJ0Q2lyY2xlIGNsYXNzTmFtZT1cImgtNCB3LTQgc2hyaW5rLTAgdGV4dC1yb3NlLTUwMFwiIC8+XG4gICAgICAgICAgICAgICAgPHNwYW4+e2Vycm9yfTwvc3Bhbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICApfVxuXG4gICAgICAgICAgICB7LyogRm9vdGVyICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktZW5kIGdhcC0yLjUgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci81MCBwdC00XCI+XG4gICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTQgcHktMiByb3VuZGVkLXhsIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgQ2FuY2VsXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgdHlwZT1cInN1Ym1pdFwiXG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmcgfHwgIXVzZXJBSWQgfHwgIXVzZXJCSWQgfHwgdXNlckFJZCA9PT0gdXNlckJJZH1cbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC01IHB5LTIgcm91bmRlZC14bCBiZy1ibHVlLTYwMCBob3ZlcjpiZy1ibHVlLTcwMCB0ZXh0LXdoaXRlIGZvbnQtYmxhY2sgc2hhZG93LW1kIHNoYWRvdy1ibHVlLTYwMC8yMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IGN1cnNvci1wb2ludGVyIGRpc2FibGVkOm9wYWNpdHktNTBcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAge3N1Ym1pdHRpbmcgJiYgPFJlZnJlc2hDdyBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSBhbmltYXRlLXNwaW5cIiAvPn1cbiAgICAgICAgICAgICAgICA8c3Bhbj5Db25maXJtICZhbXA7IFN3YXAgU2hpZnRzPC9zcGFuPlxuICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZm9ybT5cbiAgICAgICAgPC9tb3Rpb24uZGl2PlxuICAgICAgPC9kaXY+XG4gICAgPC9BbmltYXRlUHJlc2VuY2U+XG4gICk7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBTaGlmdFN3YXBNb2RhbDtcbiJdLCJmaWxlIjoiRDovUCBSIE8gSiBFIEMgVCBTL1dlYi9NUkYtY3JtL2Zyb250ZW5kL3NyYy9jb21wb25lbnRzL29yZ2FuaXphdGlvbi9TaGlmdFN3YXBNb2RhbC5qc3gifQ==

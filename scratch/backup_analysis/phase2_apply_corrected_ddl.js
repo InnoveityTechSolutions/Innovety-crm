@@ -1,0 +1,170 @@
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+const { parseDbConfig } = require('../../backend/src/services/backupService');
+
+const dbConfig = parseDbConfig();
+const baselinePath = path.resolve(__dirname, 'sandbox_baseline.json');
+const baselineData = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+const sandboxDbName = baselineData.sandboxDbName;
+
+function runMysql(args, inputSql = null) {
+  return new Promise((resolve, reject) => {
+    const defaultArgs = [
+      '-h', dbConfig.host,
+      '-P', String(dbConfig.port),
+      '-u', dbConfig.user,
+      '--default-character-set=utf8mb4'
+    ];
+    const fullArgs = [...defaultArgs, ...args];
+
+    const child = spawn('mysql', fullArgs, {
+      env: { ...process.env, MYSQL_PWD: dbConfig.password },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', d => { stdout += d.toString(); });
+    child.stderr.on('data', d => { stderr += d.toString(); });
+
+    child.on('close', code => {
+      if (code !== 0) {
+        return reject(new Error(stderr.trim() || `MySQL process exited with code ${code}`));
+      }
+      resolve(stdout);
+    });
+
+    child.on('error', err => {
+      reject(new Error(`Failed to spawn mysql: ${err.message}`));
+    });
+
+    if (inputSql) {
+      child.stdin.write(inputSql);
+    }
+    child.stdin.end();
+  });
+}
+
+const correctDDL = `
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS \`assetestimateitem\`;
+DROP TABLE IF EXISTS \`assetestimate\`;
+DROP TABLE IF EXISTS \`companydocument\`;
+
+CREATE TABLE `companydocument` (
+  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`organizationId\` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`documentName\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`category\` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`description\` text COLLATE utf8mb4_unicode_ci,
+  \`filePath\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`originalFileName\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`fileType\` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`fileSize\` int NOT NULL,
+  \`uploadedById\` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`expiryDate\` datetime DEFAULT NULL,
+  \`createdAt\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  \`updatedAt\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (\`id\`),
+  KEY \`companydocument_organizationId_idx\` (\`organizationId\`),
+  KEY \`companydocument_category_idx\` (\`category\`),
+  KEY \`companydocument_expiryDate_idx\` (\`expiryDate\`),
+  KEY \`companydocument_uploadedById_fkey\` (\`uploadedById\`),
+  CONSTRAINT \`companydocument_organizationId_fkey\` FOREIGN KEY (\`organizationId\`) REFERENCES \`organization\` (\`id\`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT \`companydocument_uploadedById_fkey\` FOREIGN KEY (\`uploadedById\`) REFERENCES \`user\` (\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE \`assetestimate\` (
+  \`id\` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`organizationId\` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`createdById\` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`estimateNumber\` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`estimateDate\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \`reference\` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`placeOfSupply\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`status\` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'GENERATED',
+  \`title\` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Estimate',
+  \`companyName\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`companyAddress\` text COLLATE utf8mb4_unicode_ci,
+  \`companyCity\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyState\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyPincode\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyCountry\` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT 'India',
+  \`companyPhone\` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyEmail\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyGstin\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`companyLogo\` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`billToName\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`billToAddress\` text COLLATE utf8mb4_unicode_ci,
+  \`billToCity\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`billToState\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`billToPincode\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`billToCountry\` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT 'India',
+  \`billToGstin\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`subTotal\` double NOT NULL DEFAULT '0',
+  \`cgstRate\` double NOT NULL DEFAULT '0',
+  \`sgstRate\` double NOT NULL DEFAULT '0',
+  \`igstRate\` double NOT NULL DEFAULT '0',
+  \`cgstAmount\` double NOT NULL DEFAULT '0',
+  \`sgstAmount\` double NOT NULL DEFAULT '0',
+  \`igstAmount\` double NOT NULL DEFAULT '0',
+  \`grandTotal\` double NOT NULL DEFAULT '0',
+  \`totalInWords\` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`bankName\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`bankIfsc\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`bankAccountNo\` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`bankBranch\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`notes\` text COLLATE utf8mb4_unicode_ci,
+  \`termsAndConditions\` json DEFAULT NULL,
+  \`signatureImage\` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`signatoryTitle\` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT 'Authorized Signature',
+  \`createdAt\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \`updatedAt\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  \`cancelledAt\` datetime DEFAULT NULL,
+  \`cancelledById\` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`cancellationReason\` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (\`id\`),
+  UNIQUE KEY \`unique_org_estimate\` (\`organizationId\`,\`estimateNumber\`),
+  KEY \`idx_estimate_org\` (\`organizationId\`),
+  KEY \`idx_estimate_number\` (\`estimateNumber\`),
+  KEY \`idx_estimate_org_created\` (\`organizationId\`,\`createdAt\`),
+  KEY \`idx_estimate_org_status\` (\`organizationId\`,\`status\`),
+  KEY \`idx_estimate_org_date\` (\`organizationId\`,\`estimateDate\`),
+  KEY \`idx_estimate_org_customer\` (\`organizationId\`,\`billToName\`),
+  CONSTRAINT \`assetestimate_organizationId_fkey\` FOREIGN KEY (\`organizationId\`) REFERENCES \`organization\` (\`id\`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE \`assetestimateitem\` (
+  \`id\` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`estimateId\` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`assetId\` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  \`itemIndex\` int NOT NULL DEFAULT '1',
+  \`title\` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  \`description\` text COLLATE utf8mb4_unicode_ci,
+  \`quantity\` double NOT NULL DEFAULT '1',
+  \`unit\` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT 'nos',
+  \`rate\` double NOT NULL DEFAULT '0',
+  \`cgstAmount\` double NOT NULL DEFAULT '0',
+  \`sgstAmount\` double NOT NULL DEFAULT '0',
+  \`igstAmount\` double NOT NULL DEFAULT '0',
+  \`amount\` double NOT NULL DEFAULT '0',
+  PRIMARY KEY (\`id\`),
+  KEY \`idx_item_estimate\` (\`estimateId\`),
+  KEY \`idx_item_asset\` (\`assetId\`),
+  CONSTRAINT \`fk_item_estimate\` FOREIGN KEY (\`estimateId\`) REFERENCES \`assetestimate\` (\`id\`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT \`fk_item_asset\` FOREIGN KEY (\`assetId\`) REFERENCES \`asset\` (\`id\`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
+`;
+
+async function applyCorrection() {
+  console.log(`Applying corrected DDL for companydocument, assetestimate, assetestimateitem to sandbox \`${sandboxDbName}\`...`);
+  await runMysql([sandboxDbName], correctDDL);
+  console.log('Corrected DDL applied successfully to sandbox.');
+}
+
+applyCorrection().catch(console.error);

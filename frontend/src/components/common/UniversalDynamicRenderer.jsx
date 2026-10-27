@@ -20,6 +20,7 @@ import {
   ToggleLeft,
   AlertCircle
 } from 'lucide-react';
+import ToggleSwitch from './ToggleSwitch';
 
 /**
  * Universal Dynamic Form Field Renderer
@@ -255,18 +256,14 @@ export const UniversalDynamicRenderer = ({
               ) : field.fieldType === 'SWITCH' ? (
                 <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
                   <span className="text-sm font-medium text-foreground">{field.placeholder || field.label}</span>
-                  <button
-                    type="button"
+                  <ToggleSwitch
+                    id={field.fieldKey}
+                    name={field.fieldKey}
+                    ariaLabel={field.placeholder || field.label}
                     disabled={!editable}
-                    onClick={() => handleInputChange(field.fieldKey, !value, field)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      value ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      value ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </button>
+                    checked={Boolean(value)}
+                    onChange={(nextVal) => handleInputChange(field.fieldKey, nextVal, field)}
+                  />
                 </div>
               ) : field.fieldType === 'RATING' ? (
                 <div className="flex items-center gap-1 pt-1">

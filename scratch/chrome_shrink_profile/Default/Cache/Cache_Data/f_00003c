@@ -1,0 +1,981 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/attendance/ClockInModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import api from "/src/services/api.js";
+import { Home, MapPin, Clock, AlertTriangle, CheckCircle2, X, RefreshCw, ShieldAlert, Navigation } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import { formatLateDuration } from "/src/utils/attendanceFormatter.js";
+const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
+  const numLat1 = parseFloat(lat1);
+  const numLon1 = parseFloat(lon1);
+  const numLat2 = parseFloat(lat2);
+  const numLon2 = parseFloat(lon2);
+  if (isNaN(numLat1) || isNaN(numLon1) || isNaN(numLat2) || isNaN(numLon2)) return Infinity;
+  const R = 6371e3;
+  const dLat = (numLat2 - numLat1) * (Math.PI / 180);
+  const dLon = (numLon2 - numLon1) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(numLat1 * (Math.PI / 180)) * Math.cos(numLat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+const formatDistance = (meters) => {
+  if (meters === null || meters === void 0 || isNaN(meters)) return "Unknown";
+  const m = Math.round(meters);
+  if (m < 1e3) {
+    return `${m} m`;
+  }
+  const km = (m / 1e3).toFixed(1);
+  return `${km} km`;
+};
+export default function ClockInModal({ isOpen, onClose, onSuccess, onError, user }) {
+  _s();
+  const [geoState, setGeoState] = useState("IDLE");
+  const [coords, setCoords] = useState({ latitude: null, longitude: null });
+  const [distanceMeters, setDistanceMeters] = useState(null);
+  const [matchedLocation, setMatchedLocation] = useState(null);
+  const [nearestLocation, setNearestLocation] = useState(null);
+  const [outsideWorkLocation, setOutsideWorkLocation] = useState("HOME");
+  const [workLocationOther, setWorkLocationOther] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [clockStatus, setClockStatus] = useState(null);
+  useEffect(() => {
+    if (isOpen) {
+      setOutsideWorkLocation("HOME");
+      setWorkLocationOther("");
+      setErrorMsg("");
+      setMatchedLocation(null);
+      setNearestLocation(null);
+      setDistanceMeters(null);
+      fetchClockStatusAndGeofence();
+    }
+  }, [isOpen]);
+  const fetchClockStatusAndGeofence = async () => {
+    try {
+      setStatusLoading(true);
+      const res = await api.get("/attendance/status");
+      setClockStatus(res.data);
+      requestGPSLocation(res.data);
+    } catch (err) {
+      console.error("Failed to fetch clock status & geofence:", err);
+      requestGPSLocation({
+        geofence: {
+          officeLatitude: 12.971598,
+          officeLongitude: 77.594562,
+          allowedRadiusMeters: 200,
+          officeLocationName: "Office"
+        }
+      });
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+  const requestGPSLocation = (statusData) => {
+    const currentStatus = statusData || clockStatus;
+    const assignedLocations = currentStatus?.assignedLocations || [];
+    const targetGeofence = currentStatus?.geofence || {
+      officeLatitude: 12.971598,
+      officeLongitude: 77.594562,
+      allowedRadiusMeters: 200,
+      officeLocationName: "Office"
+    };
+    setGeoState("DETECTING");
+    setErrorMsg("");
+    setMatchedLocation(null);
+    setNearestLocation(null);
+    if (!navigator.geolocation) {
+      setGeoState("GPS_ERROR");
+      setErrorMsg("Unable to get your current location. Please retry.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = parseFloat(position.coords.latitude.toFixed(6));
+        const lon = parseFloat(position.coords.longitude.toFixed(6));
+        setCoords({ latitude: lat, longitude: lon });
+        try {
+          const res = await api.post("/attendance/verify-location", { latitude: lat, longitude: lon });
+          const evalData = res.data;
+          if (evalData.status === "INSIDE") {
+            setGeoState("INSIDE");
+            setMatchedLocation(evalData.matchedLocation);
+            setNearestLocation(evalData.matchedLocation);
+            setDistanceMeters(evalData.distanceMeters);
+            setErrorMsg("");
+          } else if (evalData.status === "NO_ASSIGNED_LOCATION") {
+            setGeoState("NO_ASSIGNED_LOCATION");
+            setMatchedLocation(null);
+            setNearestLocation(null);
+            setDistanceMeters(null);
+            setErrorMsg(evalData.message || "No attendance location has been assigned to your account. Please contact your administrator.");
+          } else {
+            setGeoState("OUTSIDE");
+            setMatchedLocation(null);
+            setNearestLocation(evalData.nearestLocation);
+            setDistanceMeters(evalData.distanceMeters);
+            setErrorMsg(evalData.message || "You are outside your allowed attendance locations.");
+          }
+        } catch (verifyErr) {
+          console.warn("Backend location verification fallback:", verifyErr);
+          if (assignedLocations && assignedLocations.length > 0) {
+            let nearestLoc = null;
+            let minDistance = Infinity;
+            let matchedLoc = null;
+            let matchedDist = Infinity;
+            for (const loc of assignedLocations) {
+              const dist = calculateHaversineDistance(lat, lon, loc.latitude, loc.longitude);
+              if (!isNaN(dist)) {
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  nearestLoc = loc;
+                }
+                if (dist <= loc.radiusMeters && dist < matchedDist) {
+                  matchedDist = dist;
+                  matchedLoc = loc;
+                }
+              }
+            }
+            if (matchedLoc) {
+              setMatchedLocation(matchedLoc);
+              setNearestLocation(matchedLoc);
+              setDistanceMeters(Math.round(matchedDist));
+              setGeoState("INSIDE");
+              setErrorMsg("");
+            } else {
+              setMatchedLocation(null);
+              setNearestLocation(nearestLoc);
+              setDistanceMeters(Math.round(minDistance));
+              setGeoState("OUTSIDE");
+              setErrorMsg(nearestLoc ? `You are currently outside the permitted location "${nearestLoc.name}" (${formatDistance(minDistance)} away). Allowed radius is ${nearestLoc.radiusMeters}m.` : "You are outside your allowed attendance locations.");
+            }
+          } else if (currentStatus?.hasOrganizationLocations) {
+            setGeoState("NO_ASSIGNED_LOCATION");
+            setErrorMsg("No attendance location has been assigned to your account. Please contact your administrator.");
+          } else {
+            const dist = calculateHaversineDistance(
+              lat,
+              lon,
+              targetGeofence.officeLatitude,
+              targetGeofence.officeLongitude
+            );
+            setDistanceMeters(Math.round(dist));
+            if (dist <= targetGeofence.allowedRadiusMeters) {
+              setGeoState("INSIDE");
+              setErrorMsg("");
+            } else {
+              setGeoState("OUTSIDE");
+              setErrorMsg(`You are currently outside the permitted location (${formatDistance(dist)} away). Allowed radius is ${targetGeofence.allowedRadiusMeters}m.`);
+            }
+          }
+        }
+      },
+      (error) => {
+        console.warn("GPS position error:", error);
+        if (error.code === 1) {
+          setGeoState("PERMISSION_DENIED");
+          setErrorMsg("Location permission is required for office clock-in.");
+        } else {
+          setGeoState("GPS_ERROR");
+          setErrorMsg("Unable to get your current location. Please retry.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 1e4, maximumAge: 0 }
+    );
+  };
+  if (!isOpen) return null;
+  const activeLocation = matchedLocation || nearestLocation || (clockStatus?.assignedLocations?.[0] ?? null);
+  const allowedRadius = activeLocation ? activeLocation.radiusMeters : clockStatus?.geofence?.allowedRadiusMeters ?? 200;
+  const officeName = activeLocation ? activeLocation.name : clockStatus?.geofence?.officeLocationName ?? "Office";
+  const targetOfficeLat = clockStatus?.geofence?.officeLatitude;
+  const targetOfficeLon = clockStatus?.geofence?.officeLongitude;
+  const isOtherInvalid = (geoState === "OUTSIDE" || geoState === "NO_ASSIGNED_LOCATION" || geoState === "PERMISSION_DENIED" || geoState === "GPS_ERROR") && outsideWorkLocation === "OTHER" && !workLocationOther.trim();
+  const calculatedStatus = clockStatus?.state === "OPEN_LATE" ? "LATE" : "PRESENT";
+  const lateMinutes = clockStatus?.lateMinutes || 0;
+  const currentTimeDisplay = clockStatus?.currentTimeFormatted || (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (geoState === "DETECTING") {
+      setErrorMsg("Location verification is in progress. Please wait.");
+      return;
+    }
+    const isInside = geoState === "INSIDE";
+    const workLoc = isInside ? "OFFICE" : outsideWorkLocation;
+    if (workLoc === "OFFICE" && (geoState === "PERMISSION_DENIED" || geoState === "GPS_ERROR" || geoState === "NO_ASSIGNED_LOCATION")) {
+      setErrorMsg(geoState === "NO_ASSIGNED_LOCATION" ? "No attendance location has been assigned to your account. Please contact your administrator." : "Location permission is required for office clock-in. Please retry location or select Home / Other below.");
+      return;
+    }
+    if (workLoc === "OTHER" && !workLocationOther.trim()) {
+      setErrorMsg('Location or reason is required when "Other" is selected.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const payload = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        address: matchedLocation?.address || null,
+        workLocation: workLoc,
+        workLocationOther: workLoc === "OTHER" ? workLocationOther.trim() : workLocationOther.trim() || null
+      };
+      const res = await api.post("/attendance/clock-in", payload);
+      if (onSuccess) {
+        onSuccess(res.data);
+      }
+      onClose();
+    } catch (err) {
+      console.error("Clock in error:", err);
+      const errRes = err.response?.data;
+      const status = err.response?.status;
+      let userMessage = "";
+      if (status === 401) {
+        userMessage = "Your session has expired. Please log in again.";
+      } else if (status === 403) {
+        userMessage = errRes?.message || "Access denied: You do not have permission to clock in.";
+      } else if (status === 429) {
+        userMessage = "Too many requests. Please wait a moment and try again.";
+      } else if (status >= 500) {
+        userMessage = errRes?.message || "The server or database is temporarily unavailable. Please retry.";
+      } else if (errRes?.reason === "OUTSIDE_GEOFENCE") {
+        setGeoState("OUTSIDE");
+        if (errRes.distanceMeters !== void 0 && errRes.distanceMeters !== null) {
+          setDistanceMeters(errRes.distanceMeters);
+        }
+        if (errRes.nearestLocation) {
+          setNearestLocation(errRes.nearestLocation);
+        }
+        userMessage = errRes.message || "You are outside your allowed attendance locations.";
+      } else if (errRes?.reason === "NO_ASSIGNED_LOCATION") {
+        setGeoState("NO_ASSIGNED_LOCATION");
+        userMessage = errRes.message || "No attendance location has been assigned to your account. Please contact your administrator.";
+      } else {
+        userMessage = errRes?.message || errRes?.reason || err.message || "Clock in failed. Please try again.";
+      }
+      setErrorMsg(userMessage);
+      if (onError) {
+        onError(userMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left relative overflow-hidden", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex items-start justify-between", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("h2", { className: "text-xl font-black text-foreground flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(Clock, { className: "w-5 h-5 text-primary" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 330,
+            columnNumber: 15
+          }, this),
+          " Attendance Clock In"
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 329,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5 font-medium", children: "Geofence location verification & shift check-in." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 332,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 328,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: onClose,
+          disabled: loading,
+          className: "text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-all cursor-pointer",
+          children: /* @__PURE__ */ jsxDEV(X, { className: "w-5 h-5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 341,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 336,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+      lineNumber: 327,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-muted/40 border border-border/80 rounded-2xl p-4 grid grid-cols-2 gap-3 text-center", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-bold text-muted-foreground uppercase tracking-wider block", children: "Current Time" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 348,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-lg font-black font-mono text-foreground block", children: statusLoading ? "..." : currentTimeDisplay }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 349,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 347,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 flex flex-col items-center justify-center border-l border-border/60", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-bold text-muted-foreground uppercase tracking-wider block", children: "Attendance Status" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 354,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: `px-2.5 py-0.5 rounded-full text-xs font-black uppercase flex items-center gap-1 ${calculatedStatus === "LATE" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"}`, children: calculatedStatus === "LATE" ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+          /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-3 h-3" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 362,
+            columnNumber: 19
+          }, this),
+          " LATE"
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 361,
+          columnNumber: 15
+        }, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
+          /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "w-3 h-3" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 366,
+            columnNumber: 19
+          }, this),
+          " PRESENT"
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 365,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 355,
+          columnNumber: 13
+        }, this),
+        calculatedStatus === "LATE" && lateMinutes > 0 && /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-amber-600 dark:text-amber-400 font-bold block", children: formatLateDuration(lateMinutes) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 371,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 353,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+      lineNumber: 346,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
+      geoState === "DETECTING" && /* @__PURE__ */ jsxDEV("div", { className: "p-6 rounded-2xl border border-primary/20 bg-primary/5 text-center space-y-3 animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-center", children: /* @__PURE__ */ jsxDEV(Navigation, { className: "w-8 h-8 text-primary animate-pulse" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 385,
+          columnNumber: 17
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 384,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("h4", { className: "text-sm font-bold text-foreground", children: "Detecting your location..." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 388,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: "Verifying GPS coordinates against office geofence." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 389,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 387,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 383,
+        columnNumber: 11
+      }, this),
+      geoState === "PERMISSION_DENIED" && /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-left space-y-2 animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-start gap-2.5", children: [
+          /* @__PURE__ */ jsxDEV(ShieldAlert, { className: "w-5 h-5 text-rose-500 shrink-0 mt-0.5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 398,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+            /* @__PURE__ */ jsxDEV("h4", { className: "text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider", children: "Location Permission Required" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 400,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-rose-700 dark:text-rose-300 font-medium", children: "Location permission is required for office clock-in." }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 403,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 399,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 397,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground", children: "Please allow location access in your browser to verify office attendance, or select an offsite location below." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 408,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "pt-1 flex justify-end", children: /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => requestGPSLocation(),
+            className: "flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer",
+            children: [
+              /* @__PURE__ */ jsxDEV(RefreshCw, { className: "w-3.5 h-3.5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                lineNumber: 417,
+                columnNumber: 19
+              }, this),
+              " Retry Permission"
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 412,
+            columnNumber: 17
+          },
+          this
+        ) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 411,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 396,
+        columnNumber: 11
+      }, this),
+      geoState === "GPS_ERROR" && /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-left space-y-2 animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-start gap-2.5", children: [
+          /* @__PURE__ */ jsxDEV(Navigation, { className: "w-5 h-5 text-amber-500 shrink-0 mt-0.5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 427,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+            /* @__PURE__ */ jsxDEV("h4", { className: "text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider", children: "GPS Unavailable" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 429,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-amber-700 dark:text-amber-300 font-medium", children: "Unable to get your current location. Please retry." }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 432,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 428,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 426,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground", children: "Ensure device location services are turned on, or select Home / Other below if working offsite." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 437,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "pt-1 flex justify-end", children: /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: () => requestGPSLocation(),
+            className: "flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer",
+            children: [
+              /* @__PURE__ */ jsxDEV(RefreshCw, { className: "w-3.5 h-3.5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                lineNumber: 446,
+                columnNumber: 19
+              }, this),
+              " Retry Location"
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 441,
+            columnNumber: 17
+          },
+          this
+        ) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 440,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 425,
+        columnNumber: 11
+      }, this),
+      geoState === "INSIDE" && /* @__PURE__ */ jsxDEV("div", { className: "p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 space-y-3 animate-in fade-in text-left", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400", children: /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "w-6 h-6" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 457,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 456,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("h4", { className: "text-sm font-extrabold text-emerald-700 dark:text-emerald-400", children: "Location Verified" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 460,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-emerald-600/90 dark:text-emerald-300/90 font-semibold", children: "You are within the permitted location." }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 463,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 459,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 455,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "bg-background/80 rounded-xl p-3 text-xs space-y-1.5 border border-emerald-500/20 font-medium", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Office Location:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 471,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground", children: officeName }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 472,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 470,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Distance:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 475,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-emerald-600 dark:text-emerald-400 font-mono", children: formatDistance(distanceMeters) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 476,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 474,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Allowed Radius:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 481,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground font-mono", children: [
+              allowedRadius,
+              " m"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 482,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 480,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 469,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 454,
+        columnNumber: 11
+      }, this),
+      geoState === "OUTSIDE" && /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2.5 text-left animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 492,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("h4", { className: "text-xs font-black uppercase text-amber-700 dark:text-amber-300 tracking-wider", children: "Outside Permitted Location" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 493,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 491,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-amber-800/90 dark:text-amber-200/90 font-medium", children: "You are outside your allowed attendance locations." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 497,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "bg-background/80 rounded-xl p-3 text-xs space-y-1.5 border border-amber-500/20 font-medium", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Nearest Location:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 503,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground", children: officeName }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 504,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 502,
+            columnNumber: 17
+          }, this),
+          distanceMeters !== null && distanceMeters !== Infinity && /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Nearest Distance:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 508,
+              columnNumber: 21
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-amber-600 dark:text-amber-400 font-mono", children: formatDistance(distanceMeters) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 509,
+              columnNumber: 21
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 507,
+            columnNumber: 15
+          }, this),
+          allowedRadius !== null && allowedRadius !== void 0 && /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground", children: "Allowed Radius:" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 516,
+              columnNumber: 21
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground font-mono", children: [
+              allowedRadius,
+              " m"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 517,
+              columnNumber: 21
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 515,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 501,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 490,
+        columnNumber: 11
+      }, this),
+      geoState === "NO_ASSIGNED_LOCATION" && /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 space-y-2 text-left animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 528,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("h4", { className: "text-xs font-black uppercase text-rose-700 dark:text-rose-300 tracking-wider", children: "No Location Assigned" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 529,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 527,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-rose-800/90 dark:text-rose-200/90 font-medium", children: "No attendance location has been assigned to your account. Please contact your administrator." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 533,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 526,
+        columnNumber: 11
+      }, this),
+      (geoState === "OUTSIDE" || geoState === "NO_ASSIGNED_LOCATION" || geoState === "PERMISSION_DENIED" || geoState === "GPS_ERROR") && /* @__PURE__ */ jsxDEV("div", { className: "space-y-3 text-left animate-in fade-in", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+          "Where are you working from? ",
+          /* @__PURE__ */ jsxDEV("span", { className: "text-rose-500", children: "*" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 543,
+            columnNumber: 45
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 542,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              onClick: () => setOutsideWorkLocation("HOME"),
+              className: `p-3.5 rounded-2xl border flex items-center justify-center gap-2 text-center transition-all cursor-pointer ${outsideWorkLocation === "HOME" ? "bg-primary/10 border-primary text-primary font-black shadow-sm ring-2 ring-primary/20" : "bg-background border-border/80 text-muted-foreground hover:bg-muted/50 font-medium"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV(Home, { className: "w-4 h-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                  lineNumber: 556,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-bold", children: "Home (Remote)" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                  lineNumber: 557,
+                  columnNumber: 19
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 547,
+              columnNumber: 17
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              onClick: () => setOutsideWorkLocation("OTHER"),
+              className: `p-3.5 rounded-2xl border flex items-center justify-center gap-2 text-center transition-all cursor-pointer ${outsideWorkLocation === "OTHER" ? "bg-primary/10 border-primary text-primary font-black shadow-sm ring-2 ring-primary/20" : "bg-background border-border/80 text-muted-foreground hover:bg-muted/50 font-medium"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV(MapPin, { className: "w-4 h-4" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                  lineNumber: 569,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-bold", children: "Other" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                  lineNumber: 570,
+                  columnNumber: 19
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 560,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 546,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 pt-1", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-bold text-foreground block", children: [
+            "Location / Reason ",
+            outsideWorkLocation === "OTHER" && /* @__PURE__ */ jsxDEV("span", { className: "text-rose-500", children: "*" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 577,
+              columnNumber: 73
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 576,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: workLocationOther,
+              onChange: (e) => setWorkLocationOther(e.target.value),
+              placeholder: outsideWorkLocation === "OTHER" ? "Enter specific location or reason (required)" : "Working remotely / from home today (optional)",
+              className: "w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20",
+              required: outsideWorkLocation === "OTHER"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 579,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+          lineNumber: 575,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 541,
+        columnNumber: 11
+      }, this),
+      errorMsg && /* @__PURE__ */ jsxDEV("div", { className: "p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400", children: errorMsg }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 593,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-end gap-3 pt-2", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: onClose,
+            disabled: loading,
+            className: "px-4 py-2.5 text-xs font-bold border border-border rounded-xl hover:bg-muted text-foreground transition-all cursor-pointer",
+            children: "Cancel"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 600,
+            columnNumber: 13
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "submit",
+            disabled: loading || geoState === "DETECTING" || isOtherInvalid,
+            className: "px-5 py-2.5 text-xs font-bold bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+            children: loading ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV(RefreshCw, { className: "w-4 h-4 animate-spin" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                lineNumber: 616,
+                columnNumber: 19
+              }, this),
+              " Clocking In..."
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 615,
+              columnNumber: 15
+            }, this) : geoState === "DETECTING" ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV(RefreshCw, { className: "w-4 h-4 animate-spin" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+                lineNumber: 620,
+                columnNumber: 19
+              }, this),
+              " Verifying Location..."
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+              lineNumber: 619,
+              columnNumber: 15
+            }, this) : "Confirm Clock In"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+            lineNumber: 609,
+            columnNumber: 13
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+        lineNumber: 599,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+      lineNumber: 379,
+      columnNumber: 9
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+    lineNumber: 325,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx",
+    lineNumber: 324,
+    columnNumber: 5
+  }, this);
+}
+_s(ClockInModal, "qp8GQkvFhG5obcElQnhR/jI4QC4=");
+_c = ClockInModal;
+var _c;
+$RefreshReg$(_c, "ClockInModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/ClockInModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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ZUVmZmVjdCIsImFwaSIsIkhvbWUiLCJNYXBQaW4iLCJDbG9jayIsIkFsZXJ0VHJpYW5nbGUiLCJDaGVja0NpcmNsZTIiLCJYIiwiUmVmcmVzaEN3IiwiU2hpZWxkQWxlcnQiLCJOYXZpZ2F0aW9uIiwiZm9ybWF0TGF0ZUR1cmF0aW9uIiwiY2FsY3VsYXRlSGF2ZXJzaW5lRGlzdGFuY2UiLCJsYXQxIiwibG9uMSIsImxhdDIiLCJsb24yIiwibnVtTGF0MSIsInBhcnNlRmxvYXQiLCJudW1Mb24xIiwibnVtTGF0MiIsIm51bUxvbjIiLCJpc05hTiIsIkluZmluaXR5IiwiUiIsImRMYXQiLCJNYXRoIiwiUEkiLCJkTG9uIiwiYSIsInNpbiIsImNvcyIsImMiLCJhdGFuMiIsInNxcnQiLCJmb3JtYXREaXN0YW5jZSIsIm1ldGVycyIsInVuZGVmaW5lZCIsIm0iLCJyb3VuZCIsImttIiwidG9GaXhlZCIsIkNsb2NrSW5Nb2RhbCIsImlzT3BlbiIsIm9uQ2xvc2UiLCJvblN1Y2Nlc3MiLCJvbkVycm9yIiwidXNlciIsIl9zIiwiZ2VvU3RhdGUiLCJzZXRHZW9TdGF0ZSIsImNvb3JkcyIsInNldENvb3JkcyIsImxhdGl0dWRlIiwibG9uZ2l0dWRlIiwiZGlzdGFuY2VNZXRlcnMiLCJzZXREaXN0YW5jZU1ldGVycyIsIm1hdGNoZWRMb2NhdGlvbiIsInNldE1hdGNoZWRMb2NhdGlvbiIsIm5lYXJlc3RMb2NhdGlvbiIsInNldE5lYXJlc3RMb2NhdGlvbiIsIm91dHNpZGVXb3JrTG9jYXRpb24iLCJzZXRPdXRzaWRlV29ya0xvY2F0aW9uIiwid29ya0xvY2F0aW9uT3RoZXIiLCJzZXRXb3JrTG9jYXRpb25PdGhlciIsImxvYWRpbmciLCJzZXRMb2FkaW5nIiwic3RhdHVzTG9hZGluZyIsInNldFN0YXR1c0xvYWRpbmciLCJlcnJvck1zZyIsInNldEVycm9yTXNnIiwiY2xvY2tTdGF0dXMiLCJzZXRDbG9ja1N0YXR1cyIsImZldGNoQ2xvY2tTdGF0dXNBbmRHZW9mZW5jZSIsInJlcyIsImdldCIsImRhdGEiLCJyZXF1ZXN0R1BTTG9jYXRpb24iLCJlcnIiLCJjb25zb2xlIiwiZXJyb3IiLCJnZW9mZW5jZSIsIm9mZmljZUxhdGl0dWRlIiwib2ZmaWNlTG9uZ2l0dWRlIiwiYWxsb3dlZFJhZGl1c01ldGVycyIsIm9mZmljZUxvY2F0aW9uTmFtZSIsInN0YXR1c0RhdGEiLCJjdXJyZW50U3RhdHVzIiwiYXNzaWduZWRMb2NhdGlvbnMiLCJ0YXJnZXRHZW9mZW5jZSIsIm5hdmlnYXRvciIsImdlb2xvY2F0aW9uIiwiZ2V0Q3VycmVudFBvc2l0aW9uIiwicG9zaXRpb24iLCJsYXQiLCJsb24iLCJwb3N0IiwiZXZhbERhdGEiLCJzdGF0dXMiLCJtZXNzYWdlIiwidmVyaWZ5RXJyIiwid2FybiIsImxlbmd0aCIsIm5lYXJlc3RMb2MiLCJtaW5EaXN0YW5jZSIsIm1hdGNoZWRMb2MiLCJtYXRjaGVkRGlzdCIsImxvYyIsImRpc3QiLCJyYWRpdXNNZXRlcnMiLCJuYW1lIiwiaGFzT3JnYW5pemF0aW9uTG9jYXRpb25zIiwiY29kZSIsImVuYWJsZUhpZ2hBY2N1cmFjeSIsInRpbWVvdXQiLCJtYXhpbXVtQWdlIiwiYWN0aXZlTG9jYXRpb24iLCJhbGxvd2VkUmFkaXVzIiwib2ZmaWNlTmFtZSIsInRhcmdldE9mZmljZUxhdCIsInRhcmdldE9mZmljZUxvbiIsImlzT3RoZXJJbnZhbGlkIiwidHJpbSIsImNhbGN1bGF0ZWRTdGF0dXMiLCJzdGF0ZSIsImxhdGVNaW51dGVzIiwiY3VycmVudFRpbWVEaXNwbGF5IiwiY3VycmVudFRpbWVGb3JtYXR0ZWQiLCJEYXRlIiwidG9Mb2NhbGVUaW1lU3RyaW5nIiwiaG91ciIsIm1pbnV0ZSIsImhhbmRsZVN1Ym1pdCIsImUiLCJwcmV2ZW50RGVmYXVsdCIsImlzSW5zaWRlIiwid29ya0xvYyIsInBheWxvYWQiLCJhZGRyZXNzIiwid29ya0xvY2F0aW9uIiwiZXJyUmVzIiwicmVzcG9uc2UiLCJ1c2VyTWVzc2FnZSIsInJlYXNvbiIsInRhcmdldCIsInZhbHVlIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiQ2xvY2tJbk1vZGFsLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUsIHVzZUVmZmVjdCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcbmltcG9ydCB7IEhvbWUsIE1hcFBpbiwgQ2xvY2ssIEFsZXJ0VHJpYW5nbGUsIENoZWNrQ2lyY2xlMiwgWCwgUmVmcmVzaEN3LCBTaGllbGRBbGVydCwgTmF2aWdhdGlvbiB9IGZyb20gJ2x1Y2lkZS1yZWFjdCc7XG5pbXBvcnQgeyBmb3JtYXRMYXRlRHVyYXRpb24gfSBmcm9tICcuLi8uLi91dGlscy9hdHRlbmRhbmNlRm9ybWF0dGVyJztcblxuY29uc3QgY2FsY3VsYXRlSGF2ZXJzaW5lRGlzdGFuY2UgPSAobGF0MSwgbG9uMSwgbGF0MiwgbG9uMikgPT4ge1xuICBjb25zdCBudW1MYXQxID0gcGFyc2VGbG9hdChsYXQxKTtcbiAgY29uc3QgbnVtTG9uMSA9IHBhcnNlRmxvYXQobG9uMSk7XG4gIGNvbnN0IG51bUxhdDIgPSBwYXJzZUZsb2F0KGxhdDIpO1xuICBjb25zdCBudW1Mb24yID0gcGFyc2VGbG9hdChsb24yKTtcbiAgaWYgKGlzTmFOKG51bUxhdDEpIHx8IGlzTmFOKG51bUxvbjEpIHx8IGlzTmFOKG51bUxhdDIpIHx8IGlzTmFOKG51bUxvbjIpKSByZXR1cm4gSW5maW5pdHk7XG5cbiAgY29uc3QgUiA9IDYzNzEwMDA7IC8vIFJhZGl1cyBvZiBFYXJ0aCBpbiBtZXRlcnNcbiAgY29uc3QgZExhdCA9IChudW1MYXQyIC0gbnVtTGF0MSkgKiAoTWF0aC5QSSAvIDE4MCk7XG4gIGNvbnN0IGRMb24gPSAobnVtTG9uMiAtIG51bUxvbjEpICogKE1hdGguUEkgLyAxODApO1xuICBjb25zdCBhID1cbiAgICBNYXRoLnNpbihkTGF0IC8gMikgKiBNYXRoLnNpbihkTGF0IC8gMikgK1xuICAgIE1hdGguY29zKG51bUxhdDEgKiAoTWF0aC5QSSAvIDE4MCkpICogTWF0aC5jb3MobnVtTGF0MiAqIChNYXRoLlBJIC8gMTgwKSkgKlxuICAgIE1hdGguc2luKGRMb24gLyAyKSAqIE1hdGguc2luKGRMb24gLyAyKTtcbiAgY29uc3QgYyA9IDIgKiBNYXRoLmF0YW4yKE1hdGguc3FydChhKSwgTWF0aC5zcXJ0KDEgLSBhKSk7XG4gIHJldHVybiBSICogYzsgLy8gRGlzdGFuY2UgaW4gbWV0ZXJzXG59O1xuXG5jb25zdCBmb3JtYXREaXN0YW5jZSA9IChtZXRlcnMpID0+IHtcbiAgaWYgKG1ldGVycyA9PT0gbnVsbCB8fCBtZXRlcnMgPT09IHVuZGVmaW5lZCB8fCBpc05hTihtZXRlcnMpKSByZXR1cm4gJ1Vua25vd24nO1xuICBjb25zdCBtID0gTWF0aC5yb3VuZChtZXRlcnMpO1xuICBpZiAobSA8IDEwMDApIHtcbiAgICByZXR1cm4gYCR7bX0gbWA7XG4gIH1cbiAgY29uc3Qga20gPSAobSAvIDEwMDApLnRvRml4ZWQoMSk7XG4gIHJldHVybiBgJHtrbX0ga21gO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gQ2xvY2tJbk1vZGFsKHsgaXNPcGVuLCBvbkNsb3NlLCBvblN1Y2Nlc3MsIG9uRXJyb3IsIHVzZXIgfSkge1xuICAvLyBHZW9mZW5jZSAmIExvY2F0aW9uIHN0YXRlczogJ0lETEUnIHwgJ0RFVEVDVElORycgfCAnUEVSTUlTU0lPTl9ERU5JRUQnIHwgJ0dQU19FUlJPUicgfCAnSU5TSURFJyB8ICdPVVRTSURFJ1xuICBjb25zdCBbZ2VvU3RhdGUsIHNldEdlb1N0YXRlXSA9IHVzZVN0YXRlKCdJRExFJyk7XG4gIGNvbnN0IFtjb29yZHMsIHNldENvb3Jkc10gPSB1c2VTdGF0ZSh7IGxhdGl0dWRlOiBudWxsLCBsb25naXR1ZGU6IG51bGwgfSk7XG4gIGNvbnN0IFtkaXN0YW5jZU1ldGVycywgc2V0RGlzdGFuY2VNZXRlcnNdID0gdXNlU3RhdGUobnVsbCk7XG4gIGNvbnN0IFttYXRjaGVkTG9jYXRpb24sIHNldE1hdGNoZWRMb2NhdGlvbl0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW25lYXJlc3RMb2NhdGlvbiwgc2V0TmVhcmVzdExvY2F0aW9uXSA9IHVzZVN0YXRlKG51bGwpO1xuICBcbiAgLy8gT3V0c2lkZSBmb3JtIHN0YXRlc1xuICBjb25zdCBbb3V0c2lkZVdvcmtMb2NhdGlvbiwgc2V0T3V0c2lkZVdvcmtMb2NhdGlvbl0gPSB1c2VTdGF0ZSgnSE9NRScpO1xuICBjb25zdCBbd29ya0xvY2F0aW9uT3RoZXIsIHNldFdvcmtMb2NhdGlvbk90aGVyXSA9IHVzZVN0YXRlKCcnKTtcbiAgXG4gIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW3N0YXR1c0xvYWRpbmcsIHNldFN0YXR1c0xvYWRpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbZXJyb3JNc2csIHNldEVycm9yTXNnXSA9IHVzZVN0YXRlKCcnKTtcbiAgY29uc3QgW2Nsb2NrU3RhdHVzLCBzZXRDbG9ja1N0YXR1c10gPSB1c2VTdGF0ZShudWxsKTtcblxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGlmIChpc09wZW4pIHtcbiAgICAgIHNldE91dHNpZGVXb3JrTG9jYXRpb24oJ0hPTUUnKTtcbiAgICAgIHNldFdvcmtMb2NhdGlvbk90aGVyKCcnKTtcbiAgICAgIHNldEVycm9yTXNnKCcnKTtcbiAgICAgIHNldE1hdGNoZWRMb2NhdGlvbihudWxsKTtcbiAgICAgIHNldE5lYXJlc3RMb2NhdGlvbihudWxsKTtcbiAgICAgIHNldERpc3RhbmNlTWV0ZXJzKG51bGwpO1xuICAgICAgZmV0Y2hDbG9ja1N0YXR1c0FuZEdlb2ZlbmNlKCk7XG4gICAgfVxuICB9LCBbaXNPcGVuXSk7XG5cbiAgY29uc3QgZmV0Y2hDbG9ja1N0YXR1c0FuZEdlb2ZlbmNlID0gYXN5bmMgKCkgPT4ge1xuICAgIHRyeSB7XG4gICAgICBzZXRTdGF0dXNMb2FkaW5nKHRydWUpO1xuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLmdldCgnL2F0dGVuZGFuY2Uvc3RhdHVzJyk7XG4gICAgICBzZXRDbG9ja1N0YXR1cyhyZXMuZGF0YSk7XG4gICAgICByZXF1ZXN0R1BTTG9jYXRpb24ocmVzLmRhdGEpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIGZldGNoIGNsb2NrIHN0YXR1cyAmIGdlb2ZlbmNlOicsIGVycik7XG4gICAgICByZXF1ZXN0R1BTTG9jYXRpb24oe1xuICAgICAgICBnZW9mZW5jZToge1xuICAgICAgICAgIG9mZmljZUxhdGl0dWRlOiAxMi45NzE1OTgsXG4gICAgICAgICAgb2ZmaWNlTG9uZ2l0dWRlOiA3Ny41OTQ1NjIsXG4gICAgICAgICAgYWxsb3dlZFJhZGl1c01ldGVyczogMjAwLFxuICAgICAgICAgIG9mZmljZUxvY2F0aW9uTmFtZTogJ09mZmljZSdcbiAgICAgICAgfVxuICAgICAgfSk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldFN0YXR1c0xvYWRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCByZXF1ZXN0R1BTTG9jYXRpb24gPSAoc3RhdHVzRGF0YSkgPT4ge1xuICAgIGNvbnN0IGN1cnJlbnRTdGF0dXMgPSBzdGF0dXNEYXRhIHx8IGNsb2NrU3RhdHVzO1xuICAgIGNvbnN0IGFzc2lnbmVkTG9jYXRpb25zID0gY3VycmVudFN0YXR1cz8uYXNzaWduZWRMb2NhdGlvbnMgfHwgW107XG4gICAgY29uc3QgdGFyZ2V0R2VvZmVuY2UgPSBjdXJyZW50U3RhdHVzPy5nZW9mZW5jZSB8fCB7XG4gICAgICBvZmZpY2VMYXRpdHVkZTogMTIuOTcxNTk4LFxuICAgICAgb2ZmaWNlTG9uZ2l0dWRlOiA3Ny41OTQ1NjIsXG4gICAgICBhbGxvd2VkUmFkaXVzTWV0ZXJzOiAyMDAsXG4gICAgICBvZmZpY2VMb2NhdGlvbk5hbWU6ICdPZmZpY2UnXG4gICAgfTtcblxuICAgIHNldEdlb1N0YXRlKCdERVRFQ1RJTkcnKTtcbiAgICBzZXRFcnJvck1zZygnJyk7XG4gICAgc2V0TWF0Y2hlZExvY2F0aW9uKG51bGwpO1xuICAgIHNldE5lYXJlc3RMb2NhdGlvbihudWxsKTtcblxuICAgIGlmICghbmF2aWdhdG9yLmdlb2xvY2F0aW9uKSB7XG4gICAgICBzZXRHZW9TdGF0ZSgnR1BTX0VSUk9SJyk7XG4gICAgICBzZXRFcnJvck1zZygnVW5hYmxlIHRvIGdldCB5b3VyIGN1cnJlbnQgbG9jYXRpb24uIFBsZWFzZSByZXRyeS4nKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG5cbiAgICBuYXZpZ2F0b3IuZ2VvbG9jYXRpb24uZ2V0Q3VycmVudFBvc2l0aW9uKFxuICAgICAgYXN5bmMgKHBvc2l0aW9uKSA9PiB7XG4gICAgICAgIGNvbnN0IGxhdCA9IHBhcnNlRmxvYXQocG9zaXRpb24uY29vcmRzLmxhdGl0dWRlLnRvRml4ZWQoNikpO1xuICAgICAgICBjb25zdCBsb24gPSBwYXJzZUZsb2F0KHBvc2l0aW9uLmNvb3Jkcy5sb25naXR1ZGUudG9GaXhlZCg2KSk7XG4gICAgICAgIHNldENvb3Jkcyh7IGxhdGl0dWRlOiBsYXQsIGxvbmdpdHVkZTogbG9uIH0pO1xuXG4gICAgICAgIHRyeSB7XG4gICAgICAgICAgLy8gQXV0aG9yaXRhdGl2ZSBnZW9mZW5jZSBldmFsdWF0aW9uIHJlc3VsdCBmcm9tIGJhY2tlbmRcbiAgICAgICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkucG9zdCgnL2F0dGVuZGFuY2UvdmVyaWZ5LWxvY2F0aW9uJywgeyBsYXRpdHVkZTogbGF0LCBsb25naXR1ZGU6IGxvbiB9KTtcbiAgICAgICAgICBjb25zdCBldmFsRGF0YSA9IHJlcy5kYXRhO1xuXG4gICAgICAgICAgaWYgKGV2YWxEYXRhLnN0YXR1cyA9PT0gJ0lOU0lERScpIHtcbiAgICAgICAgICAgIHNldEdlb1N0YXRlKCdJTlNJREUnKTtcbiAgICAgICAgICAgIHNldE1hdGNoZWRMb2NhdGlvbihldmFsRGF0YS5tYXRjaGVkTG9jYXRpb24pO1xuICAgICAgICAgICAgc2V0TmVhcmVzdExvY2F0aW9uKGV2YWxEYXRhLm1hdGNoZWRMb2NhdGlvbik7XG4gICAgICAgICAgICBzZXREaXN0YW5jZU1ldGVycyhldmFsRGF0YS5kaXN0YW5jZU1ldGVycyk7XG4gICAgICAgICAgICBzZXRFcnJvck1zZygnJyk7XG4gICAgICAgICAgfSBlbHNlIGlmIChldmFsRGF0YS5zdGF0dXMgPT09ICdOT19BU1NJR05FRF9MT0NBVElPTicpIHtcbiAgICAgICAgICAgIHNldEdlb1N0YXRlKCdOT19BU1NJR05FRF9MT0NBVElPTicpO1xuICAgICAgICAgICAgc2V0TWF0Y2hlZExvY2F0aW9uKG51bGwpO1xuICAgICAgICAgICAgc2V0TmVhcmVzdExvY2F0aW9uKG51bGwpO1xuICAgICAgICAgICAgc2V0RGlzdGFuY2VNZXRlcnMobnVsbCk7XG4gICAgICAgICAgICBzZXRFcnJvck1zZyhldmFsRGF0YS5tZXNzYWdlIHx8ICdObyBhdHRlbmRhbmNlIGxvY2F0aW9uIGhhcyBiZWVuIGFzc2lnbmVkIHRvIHlvdXIgYWNjb3VudC4gUGxlYXNlIGNvbnRhY3QgeW91ciBhZG1pbmlzdHJhdG9yLicpO1xuICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICBzZXRHZW9TdGF0ZSgnT1VUU0lERScpO1xuICAgICAgICAgICAgc2V0TWF0Y2hlZExvY2F0aW9uKG51bGwpO1xuICAgICAgICAgICAgc2V0TmVhcmVzdExvY2F0aW9uKGV2YWxEYXRhLm5lYXJlc3RMb2NhdGlvbik7XG4gICAgICAgICAgICBzZXREaXN0YW5jZU1ldGVycyhldmFsRGF0YS5kaXN0YW5jZU1ldGVycyk7XG4gICAgICAgICAgICBzZXRFcnJvck1zZyhldmFsRGF0YS5tZXNzYWdlIHx8ICdZb3UgYXJlIG91dHNpZGUgeW91ciBhbGxvd2VkIGF0dGVuZGFuY2UgbG9jYXRpb25zLicpO1xuICAgICAgICAgIH1cbiAgICAgICAgfSBjYXRjaCAodmVyaWZ5RXJyKSB7XG4gICAgICAgICAgY29uc29sZS53YXJuKCdCYWNrZW5kIGxvY2F0aW9uIHZlcmlmaWNhdGlvbiBmYWxsYmFjazonLCB2ZXJpZnlFcnIpO1xuICAgICAgICAgIC8vIEZhbGxiYWNrIHRvIGV2YWx1YXRpbmcgYWdhaW5zdCBhc3NpZ25lZExvY2F0aW9ucyBmcm9tIHN0YXR1cyBkYXRhXG4gICAgICAgICAgaWYgKGFzc2lnbmVkTG9jYXRpb25zICYmIGFzc2lnbmVkTG9jYXRpb25zLmxlbmd0aCA+IDApIHtcbiAgICAgICAgICAgIGxldCBuZWFyZXN0TG9jID0gbnVsbDtcbiAgICAgICAgICAgIGxldCBtaW5EaXN0YW5jZSA9IEluZmluaXR5O1xuICAgICAgICAgICAgbGV0IG1hdGNoZWRMb2MgPSBudWxsO1xuICAgICAgICAgICAgbGV0IG1hdGNoZWREaXN0ID0gSW5maW5pdHk7XG5cbiAgICAgICAgICAgIGZvciAoY29uc3QgbG9jIG9mIGFzc2lnbmVkTG9jYXRpb25zKSB7XG4gICAgICAgICAgICAgIGNvbnN0IGRpc3QgPSBjYWxjdWxhdGVIYXZlcnNpbmVEaXN0YW5jZShsYXQsIGxvbiwgbG9jLmxhdGl0dWRlLCBsb2MubG9uZ2l0dWRlKTtcbiAgICAgICAgICAgICAgaWYgKCFpc05hTihkaXN0KSkge1xuICAgICAgICAgICAgICAgIGlmIChkaXN0IDwgbWluRGlzdGFuY2UpIHtcbiAgICAgICAgICAgICAgICAgIG1pbkRpc3RhbmNlID0gZGlzdDtcbiAgICAgICAgICAgICAgICAgIG5lYXJlc3RMb2MgPSBsb2M7XG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgIGlmIChkaXN0IDw9IGxvYy5yYWRpdXNNZXRlcnMgJiYgZGlzdCA8IG1hdGNoZWREaXN0KSB7XG4gICAgICAgICAgICAgICAgICBtYXRjaGVkRGlzdCA9IGRpc3Q7XG4gICAgICAgICAgICAgICAgICBtYXRjaGVkTG9jID0gbG9jO1xuICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICBpZiAobWF0Y2hlZExvYykge1xuICAgICAgICAgICAgICBzZXRNYXRjaGVkTG9jYXRpb24obWF0Y2hlZExvYyk7XG4gICAgICAgICAgICAgIHNldE5lYXJlc3RMb2NhdGlvbihtYXRjaGVkTG9jKTtcbiAgICAgICAgICAgICAgc2V0RGlzdGFuY2VNZXRlcnMoTWF0aC5yb3VuZChtYXRjaGVkRGlzdCkpO1xuICAgICAgICAgICAgICBzZXRHZW9TdGF0ZSgnSU5TSURFJyk7XG4gICAgICAgICAgICAgIHNldEVycm9yTXNnKCcnKTtcbiAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgIHNldE1hdGNoZWRMb2NhdGlvbihudWxsKTtcbiAgICAgICAgICAgICAgc2V0TmVhcmVzdExvY2F0aW9uKG5lYXJlc3RMb2MpO1xuICAgICAgICAgICAgICBzZXREaXN0YW5jZU1ldGVycyhNYXRoLnJvdW5kKG1pbkRpc3RhbmNlKSk7XG4gICAgICAgICAgICAgIHNldEdlb1N0YXRlKCdPVVRTSURFJyk7XG4gICAgICAgICAgICAgIHNldEVycm9yTXNnKG5lYXJlc3RMb2NcbiAgICAgICAgICAgICAgICA/IGBZb3UgYXJlIGN1cnJlbnRseSBvdXRzaWRlIHRoZSBwZXJtaXR0ZWQgbG9jYXRpb24gXCIke25lYXJlc3RMb2MubmFtZX1cIiAoJHtmb3JtYXREaXN0YW5jZShtaW5EaXN0YW5jZSl9IGF3YXkpLiBBbGxvd2VkIHJhZGl1cyBpcyAke25lYXJlc3RMb2MucmFkaXVzTWV0ZXJzfW0uYFxuICAgICAgICAgICAgICAgIDogJ1lvdSBhcmUgb3V0c2lkZSB5b3VyIGFsbG93ZWQgYXR0ZW5kYW5jZSBsb2NhdGlvbnMuJyk7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfSBlbHNlIGlmIChjdXJyZW50U3RhdHVzPy5oYXNPcmdhbml6YXRpb25Mb2NhdGlvbnMpIHtcbiAgICAgICAgICAgIHNldEdlb1N0YXRlKCdOT19BU1NJR05FRF9MT0NBVElPTicpO1xuICAgICAgICAgICAgc2V0RXJyb3JNc2coJ05vIGF0dGVuZGFuY2UgbG9jYXRpb24gaGFzIGJlZW4gYXNzaWduZWQgdG8geW91ciBhY2NvdW50LiBQbGVhc2UgY29udGFjdCB5b3VyIGFkbWluaXN0cmF0b3IuJyk7XG4gICAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgIC8vIExlZ2FjeSBzaW5nbGUgb2ZmaWNlIGdlb2ZlbmNlXG4gICAgICAgICAgICBjb25zdCBkaXN0ID0gY2FsY3VsYXRlSGF2ZXJzaW5lRGlzdGFuY2UoXG4gICAgICAgICAgICAgIGxhdCxcbiAgICAgICAgICAgICAgbG9uLFxuICAgICAgICAgICAgICB0YXJnZXRHZW9mZW5jZS5vZmZpY2VMYXRpdHVkZSxcbiAgICAgICAgICAgICAgdGFyZ2V0R2VvZmVuY2Uub2ZmaWNlTG9uZ2l0dWRlXG4gICAgICAgICAgICApO1xuICAgICAgICAgICAgc2V0RGlzdGFuY2VNZXRlcnMoTWF0aC5yb3VuZChkaXN0KSk7XG5cbiAgICAgICAgICAgIGlmIChkaXN0IDw9IHRhcmdldEdlb2ZlbmNlLmFsbG93ZWRSYWRpdXNNZXRlcnMpIHtcbiAgICAgICAgICAgICAgc2V0R2VvU3RhdGUoJ0lOU0lERScpO1xuICAgICAgICAgICAgICBzZXRFcnJvck1zZygnJyk7XG4gICAgICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgICAgICBzZXRHZW9TdGF0ZSgnT1VUU0lERScpO1xuICAgICAgICAgICAgICBzZXRFcnJvck1zZyhgWW91IGFyZSBjdXJyZW50bHkgb3V0c2lkZSB0aGUgcGVybWl0dGVkIGxvY2F0aW9uICgke2Zvcm1hdERpc3RhbmNlKGRpc3QpfSBhd2F5KS4gQWxsb3dlZCByYWRpdXMgaXMgJHt0YXJnZXRHZW9mZW5jZS5hbGxvd2VkUmFkaXVzTWV0ZXJzfW0uYCk7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuICAgICAgICB9XG4gICAgICB9LFxuICAgICAgKGVycm9yKSA9PiB7XG4gICAgICAgIGNvbnNvbGUud2FybignR1BTIHBvc2l0aW9uIGVycm9yOicsIGVycm9yKTtcbiAgICAgICAgaWYgKGVycm9yLmNvZGUgPT09IDEpIHsgLy8gUEVSTUlTU0lPTl9ERU5JRURcbiAgICAgICAgICBzZXRHZW9TdGF0ZSgnUEVSTUlTU0lPTl9ERU5JRUQnKTtcbiAgICAgICAgICBzZXRFcnJvck1zZygnTG9jYXRpb24gcGVybWlzc2lvbiBpcyByZXF1aXJlZCBmb3Igb2ZmaWNlIGNsb2NrLWluLicpO1xuICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgIHNldEdlb1N0YXRlKCdHUFNfRVJST1InKTtcbiAgICAgICAgICBzZXRFcnJvck1zZygnVW5hYmxlIHRvIGdldCB5b3VyIGN1cnJlbnQgbG9jYXRpb24uIFBsZWFzZSByZXRyeS4nKTtcbiAgICAgICAgfVxuICAgICAgfSxcbiAgICAgIHsgZW5hYmxlSGlnaEFjY3VyYWN5OiB0cnVlLCB0aW1lb3V0OiAxMDAwMCwgbWF4aW11bUFnZTogMCB9XG4gICAgKTtcbiAgfTtcblxuICBpZiAoIWlzT3BlbikgcmV0dXJuIG51bGw7XG5cbiAgY29uc3QgYWN0aXZlTG9jYXRpb24gPSBtYXRjaGVkTG9jYXRpb24gfHwgbmVhcmVzdExvY2F0aW9uIHx8IChjbG9ja1N0YXR1cz8uYXNzaWduZWRMb2NhdGlvbnM/LlswXSA/PyBudWxsKTtcbiAgY29uc3QgYWxsb3dlZFJhZGl1cyA9IGFjdGl2ZUxvY2F0aW9uID8gYWN0aXZlTG9jYXRpb24ucmFkaXVzTWV0ZXJzIDogKGNsb2NrU3RhdHVzPy5nZW9mZW5jZT8uYWxsb3dlZFJhZGl1c01ldGVycyA/PyAyMDApO1xuICBjb25zdCBvZmZpY2VOYW1lID0gYWN0aXZlTG9jYXRpb24gPyBhY3RpdmVMb2NhdGlvbi5uYW1lIDogKGNsb2NrU3RhdHVzPy5nZW9mZW5jZT8ub2ZmaWNlTG9jYXRpb25OYW1lID8/ICdPZmZpY2UnKTtcbiAgY29uc3QgdGFyZ2V0T2ZmaWNlTGF0ID0gY2xvY2tTdGF0dXM/Lmdlb2ZlbmNlPy5vZmZpY2VMYXRpdHVkZTtcbiAgY29uc3QgdGFyZ2V0T2ZmaWNlTG9uID0gY2xvY2tTdGF0dXM/Lmdlb2ZlbmNlPy5vZmZpY2VMb25naXR1ZGU7XG5cbiAgY29uc3QgaXNPdGhlckludmFsaWQgPSAoZ2VvU3RhdGUgPT09ICdPVVRTSURFJyB8fCBnZW9TdGF0ZSA9PT0gJ05PX0FTU0lHTkVEX0xPQ0FUSU9OJyB8fCBnZW9TdGF0ZSA9PT0gJ1BFUk1JU1NJT05fREVOSUVEJyB8fCBnZW9TdGF0ZSA9PT0gJ0dQU19FUlJPUicpICYmXG4gICAgb3V0c2lkZVdvcmtMb2NhdGlvbiA9PT0gJ09USEVSJyAmJiAhd29ya0xvY2F0aW9uT3RoZXIudHJpbSgpO1xuICBjb25zdCBjYWxjdWxhdGVkU3RhdHVzID0gY2xvY2tTdGF0dXM/LnN0YXRlID09PSAnT1BFTl9MQVRFJyA/ICdMQVRFJyA6ICdQUkVTRU5UJztcbiAgY29uc3QgbGF0ZU1pbnV0ZXMgPSBjbG9ja1N0YXR1cz8ubGF0ZU1pbnV0ZXMgfHwgMDtcbiAgY29uc3QgY3VycmVudFRpbWVEaXNwbGF5ID0gY2xvY2tTdGF0dXM/LmN1cnJlbnRUaW1lRm9ybWF0dGVkIHx8IG5ldyBEYXRlKCkudG9Mb2NhbGVUaW1lU3RyaW5nKFtdLCB7IGhvdXI6ICcyLWRpZ2l0JywgbWludXRlOiAnMi1kaWdpdCcgfSk7XG5cbiAgY29uc3QgaGFuZGxlU3VibWl0ID0gYXN5bmMgKGUpID0+IHtcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XG5cbiAgICBpZiAoZ2VvU3RhdGUgPT09ICdERVRFQ1RJTkcnKSB7XG4gICAgICBzZXRFcnJvck1zZygnTG9jYXRpb24gdmVyaWZpY2F0aW9uIGlzIGluIHByb2dyZXNzLiBQbGVhc2Ugd2FpdC4nKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG5cbiAgICBjb25zdCBpc0luc2lkZSA9IGdlb1N0YXRlID09PSAnSU5TSURFJztcbiAgICBjb25zdCB3b3JrTG9jID0gaXNJbnNpZGUgPyAnT0ZGSUNFJyA6IG91dHNpZGVXb3JrTG9jYXRpb247XG5cbiAgICBpZiAod29ya0xvYyA9PT0gJ09GRklDRScgJiYgKGdlb1N0YXRlID09PSAnUEVSTUlTU0lPTl9ERU5JRUQnIHx8IGdlb1N0YXRlID09PSAnR1BTX0VSUk9SJyB8fCBnZW9TdGF0ZSA9PT0gJ05PX0FTU0lHTkVEX0xPQ0FUSU9OJykpIHtcbiAgICAgIHNldEVycm9yTXNnKGdlb1N0YXRlID09PSAnTk9fQVNTSUdORURfTE9DQVRJT04nXG4gICAgICAgID8gJ05vIGF0dGVuZGFuY2UgbG9jYXRpb24gaGFzIGJlZW4gYXNzaWduZWQgdG8geW91ciBhY2NvdW50LiBQbGVhc2UgY29udGFjdCB5b3VyIGFkbWluaXN0cmF0b3IuJ1xuICAgICAgICA6ICdMb2NhdGlvbiBwZXJtaXNzaW9uIGlzIHJlcXVpcmVkIGZvciBvZmZpY2UgY2xvY2staW4uIFBsZWFzZSByZXRyeSBsb2NhdGlvbiBvciBzZWxlY3QgSG9tZSAvIE90aGVyIGJlbG93LicpO1xuICAgICAgcmV0dXJuO1xuICAgIH1cblxuICAgIGlmICh3b3JrTG9jID09PSAnT1RIRVInICYmICF3b3JrTG9jYXRpb25PdGhlci50cmltKCkpIHtcbiAgICAgIHNldEVycm9yTXNnKCdMb2NhdGlvbiBvciByZWFzb24gaXMgcmVxdWlyZWQgd2hlbiBcIk90aGVyXCIgaXMgc2VsZWN0ZWQuJyk7XG4gICAgICByZXR1cm47XG4gICAgfVxuXG4gICAgdHJ5IHtcbiAgICAgIHNldExvYWRpbmcodHJ1ZSk7XG4gICAgICBzZXRFcnJvck1zZygnJyk7XG5cbiAgICAgIGNvbnN0IHBheWxvYWQgPSB7XG4gICAgICAgIGxhdGl0dWRlOiBjb29yZHMubGF0aXR1ZGUsXG4gICAgICAgIGxvbmdpdHVkZTogY29vcmRzLmxvbmdpdHVkZSxcbiAgICAgICAgYWRkcmVzczogbWF0Y2hlZExvY2F0aW9uPy5hZGRyZXNzIHx8IG51bGwsXG4gICAgICAgIHdvcmtMb2NhdGlvbjogd29ya0xvYyxcbiAgICAgICAgd29ya0xvY2F0aW9uT3RoZXI6IHdvcmtMb2MgPT09ICdPVEhFUicgPyB3b3JrTG9jYXRpb25PdGhlci50cmltKCkgOiAod29ya0xvY2F0aW9uT3RoZXIudHJpbSgpIHx8IG51bGwpXG4gICAgICB9O1xuXG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkucG9zdCgnL2F0dGVuZGFuY2UvY2xvY2staW4nLCBwYXlsb2FkKTtcblxuICAgICAgaWYgKG9uU3VjY2Vzcykge1xuICAgICAgICBvblN1Y2Nlc3MocmVzLmRhdGEpO1xuICAgICAgfVxuICAgICAgb25DbG9zZSgpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgY29uc29sZS5lcnJvcignQ2xvY2sgaW4gZXJyb3I6JywgZXJyKTtcbiAgICAgIGNvbnN0IGVyclJlcyA9IGVyci5yZXNwb25zZT8uZGF0YTtcbiAgICAgIGNvbnN0IHN0YXR1cyA9IGVyci5yZXNwb25zZT8uc3RhdHVzO1xuXG4gICAgICBsZXQgdXNlck1lc3NhZ2UgPSAnJztcbiAgICAgIGlmIChzdGF0dXMgPT09IDQwMSkge1xuICAgICAgICB1c2VyTWVzc2FnZSA9ICdZb3VyIHNlc3Npb24gaGFzIGV4cGlyZWQuIFBsZWFzZSBsb2cgaW4gYWdhaW4uJztcbiAgICAgIH0gZWxzZSBpZiAoc3RhdHVzID09PSA0MDMpIHtcbiAgICAgICAgdXNlck1lc3NhZ2UgPSBlcnJSZXM/Lm1lc3NhZ2UgfHwgJ0FjY2VzcyBkZW5pZWQ6IFlvdSBkbyBub3QgaGF2ZSBwZXJtaXNzaW9uIHRvIGNsb2NrIGluLic7XG4gICAgICB9IGVsc2UgaWYgKHN0YXR1cyA9PT0gNDI5KSB7XG4gICAgICAgIHVzZXJNZXNzYWdlID0gJ1RvbyBtYW55IHJlcXVlc3RzLiBQbGVhc2Ugd2FpdCBhIG1vbWVudCBhbmQgdHJ5IGFnYWluLic7XG4gICAgICB9IGVsc2UgaWYgKHN0YXR1cyA+PSA1MDApIHtcbiAgICAgICAgdXNlck1lc3NhZ2UgPSBlcnJSZXM/Lm1lc3NhZ2UgfHwgJ1RoZSBzZXJ2ZXIgb3IgZGF0YWJhc2UgaXMgdGVtcG9yYXJpbHkgdW5hdmFpbGFibGUuIFBsZWFzZSByZXRyeS4nO1xuICAgICAgfSBlbHNlIGlmIChlcnJSZXM/LnJlYXNvbiA9PT0gJ09VVFNJREVfR0VPRkVOQ0UnKSB7XG4gICAgICAgIHNldEdlb1N0YXRlKCdPVVRTSURFJyk7XG4gICAgICAgIGlmIChlcnJSZXMuZGlzdGFuY2VNZXRlcnMgIT09IHVuZGVmaW5lZCAmJiBlcnJSZXMuZGlzdGFuY2VNZXRlcnMgIT09IG51bGwpIHtcbiAgICAgICAgICBzZXREaXN0YW5jZU1ldGVycyhlcnJSZXMuZGlzdGFuY2VNZXRlcnMpO1xuICAgICAgICB9XG4gICAgICAgIGlmIChlcnJSZXMubmVhcmVzdExvY2F0aW9uKSB7XG4gICAgICAgICAgc2V0TmVhcmVzdExvY2F0aW9uKGVyclJlcy5uZWFyZXN0TG9jYXRpb24pO1xuICAgICAgICB9XG4gICAgICAgIHVzZXJNZXNzYWdlID0gZXJyUmVzLm1lc3NhZ2UgfHwgJ1lvdSBhcmUgb3V0c2lkZSB5b3VyIGFsbG93ZWQgYXR0ZW5kYW5jZSBsb2NhdGlvbnMuJztcbiAgICAgIH0gZWxzZSBpZiAoZXJyUmVzPy5yZWFzb24gPT09ICdOT19BU1NJR05FRF9MT0NBVElPTicpIHtcbiAgICAgICAgc2V0R2VvU3RhdGUoJ05PX0FTU0lHTkVEX0xPQ0FUSU9OJyk7XG4gICAgICAgIHVzZXJNZXNzYWdlID0gZXJyUmVzLm1lc3NhZ2UgfHwgJ05vIGF0dGVuZGFuY2UgbG9jYXRpb24gaGFzIGJlZW4gYXNzaWduZWQgdG8geW91ciBhY2NvdW50LiBQbGVhc2UgY29udGFjdCB5b3VyIGFkbWluaXN0cmF0b3IuJztcbiAgICAgIH0gZWxzZSB7XG4gICAgICAgIHVzZXJNZXNzYWdlID0gZXJyUmVzPy5tZXNzYWdlIHx8IGVyclJlcz8ucmVhc29uIHx8IGVyci5tZXNzYWdlIHx8ICdDbG9jayBpbiBmYWlsZWQuIFBsZWFzZSB0cnkgYWdhaW4uJztcbiAgICAgIH1cblxuICAgICAgc2V0RXJyb3JNc2codXNlck1lc3NhZ2UpO1xuICAgICAgaWYgKG9uRXJyb3IpIHtcbiAgICAgICAgb25FcnJvcih1c2VyTWVzc2FnZSk7XG4gICAgICB9XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPVwiZml4ZWQgaW5zZXQtMCBiZy1ibGFjay82MCBiYWNrZHJvcC1ibHVyLXNtIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHAtNCB6LTUwIGFuaW1hdGUtaW4gZmFkZS1pbiBkdXJhdGlvbi0xNTBcIj5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctY2FyZCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLTN4bCBwLTYgbWF4LXctbWQgdy1mdWxsIHNoYWRvdy0yeGwgc3BhY2UteS01IHRleHQtbGVmdCByZWxhdGl2ZSBvdmVyZmxvdy1oaWRkZW5cIj5cbiAgICAgICAgey8qIEhlYWRlciAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLXN0YXJ0IGp1c3RpZnktYmV0d2VlblwiPlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC14bCBmb250LWJsYWNrIHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICA8Q2xvY2sgY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXByaW1hcnlcIiAvPiBBdHRlbmRhbmNlIENsb2NrIEluXG4gICAgICAgICAgICA8L2gyPlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgbXQtMC41IGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgIEdlb2ZlbmNlIGxvY2F0aW9uIHZlcmlmaWNhdGlvbiAmIHNoaWZ0IGNoZWNrLWluLlxuICAgICAgICAgICAgPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZ31cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3Zlcjp0ZXh0LWZvcmVncm91bmQgcC0xIHJvdW5kZWQtbGcgaG92ZXI6YmctbXV0ZWQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIDxYIGNsYXNzTmFtZT1cInctNSBoLTVcIiAvPlxuICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICB7LyogU2VydmVyIFRpbWUgJiBDYWxjdWxhdGVkIFN0YXR1cyBDYXJkICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLW11dGVkLzQwIGJvcmRlciBib3JkZXItYm9yZGVyLzgwIHJvdW5kZWQtMnhsIHAtNCBncmlkIGdyaWQtY29scy0yIGdhcC0zIHRleHQtY2VudGVyXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyIGJsb2NrXCI+Q3VycmVudCBUaW1lPC9zcGFuPlxuICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1sZyBmb250LWJsYWNrIGZvbnQtbW9ubyB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5cbiAgICAgICAgICAgICAge3N0YXR1c0xvYWRpbmcgPyAnLi4uJyA6IGN1cnJlbnRUaW1lRGlzcGxheX1cbiAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMSBmbGV4IGZsZXgtY29sIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBib3JkZXItbCBib3JkZXItYm9yZGVyLzYwXCI+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciBibG9ja1wiPkF0dGVuZGFuY2UgU3RhdHVzPC9zcGFuPlxuICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPXtgcHgtMi41IHB5LTAuNSByb3VuZGVkLWZ1bGwgdGV4dC14cyBmb250LWJsYWNrIHVwcGVyY2FzZSBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSAke1xuICAgICAgICAgICAgICBjYWxjdWxhdGVkU3RhdHVzID09PSAnTEFURSdcbiAgICAgICAgICAgICAgICA/ICdiZy1hbWJlci01MDAvMTAgdGV4dC1hbWJlci02MDAgZGFyazp0ZXh0LWFtYmVyLTQwMCBib3JkZXIgYm9yZGVyLWFtYmVyLTUwMC8yMCdcbiAgICAgICAgICAgICAgICA6ICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGRhcms6dGV4dC1lbWVyYWxkLTQwMCBib3JkZXIgYm9yZGVyLWVtZXJhbGQtNTAwLzIwJ1xuICAgICAgICAgICAgfWB9PlxuICAgICAgICAgICAgICB7Y2FsY3VsYXRlZFN0YXR1cyA9PT0gJ0xBVEUnID8gKFxuICAgICAgICAgICAgICAgIDw+XG4gICAgICAgICAgICAgICAgICA8QWxlcnRUcmlhbmdsZSBjbGFzc05hbWU9XCJ3LTMgaC0zXCIgLz4gTEFURVxuICAgICAgICAgICAgICAgIDwvPlxuICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgIDw+XG4gICAgICAgICAgICAgICAgICA8Q2hlY2tDaXJjbGUyIGNsYXNzTmFtZT1cInctMyBoLTNcIiAvPiBQUkVTRU5UXG4gICAgICAgICAgICAgICAgPC8+XG4gICAgICAgICAgICAgICl9XG4gICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICB7Y2FsY3VsYXRlZFN0YXR1cyA9PT0gJ0xBVEUnICYmIGxhdGVNaW51dGVzID4gMCAmJiAoXG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtYW1iZXItNjAwIGRhcms6dGV4dC1hbWJlci00MDAgZm9udC1ib2xkIGJsb2NrXCI+XG4gICAgICAgICAgICAgICAge2Zvcm1hdExhdGVEdXJhdGlvbihsYXRlTWludXRlcyl9XG4gICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICl9XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBHRU9MT0NBVElPTiBXT1JLRkxPVyBDT05UQUlORVIgKi99XG4gICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVTdWJtaXR9IGNsYXNzTmFtZT1cInNwYWNlLXktNFwiPlxuXG4gICAgICAgICAgey8qIFNUQVRFIDE6IERFVEVDVElORyBMT0NBVElPTiAqL31cbiAgICAgICAgICB7Z2VvU3RhdGUgPT09ICdERVRFQ1RJTkcnICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC02IHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItcHJpbWFyeS8yMCBiZy1wcmltYXJ5LzUgdGV4dC1jZW50ZXIgc3BhY2UteS0zIGFuaW1hdGUtaW4gZmFkZS1pblwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyXCI+XG4gICAgICAgICAgICAgICAgPE5hdmlnYXRpb24gY2xhc3NOYW1lPVwidy04IGgtOCB0ZXh0LXByaW1hcnkgYW5pbWF0ZS1wdWxzZVwiIC8+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXNtIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5EZXRlY3RpbmcgeW91ciBsb2NhdGlvbi4uLjwvaDQ+XG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5WZXJpZnlpbmcgR1BTIGNvb3JkaW5hdGVzIGFnYWluc3Qgb2ZmaWNlIGdlb2ZlbmNlLjwvcD5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuXG4gICAgICAgICAgey8qIFNUQVRFIDJBOiBHUFMgUEVSTUlTU0lPTiBERU5JRUQgKi99XG4gICAgICAgICAge2dlb1N0YXRlID09PSAnUEVSTUlTU0lPTl9ERU5JRUQnICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC00IHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItcm9zZS01MDAvMzAgYmctcm9zZS01MDAvMTAgdGV4dC1sZWZ0IHNwYWNlLXktMiBhbmltYXRlLWluIGZhZGUtaW5cIj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLXN0YXJ0IGdhcC0yLjVcIj5cbiAgICAgICAgICAgICAgICA8U2hpZWxkQWxlcnQgY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXJvc2UtNTAwIHNocmluay0wIG10LTAuNVwiIC8+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTAuNVwiPlxuICAgICAgICAgICAgICAgICAgPGg0IGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ibGFjayB0ZXh0LXJvc2UtNjAwIGRhcms6dGV4dC1yb3NlLTQwMCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXJcIj5cbiAgICAgICAgICAgICAgICAgICAgTG9jYXRpb24gUGVybWlzc2lvbiBSZXF1aXJlZFxuICAgICAgICAgICAgICAgICAgPC9oND5cbiAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1yb3NlLTcwMCBkYXJrOnRleHQtcm9zZS0zMDAgZm9udC1tZWRpdW1cIj5cbiAgICAgICAgICAgICAgICAgICAgTG9jYXRpb24gcGVybWlzc2lvbiBpcyByZXF1aXJlZCBmb3Igb2ZmaWNlIGNsb2NrLWluLlxuICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgICAgUGxlYXNlIGFsbG93IGxvY2F0aW9uIGFjY2VzcyBpbiB5b3VyIGJyb3dzZXIgdG8gdmVyaWZ5IG9mZmljZSBhdHRlbmRhbmNlLCBvciBzZWxlY3QgYW4gb2Zmc2l0ZSBsb2NhdGlvbiBiZWxvdy5cbiAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB0LTEgZmxleCBqdXN0aWZ5LWVuZFwiPlxuICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gcmVxdWVzdEdQU0xvY2F0aW9uKCl9XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHB4LTMgcHktMS41IGJnLXJvc2UtNjAwIGhvdmVyOmJnLXJvc2UtNzAwIHRleHQtd2hpdGUgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgPFJlZnJlc2hDdyBjbGFzc05hbWU9XCJ3LTMuNSBoLTMuNVwiIC8+IFJldHJ5IFBlcm1pc3Npb25cbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuXG4gICAgICAgICAgey8qIFNUQVRFIDJCOiBHUFMgRVJST1IgLyBUSU1FT1VUICovfVxuICAgICAgICAgIHtnZW9TdGF0ZSA9PT0gJ0dQU19FUlJPUicgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgcm91bmRlZC0yeGwgYm9yZGVyIGJvcmRlci1hbWJlci01MDAvMzAgYmctYW1iZXItNTAwLzEwIHRleHQtbGVmdCBzcGFjZS15LTIgYW5pbWF0ZS1pbiBmYWRlLWluXCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1zdGFydCBnYXAtMi41XCI+XG4gICAgICAgICAgICAgICAgPE5hdmlnYXRpb24gY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LWFtYmVyLTUwMCBzaHJpbmstMCBtdC0wLjVcIiAvPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0wLjVcIj5cbiAgICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYmxhY2sgdGV4dC1hbWJlci02MDAgZGFyazp0ZXh0LWFtYmVyLTQwMCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXJcIj5cbiAgICAgICAgICAgICAgICAgICAgR1BTIFVuYXZhaWxhYmxlXG4gICAgICAgICAgICAgICAgICA8L2g0PlxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LWFtYmVyLTcwMCBkYXJrOnRleHQtYW1iZXItMzAwIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICAgIFVuYWJsZSB0byBnZXQgeW91ciBjdXJyZW50IGxvY2F0aW9uLiBQbGVhc2UgcmV0cnkuXG4gICAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cbiAgICAgICAgICAgICAgICBFbnN1cmUgZGV2aWNlIGxvY2F0aW9uIHNlcnZpY2VzIGFyZSB0dXJuZWQgb24sIG9yIHNlbGVjdCBIb21lIC8gT3RoZXIgYmVsb3cgaWYgd29ya2luZyBvZmZzaXRlLlxuICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHQtMSBmbGV4IGp1c3RpZnktZW5kXCI+XG4gICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiByZXF1ZXN0R1BTTG9jYXRpb24oKX1cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgcHgtMyBweS0xLjUgYmctYW1iZXItNjAwIGhvdmVyOmJnLWFtYmVyLTcwMCB0ZXh0LXdoaXRlIHJvdW5kZWQteGwgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPVwidy0zLjUgaC0zLjVcIiAvPiBSZXRyeSBMb2NhdGlvblxuICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG5cbiAgICAgICAgICB7LyogU1RBVEUgMzogSU5TSURFIEdFT0ZFTkNFIChBVVRPTUFUSUMgTE9DQVRJT04gVkVSSUZJRUQpICovfVxuICAgICAgICAgIHtnZW9TdGF0ZSA9PT0gJ0lOU0lERScgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTUgcm91bmRlZC0yeGwgYm9yZGVyIGJvcmRlci1lbWVyYWxkLTUwMC8zMCBiZy1lbWVyYWxkLTUwMC8xMCBzcGFjZS15LTMgYW5pbWF0ZS1pbiBmYWRlLWluIHRleHQtbGVmdFwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0zXCI+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTIgcm91bmRlZC14bCBiZy1lbWVyYWxkLTUwMC8yMCB0ZXh0LWVtZXJhbGQtNjAwIGRhcms6dGV4dC1lbWVyYWxkLTQwMFwiPlxuICAgICAgICAgICAgICAgICAgPENoZWNrQ2lyY2xlMiBjbGFzc05hbWU9XCJ3LTYgaC02XCIgLz5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgICAgPGg0IGNsYXNzTmFtZT1cInRleHQtc20gZm9udC1leHRyYWJvbGQgdGV4dC1lbWVyYWxkLTcwMCBkYXJrOnRleHQtZW1lcmFsZC00MDBcIj5cbiAgICAgICAgICAgICAgICAgICAgTG9jYXRpb24gVmVyaWZpZWRcbiAgICAgICAgICAgICAgICAgIDwvaDQ+XG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtZW1lcmFsZC02MDAvOTAgZGFyazp0ZXh0LWVtZXJhbGQtMzAwLzkwIGZvbnQtc2VtaWJvbGRcIj5cbiAgICAgICAgICAgICAgICAgICAgWW91IGFyZSB3aXRoaW4gdGhlIHBlcm1pdHRlZCBsb2NhdGlvbi5cbiAgICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1iYWNrZ3JvdW5kLzgwIHJvdW5kZWQteGwgcC0zIHRleHQteHMgc3BhY2UteS0xLjUgYm9yZGVyIGJvcmRlci1lbWVyYWxkLTUwMC8yMCBmb250LW1lZGl1bVwiPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPk9mZmljZSBMb2NhdGlvbjo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+e29mZmljZU5hbWV9PC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkRpc3RhbmNlOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtNjAwIGRhcms6dGV4dC1lbWVyYWxkLTQwMCBmb250LW1vbm9cIj5cbiAgICAgICAgICAgICAgICAgICAge2Zvcm1hdERpc3RhbmNlKGRpc3RhbmNlTWV0ZXJzKX1cbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1iZXR3ZWVuXCI+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5BbGxvd2VkIFJhZGl1czo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPnthbGxvd2VkUmFkaXVzfSBtPC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG5cbiAgICAgICAgICB7LyogU1RBVEUgNDogT1VUU0lERSBHRU9GRU5DRSBDQVJEICovfVxuICAgICAgICAgIHtnZW9TdGF0ZSA9PT0gJ09VVFNJREUnICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC00IHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYW1iZXItNTAwLzMwIGJnLWFtYmVyLTUwMC8xMCBzcGFjZS15LTIuNSB0ZXh0LWxlZnQgYW5pbWF0ZS1pbiBmYWRlLWluXCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICA8QWxlcnRUcmlhbmdsZSBjbGFzc05hbWU9XCJ3LTUgaC01IHRleHQtYW1iZXItNjAwIGRhcms6dGV4dC1hbWJlci00MDAgc2hyaW5rLTBcIiAvPlxuICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRleHQtYW1iZXItNzAwIGRhcms6dGV4dC1hbWJlci0zMDAgdHJhY2tpbmctd2lkZXJcIj5cbiAgICAgICAgICAgICAgICAgIE91dHNpZGUgUGVybWl0dGVkIExvY2F0aW9uXG4gICAgICAgICAgICAgICAgPC9oND5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1hbWJlci04MDAvOTAgZGFyazp0ZXh0LWFtYmVyLTIwMC85MCBmb250LW1lZGl1bVwiPlxuICAgICAgICAgICAgICAgIFlvdSBhcmUgb3V0c2lkZSB5b3VyIGFsbG93ZWQgYXR0ZW5kYW5jZSBsb2NhdGlvbnMuXG4gICAgICAgICAgICAgIDwvcD5cblxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLWJhY2tncm91bmQvODAgcm91bmRlZC14bCBwLTMgdGV4dC14cyBzcGFjZS15LTEuNSBib3JkZXIgYm9yZGVyLWFtYmVyLTUwMC8yMCBmb250LW1lZGl1bVwiPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPk5lYXJlc3QgTG9jYXRpb246PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZFwiPntvZmZpY2VOYW1lfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICB7ZGlzdGFuY2VNZXRlcnMgIT09IG51bGwgJiYgZGlzdGFuY2VNZXRlcnMgIT09IEluZmluaXR5ICYmIChcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+TmVhcmVzdCBEaXN0YW5jZTo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWFtYmVyLTYwMCBkYXJrOnRleHQtYW1iZXItNDAwIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICAgICAgICAgIHtmb3JtYXREaXN0YW5jZShkaXN0YW5jZU1ldGVycyl9XG4gICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAge2FsbG93ZWRSYWRpdXMgIT09IG51bGwgJiYgYWxsb3dlZFJhZGl1cyAhPT0gdW5kZWZpbmVkICYmIChcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+QWxsb3dlZCBSYWRpdXM6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPnthbGxvd2VkUmFkaXVzfSBtPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuXG4gICAgICAgICAgey8qIFNUQVRFIDRiOiBOTyBBU1NJR05FRCBMT0NBVElPTiAqL31cbiAgICAgICAgICB7Z2VvU3RhdGUgPT09ICdOT19BU1NJR05FRF9MT0NBVElPTicgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgcm91bmRlZC0yeGwgYm9yZGVyIGJvcmRlci1yb3NlLTUwMC8zMCBiZy1yb3NlLTUwMC8xMCBzcGFjZS15LTIgdGV4dC1sZWZ0IGFuaW1hdGUtaW4gZmFkZS1pblwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgPEFsZXJ0VHJpYW5nbGUgY2xhc3NOYW1lPVwidy01IGgtNSB0ZXh0LXJvc2UtNjAwIGRhcms6dGV4dC1yb3NlLTQwMCBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgPGg0IGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ibGFjayB1cHBlcmNhc2UgdGV4dC1yb3NlLTcwMCBkYXJrOnRleHQtcm9zZS0zMDAgdHJhY2tpbmctd2lkZXJcIj5cbiAgICAgICAgICAgICAgICAgIE5vIExvY2F0aW9uIEFzc2lnbmVkXG4gICAgICAgICAgICAgICAgPC9oND5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1yb3NlLTgwMC85MCBkYXJrOnRleHQtcm9zZS0yMDAvOTAgZm9udC1tZWRpdW1cIj5cbiAgICAgICAgICAgICAgICBObyBhdHRlbmRhbmNlIGxvY2F0aW9uIGhhcyBiZWVuIGFzc2lnbmVkIHRvIHlvdXIgYWNjb3VudC4gUGxlYXNlIGNvbnRhY3QgeW91ciBhZG1pbmlzdHJhdG9yLlxuICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuXG4gICAgICAgICAgey8qIE9GRlNJVEUgV09SSyBMT0NBVElPTiBTRUxFQ1RPUiAoV0hFTiBPVVRTSURFIE9SIEdQUyBERU5JRUQvVU5BVkFJTEFCTEUpICovfVxuICAgICAgICAgIHsoZ2VvU3RhdGUgPT09ICdPVVRTSURFJyB8fCBnZW9TdGF0ZSA9PT0gJ05PX0FTU0lHTkVEX0xPQ0FUSU9OJyB8fCBnZW9TdGF0ZSA9PT0gJ1BFUk1JU1NJT05fREVOSUVEJyB8fCBnZW9TdGF0ZSA9PT0gJ0dQU19FUlJPUicpICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0zIHRleHQtbGVmdCBhbmltYXRlLWluIGZhZGUtaW5cIj5cbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlxuICAgICAgICAgICAgICAgIFdoZXJlIGFyZSB5b3Ugd29ya2luZyBmcm9tPyA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXJvc2UtNTAwXCI+Kjwvc3Bhbj5cbiAgICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMiBnYXAtM1wiPlxuICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0T3V0c2lkZVdvcmtMb2NhdGlvbignSE9NRScpfVxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgcC0zLjUgcm91bmRlZC0yeGwgYm9yZGVyIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0yIHRleHQtY2VudGVyIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyICR7XG4gICAgICAgICAgICAgICAgICAgIG91dHNpZGVXb3JrTG9jYXRpb24gPT09ICdIT01FJ1xuICAgICAgICAgICAgICAgICAgICAgID8gJ2JnLXByaW1hcnkvMTAgYm9yZGVyLXByaW1hcnkgdGV4dC1wcmltYXJ5IGZvbnQtYmxhY2sgc2hhZG93LXNtIHJpbmctMiByaW5nLXByaW1hcnkvMjAnXG4gICAgICAgICAgICAgICAgICAgICAgOiAnYmctYmFja2dyb3VuZCBib3JkZXItYm9yZGVyLzgwIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZC81MCBmb250LW1lZGl1bSdcbiAgICAgICAgICAgICAgICAgIH1gfVxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxIb21lIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGRcIj5Ib21lIChSZW1vdGUpPC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuXG4gICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRPdXRzaWRlV29ya0xvY2F0aW9uKCdPVEhFUicpfVxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgcC0zLjUgcm91bmRlZC0yeGwgYm9yZGVyIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0yIHRleHQtY2VudGVyIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyICR7XG4gICAgICAgICAgICAgICAgICAgIG91dHNpZGVXb3JrTG9jYXRpb24gPT09ICdPVEhFUidcbiAgICAgICAgICAgICAgICAgICAgICA/ICdiZy1wcmltYXJ5LzEwIGJvcmRlci1wcmltYXJ5IHRleHQtcHJpbWFyeSBmb250LWJsYWNrIHNoYWRvdy1zbSByaW5nLTIgcmluZy1wcmltYXJ5LzIwJ1xuICAgICAgICAgICAgICAgICAgICAgIDogJ2JnLWJhY2tncm91bmQgYm9yZGVyLWJvcmRlci84MCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQvNTAgZm9udC1tZWRpdW0nXG4gICAgICAgICAgICAgICAgICB9YH1cbiAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICA8TWFwUGluIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGRcIj5PdGhlcjwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgey8qIFJlYXNvbiBJbnB1dCAqL31cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEgcHQtMVwiPlxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5cbiAgICAgICAgICAgICAgICAgIExvY2F0aW9uIC8gUmVhc29uIHtvdXRzaWRlV29ya0xvY2F0aW9uID09PSAnT1RIRVInICYmIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtcm9zZS01MDBcIj4qPC9zcGFuPn1cbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxuICAgICAgICAgICAgICAgICAgdmFsdWU9e3dvcmtMb2NhdGlvbk90aGVyfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRXb3JrTG9jYXRpb25PdGhlcihlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj17b3V0c2lkZVdvcmtMb2NhdGlvbiA9PT0gJ09USEVSJyA/ICdFbnRlciBzcGVjaWZpYyBsb2NhdGlvbiBvciByZWFzb24gKHJlcXVpcmVkKScgOiAnV29ya2luZyByZW1vdGVseSAvIGZyb20gaG9tZSB0b2RheSAob3B0aW9uYWwpJ31cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1iYWNrZ3JvdW5kIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQteGwgcHgtMy41IHB5LTIuNSB0ZXh0LXhzIHRleHQtZm9yZWdyb3VuZCBwbGFjZWhvbGRlcjp0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvMjBcIlxuICAgICAgICAgICAgICAgICAgcmVxdWlyZWQ9e291dHNpZGVXb3JrTG9jYXRpb24gPT09ICdPVEhFUid9XG4gICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuXG4gICAgICAgICAgey8qIElubGluZSBFcnJvciBNZXNzYWdlICovfVxuICAgICAgICAgIHtlcnJvck1zZyAmJiAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMyBiZy1yb3NlLTUwMC8xMCBib3JkZXIgYm9yZGVyLXJvc2UtNTAwLzIwIHJvdW5kZWQteGwgdGV4dC14cyBmb250LWJvbGQgdGV4dC1yb3NlLTYwMCBkYXJrOnRleHQtcm9zZS00MDBcIj5cbiAgICAgICAgICAgICAge2Vycm9yTXNnfVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cblxuICAgICAgICAgIHsvKiBBY3Rpb24gQnV0dG9ucyAqL31cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktZW5kIGdhcC0zIHB0LTJcIj5cbiAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICAgIGRpc2FibGVkPXtsb2FkaW5nfVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC00IHB5LTIuNSB0ZXh0LXhzIGZvbnQtYm9sZCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIGhvdmVyOmJnLW11dGVkIHRleHQtZm9yZWdyb3VuZCB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIENhbmNlbFxuICAgICAgICAgICAgPC9idXR0b24+XG5cbiAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgdHlwZT1cInN1Ym1pdFwiXG4gICAgICAgICAgICAgIGRpc2FibGVkPXtsb2FkaW5nIHx8IGdlb1N0YXRlID09PSAnREVURUNUSU5HJyB8fCBpc090aGVySW52YWxpZH1cbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtNSBweS0yLjUgdGV4dC14cyBmb250LWJvbGQgYmctcHJpbWFyeSBob3ZlcjpiZy1wcmltYXJ5LWhvdmVyIHRleHQtd2hpdGUgcm91bmRlZC14bCBzaGFkb3ctbWQgdHJhbnNpdGlvbi1hbGwgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBjdXJzb3ItcG9pbnRlciBkaXNhYmxlZDpvcGFjaXR5LTUwIGRpc2FibGVkOmN1cnNvci1ub3QtYWxsb3dlZFwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIHtsb2FkaW5nID8gKFxuICAgICAgICAgICAgICAgIDw+XG4gICAgICAgICAgICAgICAgICA8UmVmcmVzaEN3IGNsYXNzTmFtZT1cInctNCBoLTQgYW5pbWF0ZS1zcGluXCIgLz4gQ2xvY2tpbmcgSW4uLi5cbiAgICAgICAgICAgICAgICA8Lz5cbiAgICAgICAgICAgICAgKSA6IGdlb1N0YXRlID09PSAnREVURUNUSU5HJyA/IChcbiAgICAgICAgICAgICAgICA8PlxuICAgICAgICAgICAgICAgICAgPFJlZnJlc2hDdyBjbGFzc05hbWU9XCJ3LTQgaC00IGFuaW1hdGUtc3BpblwiIC8+IFZlcmlmeWluZyBMb2NhdGlvbi4uLlxuICAgICAgICAgICAgICAgIDwvPlxuICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICdDb25maXJtIENsb2NrIEluJ1xuICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZm9ybT5cbiAgICAgIDwvZGl2PlxuICAgIDwvZGl2PlxuICApO1xufVxuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvYXR0ZW5kYW5jZS9DbG9ja0luTW9kYWwuanN4In0=

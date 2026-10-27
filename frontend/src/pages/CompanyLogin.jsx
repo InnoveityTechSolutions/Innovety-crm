@@ -45,14 +45,17 @@ const CompanyLogin = () => {
   // 1. Cross-Tenant Protection (Phase 6.6): If authenticated user opens another company's login, redirect
   useEffect(() => {
     if (user) {
+      const userRole = String(user.role).toUpperCase();
       const userSlug = user.organization?.slug || 'innoveity';
-      if (user.role === 'SUPER_ADMIN') {
+      if (userRole === 'SUPER_ADMIN') {
         navigate('/super-admin', { replace: true });
+      } else if (user.accessTemplateId) {
+        navigate('/profile', { replace: true });
       } else if (slug && userSlug.toLowerCase() !== slug.toLowerCase()) {
         console.warn(`[Cross-Tenant Protect] User from '${userSlug}' attempted to access '/company/${slug}'. Redirecting...`);
-        navigate('/dashboard', { replace: true });
+        navigate('/', { replace: true });
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate('/', { replace: true });
       }
     }
   }, [user, slug, navigate]);
@@ -104,7 +107,15 @@ const CompanyLogin = () => {
       setSubmitting(true);
       const res = await login(loginInput.trim(), password, { organizationSlug: slug });
       if (res && res.success) {
-        navigate('/dashboard', { replace: true });
+        const loggedUser = res.user || user;
+        const loggedRole = String(loggedUser?.role || '').toUpperCase();
+        if (loggedRole === 'SUPER_ADMIN') {
+          navigate('/super-admin/dashboard', { replace: true });
+        } else if (loggedUser?.accessTemplateId) {
+          navigate('/profile', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       } else {
         if (res?.isServerError) {
           setServerError(res?.message || 'Login failed. Please try again later.');

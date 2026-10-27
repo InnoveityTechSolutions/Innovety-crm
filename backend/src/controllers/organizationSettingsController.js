@@ -22,6 +22,10 @@ const getOrganizationSettings = async (req, res) => {
       return res.status(400).json({ message: 'Organization ID is required.' });
     }
 
+    if (req.user?.role !== 'SUPER_ADMIN' && req.user?.organizationId !== organizationId) {
+      return res.status(403).json({ message: 'Forbidden: Access denied to organization settings outside your company scope.' });
+    }
+
     const org = await prisma.organization.findUnique({
       where: { id: organizationId }
     });

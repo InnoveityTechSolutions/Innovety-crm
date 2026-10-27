@@ -1,0 +1,416 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/AudioRecorder.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useRef = __vite__cjsImport3_react["useRef"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { Mic, Square, Play, Pause, Trash2, CheckCircle, UploadCloud } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const AudioRecorder = ({ onAudioRecorded, onCancel, className = "" }) => {
+  _s();
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const audioPlayerRef = useRef(null);
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
+  const startRecording = async () => {
+    try {
+      setError("");
+      setAudioBlob(null);
+      setAudioUrl(null);
+      setUploadSuccess(false);
+      audioChunksRef.current = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioBlob(blob);
+        setAudioUrl(url);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1e3);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      setError("Microphone access denied or unsupported.");
+    }
+  };
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+  const togglePlayback = () => {
+    if (!audioPlayerRef.current || !audioUrl) return;
+    if (isPlaying) {
+      audioPlayerRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioPlayerRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+  const clearRecording = () => {
+    if (isPlaying && audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+    }
+    setIsRecording(false);
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setRecordingTime(0);
+    setUploadSuccess(false);
+  };
+  const handleUploadAndSave = async () => {
+    if (!audioBlob) return;
+    try {
+      setIsUploading(true);
+      setError("");
+      const formData = new FormData();
+      formData.append("file", audioBlob, `audio_record_${Date.now()}.webm`);
+      const res = await api.post("/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      const serverAudioUrl = res.data.fileUrl || res.data.url;
+      setUploadSuccess(true);
+      if (onAudioRecorded) {
+        onAudioRecorded(serverAudioUrl);
+      }
+    } catch (err) {
+      console.error("Audio upload error:", err);
+      setError("Failed to upload audio message.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: `p-3 bg-card border border-border/50 rounded-2xl shadow-xs space-y-3 ${className}`, children: [
+    error && /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] font-semibold text-red-500 bg-red-500/10 p-2 rounded-xl border border-red-500/20", children: error }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+      lineNumber: 151,
+      columnNumber: 7
+    }, this),
+    !isRecording && !audioUrl && /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "w-2.5 h-2.5 rounded-full bg-slate-400" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 160,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-semibold text-muted-foreground", children: "Voice Audio Message" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 161,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+        lineNumber: 159,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "button",
+          onClick: startRecording,
+          className: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all cursor-pointer",
+          "aria-label": "Start recording audio message",
+          children: [
+            /* @__PURE__ */ jsxDEV(Mic, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 169,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Record Voice" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 170,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 163,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+      lineNumber: 158,
+      columnNumber: 7
+    }, this),
+    isRecording && /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "w-3 h-3 rounded-full bg-red-500 animate-ping" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 179,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-bold text-red-600 dark:text-red-400 font-mono", children: [
+          "Recording... ",
+          formatTime(recordingTime)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 180,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+        lineNumber: 178,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "button",
+          onClick: stopRecording,
+          className: "inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-500 text-white text-xs font-bold shadow-xs hover:bg-red-600 transition-all cursor-pointer",
+          "aria-label": "Stop audio recording",
+          children: [
+            /* @__PURE__ */ jsxDEV(Square, { className: "w-3.5 h-3.5 fill-current" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 191,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Stop" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 192,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 185,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+      lineNumber: 177,
+      columnNumber: 7
+    }, this),
+    audioUrl && !isRecording && /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: [
+      /* @__PURE__ */ jsxDEV(
+        "audio",
+        {
+          ref: audioPlayerRef,
+          src: audioUrl,
+          onEnded: () => setIsPlaying(false),
+          className: "hidden"
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 200,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between p-2.5 bg-muted/40 rounded-xl border border-border/30", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              onClick: togglePlayback,
+              className: "w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs hover:scale-105 transition-all cursor-pointer",
+              "aria-label": isPlaying ? "Pause audio playback" : "Play audio recording preview",
+              children: isPlaying ? /* @__PURE__ */ jsxDEV(Pause, { className: "w-4 h-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+                lineNumber: 215,
+                columnNumber: 30
+              }, this) : /* @__PURE__ */ jsxDEV(Play, { className: "w-4 h-4 ml-0.5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+                lineNumber: 215,
+                columnNumber: 62
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 209,
+              columnNumber: 15
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-bold text-foreground", children: [
+              "Voice Message (",
+              formatTime(recordingTime),
+              ")"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 219,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground font-mono", children: "audio/webm" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 220,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+            lineNumber: 218,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 208,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              onClick: clearRecording,
+              className: "p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer",
+              title: "Discard audio recording",
+              "aria-label": "Discard recording",
+              children: /* @__PURE__ */ jsxDEV(Trash2, { className: "w-4 h-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+                lineNumber: 232,
+                columnNumber: 17
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 225,
+              columnNumber: 15
+            },
+            this
+          ),
+          !uploadSuccess ? /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              onClick: handleUploadAndSave,
+              disabled: isUploading,
+              className: "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50",
+              "aria-label": "Attach audio to message",
+              children: [
+                /* @__PURE__ */ jsxDEV(UploadCloud, { className: "w-3.5 h-3.5" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+                  lineNumber: 243,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { children: isUploading ? "Uploading..." : "Attach Audio" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+                  lineNumber: 244,
+                  columnNumber: 19
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 236,
+              columnNumber: 13
+            },
+            this
+          ) : /* @__PURE__ */ jsxDEV("span", { className: "inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-600 text-xs font-extrabold border border-emerald-500/20", children: [
+            /* @__PURE__ */ jsxDEV(CheckCircle, { className: "w-3.5 h-3.5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+              lineNumber: 248,
+              columnNumber: 19
+            }, this),
+            " Ready"
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+            lineNumber: 247,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+          lineNumber: 224,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+        lineNumber: 207,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+      lineNumber: 199,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx",
+    lineNumber: 149,
+    columnNumber: 5
+  }, this);
+};
+_s(AudioRecorder, "wDchjWoTr84LndjtTjlHC8gE/zM=");
+_c = AudioRecorder;
+export default AudioRecorder;
+var _c;
+$RefreshReg$(_c, "AudioRecorder");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/AudioRecorder.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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TCxTQUFTNkM7QUFBQUEsY0FDVCxVQUFVL0M7QUFBQUEsY0FDVixXQUFVO0FBQUEsY0FDVixjQUFXO0FBQUEsY0FFWDtBQUFBLHVDQUFDLGVBQVksV0FBVSxpQkFBdkI7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBb0M7QUFBQSxnQkFDcEMsdUJBQUMsVUFBTUEsd0JBQWMsaUJBQWlCLGtCQUF0QztBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUFxRDtBQUFBO0FBQUE7QUFBQSxZQVJ2RDtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsVUFTQSxJQUVBLHVCQUFDLFVBQUssV0FBVSxnSkFDZDtBQUFBLG1DQUFDLGVBQVksV0FBVSxpQkFBdkI7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBb0M7QUFBQSxZQUFHO0FBQUEsZUFEekM7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFFQTtBQUFBLGFBekJKO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUEyQkE7QUFBQSxXQTVDRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBNkNBO0FBQUEsU0FyREY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQXNEQTtBQUFBLE9BeEdKO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0EwR0E7QUFFSjtBQUFFWCxHQXpPSUosZUFBYTtBQUFBLEtBQWJBO0FBMk9OLGVBQWVBO0FBQWMsSUFBQWlGO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbIlJlYWN0IiwidXNlU3RhdGUiLCJ1c2VSZWYiLCJ1c2VFZmZlY3QiLCJNaWMiLCJTcXVhcmUiLCJQbGF5IiwiUGF1c2UiLCJUcmFzaDIiLCJDaGVja0NpcmNsZSIsIlVwbG9hZENsb3VkIiwiYXBpIiwiQXVkaW9SZWNvcmRlciIsIm9uQXVkaW9SZWNvcmRlZCIsIm9uQ2FuY2VsIiwiY2xhc3NOYW1lIiwiX3MiLCJpc1JlY29yZGluZyIsInNldElzUmVjb3JkaW5nIiwicmVjb3JkaW5nVGltZSIsInNldFJlY29yZGluZ1RpbWUiLCJhdWRpb0Jsb2IiLCJzZXRBdWRpb0Jsb2IiLCJhdWRpb1VybCIsInNldEF1ZGlvVXJsIiwiaXNQbGF5aW5nIiwic2V0SXNQbGF5aW5nIiwiaXNVcGxvYWRpbmciLCJzZXRJc1VwbG9hZGluZyIsInVwbG9hZFN1Y2Nlc3MiLCJzZXRVcGxvYWRTdWNjZXNzIiwiZXJyb3IiLCJzZXRFcnJvciIsIm1lZGlhUmVjb3JkZXJSZWYiLCJhdWRpb0NodW5rc1JlZiIsInRpbWVyUmVmIiwiYXVkaW9QbGF5ZXJSZWYiLCJjdXJyZW50IiwiY2xlYXJJbnRlcnZhbCIsIlVSTCIsInJldm9rZU9iamVjdFVSTCIsInN0YXJ0UmVjb3JkaW5nIiwic3RyZWFtIiwibmF2aWdhdG9yIiwibWVkaWFEZXZpY2VzIiwiZ2V0VXNlck1lZGlhIiwiYXVkaW8iLCJtZWRpYVJlY29yZGVyIiwiTWVkaWFSZWNvcmRlciIsIm9uZGF0YWF2YWlsYWJsZSIsImUiLCJkYXRhIiwic2l6ZSIsInB1c2giLCJvbnN0b3AiLCJibG9iIiwiQmxvYiIsInR5cGUiLCJ1cmwiLCJjcmVhdGVPYmplY3RVUkwiLCJnZXRUcmFja3MiLCJmb3JFYWNoIiwidHJhY2siLCJzdG9wIiwic3RhcnQiLCJzZXRJbnRlcnZhbCIsInByZXYiLCJlcnIiLCJjb25zb2xlIiwic3RvcFJlY29yZGluZyIsInRvZ2dsZVBsYXliYWNrIiwicGF1c2UiLCJwbGF5IiwiY2xlYXJSZWNvcmRpbmciLCJoYW5kbGVVcGxvYWRBbmRTYXZlIiwiZm9ybURhdGEiLCJGb3JtRGF0YSIsImFwcGVuZCIsIkRhdGUiLCJub3ciLCJyZXMiLCJwb3N0IiwiaGVhZGVycyIsInNlcnZlckF1ZGlvVXJsIiwiZmlsZVVybCIsImZvcm1hdFRpbWUiLCJzZWNvbmRzIiwibWlucyIsIk1hdGgiLCJmbG9vciIsInNlY3MiLCJ0b1N0cmluZyIsInBhZFN0YXJ0IiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiQXVkaW9SZWNvcmRlci5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VSZWYsIHVzZUVmZmVjdCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IE1pYywgU3F1YXJlLCBQbGF5LCBQYXVzZSwgVHJhc2gyLCBDaGVja0NpcmNsZSwgVXBsb2FkQ2xvdWQgfSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IGFwaSBmcm9tICcuLi9zZXJ2aWNlcy9hcGknO1xuXG5jb25zdCBBdWRpb1JlY29yZGVyID0gKHsgb25BdWRpb1JlY29yZGVkLCBvbkNhbmNlbCwgY2xhc3NOYW1lID0gJycgfSkgPT4ge1xuICBjb25zdCBbaXNSZWNvcmRpbmcsIHNldElzUmVjb3JkaW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW3JlY29yZGluZ1RpbWUsIHNldFJlY29yZGluZ1RpbWVdID0gdXNlU3RhdGUoMCk7XG4gIGNvbnN0IFthdWRpb0Jsb2IsIHNldEF1ZGlvQmxvYl0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW2F1ZGlvVXJsLCBzZXRBdWRpb1VybF0gPSB1c2VTdGF0ZShudWxsKTtcbiAgY29uc3QgW2lzUGxheWluZywgc2V0SXNQbGF5aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW2lzVXBsb2FkaW5nLCBzZXRJc1VwbG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFt1cGxvYWRTdWNjZXNzLCBzZXRVcGxvYWRTdWNjZXNzXSA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW2Vycm9yLCBzZXRFcnJvcl0gPSB1c2VTdGF0ZSgnJyk7XG5cbiAgY29uc3QgbWVkaWFSZWNvcmRlclJlZiA9IHVzZVJlZihudWxsKTtcbiAgY29uc3QgYXVkaW9DaHVua3NSZWYgPSB1c2VSZWYoW10pO1xuICBjb25zdCB0aW1lclJlZiA9IHVzZVJlZihudWxsKTtcbiAgY29uc3QgYXVkaW9QbGF5ZXJSZWYgPSB1c2VSZWYobnVsbCk7XG5cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICByZXR1cm4gKCkgPT4ge1xuICAgICAgaWYgKHRpbWVyUmVmLmN1cnJlbnQpIGNsZWFySW50ZXJ2YWwodGltZXJSZWYuY3VycmVudCk7XG4gICAgICBpZiAoYXVkaW9VcmwpIFVSTC5yZXZva2VPYmplY3RVUkwoYXVkaW9VcmwpO1xuICAgIH07XG4gIH0sIFthdWRpb1VybF0pO1xuXG4gIGNvbnN0IHN0YXJ0UmVjb3JkaW5nID0gYXN5bmMgKCkgPT4ge1xuICAgIHRyeSB7XG4gICAgICBzZXRFcnJvcignJyk7XG4gICAgICBzZXRBdWRpb0Jsb2IobnVsbCk7XG4gICAgICBzZXRBdWRpb1VybChudWxsKTtcbiAgICAgIHNldFVwbG9hZFN1Y2Nlc3MoZmFsc2UpO1xuICAgICAgYXVkaW9DaHVua3NSZWYuY3VycmVudCA9IFtdO1xuXG4gICAgICBjb25zdCBzdHJlYW0gPSBhd2FpdCBuYXZpZ2F0b3IubWVkaWFEZXZpY2VzLmdldFVzZXJNZWRpYSh7IGF1ZGlvOiB0cnVlIH0pO1xuICAgICAgY29uc3QgbWVkaWFSZWNvcmRlciA9IG5ldyBNZWRpYVJlY29yZGVyKHN0cmVhbSk7XG4gICAgICBtZWRpYVJlY29yZGVyUmVmLmN1cnJlbnQgPSBtZWRpYVJlY29yZGVyO1xuXG4gICAgICBtZWRpYVJlY29yZGVyLm9uZGF0YWF2YWlsYWJsZSA9IChlKSA9PiB7XG4gICAgICAgIGlmIChlLmRhdGEgJiYgZS5kYXRhLnNpemUgPiAwKSB7XG4gICAgICAgICAgYXVkaW9DaHVua3NSZWYuY3VycmVudC5wdXNoKGUuZGF0YSk7XG4gICAgICAgIH1cbiAgICAgIH07XG5cbiAgICAgIG1lZGlhUmVjb3JkZXIub25zdG9wID0gKCkgPT4ge1xuICAgICAgICBjb25zdCBibG9iID0gbmV3IEJsb2IoYXVkaW9DaHVua3NSZWYuY3VycmVudCwgeyB0eXBlOiAnYXVkaW8vd2VibScgfSk7XG4gICAgICAgIGNvbnN0IHVybCA9IFVSTC5jcmVhdGVPYmplY3RVUkwoYmxvYik7XG4gICAgICAgIHNldEF1ZGlvQmxvYihibG9iKTtcbiAgICAgICAgc2V0QXVkaW9VcmwodXJsKTtcbiAgICAgICAgLy8gU3RvcCBzdHJlYW0gdHJhY2tzXG4gICAgICAgIHN0cmVhbS5nZXRUcmFja3MoKS5mb3JFYWNoKHRyYWNrID0+IHRyYWNrLnN0b3AoKSk7XG4gICAgICB9O1xuXG4gICAgICBtZWRpYVJlY29yZGVyLnN0YXJ0KCk7XG4gICAgICBzZXRJc1JlY29yZGluZyh0cnVlKTtcbiAgICAgIHNldFJlY29yZGluZ1RpbWUoMCk7XG5cbiAgICAgIHRpbWVyUmVmLmN1cnJlbnQgPSBzZXRJbnRlcnZhbCgoKSA9PiB7XG4gICAgICAgIHNldFJlY29yZGluZ1RpbWUocHJldiA9PiBwcmV2ICsgMSk7XG4gICAgICB9LCAxMDAwKTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ01pY3JvcGhvbmUgYWNjZXNzIGVycm9yOicsIGVycik7XG4gICAgICBzZXRFcnJvcignTWljcm9waG9uZSBhY2Nlc3MgZGVuaWVkIG9yIHVuc3VwcG9ydGVkLicpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBzdG9wUmVjb3JkaW5nID0gKCkgPT4ge1xuICAgIGlmIChtZWRpYVJlY29yZGVyUmVmLmN1cnJlbnQgJiYgaXNSZWNvcmRpbmcpIHtcbiAgICAgIG1lZGlhUmVjb3JkZXJSZWYuY3VycmVudC5zdG9wKCk7XG4gICAgICBzZXRJc1JlY29yZGluZyhmYWxzZSk7XG4gICAgICBpZiAodGltZXJSZWYuY3VycmVudCkgY2xlYXJJbnRlcnZhbCh0aW1lclJlZi5jdXJyZW50KTtcbiAgICB9XG4gIH07XG5cbiAgY29uc3QgdG9nZ2xlUGxheWJhY2sgPSAoKSA9PiB7XG4gICAgaWYgKCFhdWRpb1BsYXllclJlZi5jdXJyZW50IHx8ICFhdWRpb1VybCkgcmV0dXJuO1xuICAgIGlmIChpc1BsYXlpbmcpIHtcbiAgICAgIGF1ZGlvUGxheWVyUmVmLmN1cnJlbnQucGF1c2UoKTtcbiAgICAgIHNldElzUGxheWluZyhmYWxzZSk7XG4gICAgfSBlbHNlIHtcbiAgICAgIGF1ZGlvUGxheWVyUmVmLmN1cnJlbnQucGxheSgpO1xuICAgICAgc2V0SXNQbGF5aW5nKHRydWUpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBjbGVhclJlY29yZGluZyA9ICgpID0+IHtcbiAgICBpZiAoaXNQbGF5aW5nICYmIGF1ZGlvUGxheWVyUmVmLmN1cnJlbnQpIHtcbiAgICAgIGF1ZGlvUGxheWVyUmVmLmN1cnJlbnQucGF1c2UoKTtcbiAgICB9XG4gICAgc2V0SXNSZWNvcmRpbmcoZmFsc2UpO1xuICAgIHNldEF1ZGlvQmxvYihudWxsKTtcbiAgICBzZXRBdWRpb1VybChudWxsKTtcbiAgICBzZXRSZWNvcmRpbmdUaW1lKDApO1xuICAgIHNldFVwbG9hZFN1Y2Nlc3MoZmFsc2UpO1xuICB9O1xuXG4gIGNvbnN0IGhhbmRsZVVwbG9hZEFuZFNhdmUgPSBhc3luYyAoKSA9PiB7XG4gICAgaWYgKCFhdWRpb0Jsb2IpIHJldHVybjtcblxuICAgIHRyeSB7XG4gICAgICBzZXRJc1VwbG9hZGluZyh0cnVlKTtcbiAgICAgIHNldEVycm9yKCcnKTtcbiAgICAgIGNvbnN0IGZvcm1EYXRhID0gbmV3IEZvcm1EYXRhKCk7XG4gICAgICBmb3JtRGF0YS5hcHBlbmQoJ2ZpbGUnLCBhdWRpb0Jsb2IsIGBhdWRpb19yZWNvcmRfJHtEYXRlLm5vdygpfS53ZWJtYCk7XG5cbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5wb3N0KCcvdXBsb2FkJywgZm9ybURhdGEsIHtcbiAgICAgICAgaGVhZGVyczogeyAnQ29udGVudC1UeXBlJzogJ211bHRpcGFydC9mb3JtLWRhdGEnIH1cbiAgICAgIH0pO1xuXG4gICAgICBjb25zdCBzZXJ2ZXJBdWRpb1VybCA9IHJlcy5kYXRhLmZpbGVVcmwgfHwgcmVzLmRhdGEudXJsO1xuICAgICAgc2V0VXBsb2FkU3VjY2Vzcyh0cnVlKTtcbiAgICAgIGlmIChvbkF1ZGlvUmVjb3JkZWQpIHtcbiAgICAgICAgb25BdWRpb1JlY29yZGVkKHNlcnZlckF1ZGlvVXJsKTtcbiAgICAgIH1cbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0F1ZGlvIHVwbG9hZCBlcnJvcjonLCBlcnIpO1xuICAgICAgc2V0RXJyb3IoJ0ZhaWxlZCB0byB1cGxvYWQgYXVkaW8gbWVzc2FnZS4nKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0SXNVcGxvYWRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBmb3JtYXRUaW1lID0gKHNlY29uZHMpID0+IHtcbiAgICBjb25zdCBtaW5zID0gTWF0aC5mbG9vcihzZWNvbmRzIC8gNjApO1xuICAgIGNvbnN0IHNlY3MgPSBzZWNvbmRzICUgNjA7XG4gICAgcmV0dXJuIGAke21pbnMudG9TdHJpbmcoKS5wYWRTdGFydCgyLCAnMCcpfToke3NlY3MudG9TdHJpbmcoKS5wYWRTdGFydCgyLCAnMCcpfWA7XG4gIH07XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT17YHAtMyBiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyLzUwIHJvdW5kZWQtMnhsIHNoYWRvdy14cyBzcGFjZS15LTMgJHtjbGFzc05hbWV9YH0+XG4gICAgICB7ZXJyb3IgJiYgKFxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1yZWQtNTAwIGJnLXJlZC01MDAvMTAgcC0yIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1yZWQtNTAwLzIwXCI+XG4gICAgICAgICAge2Vycm9yfVxuICAgICAgICA8L2Rpdj5cbiAgICAgICl9XG5cbiAgICAgIHsvKiBTdGF0ZSAxOiBSZWFkeSB0byBSZWNvcmQgKi99XG4gICAgICB7IWlzUmVjb3JkaW5nICYmICFhdWRpb1VybCAmJiAoXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidy0yLjUgaC0yLjUgcm91bmRlZC1mdWxsIGJnLXNsYXRlLTQwMFwiIC8+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+Vm9pY2UgQXVkaW8gTWVzc2FnZTwvc3Bhbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgIG9uQ2xpY2s9e3N0YXJ0UmVjb3JkaW5nfVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgcHgtMyBweS0xLjUgcm91bmRlZC14bCBiZy1yZWQtNTAwLzEwIGhvdmVyOmJnLXJlZC01MDAvMjAgdGV4dC1yZWQtNjAwIGRhcms6dGV4dC1yZWQtNDAwIHRleHQteHMgZm9udC1ib2xkIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyXCJcbiAgICAgICAgICAgIGFyaWEtbGFiZWw9XCJTdGFydCByZWNvcmRpbmcgYXVkaW8gbWVzc2FnZVwiXG4gICAgICAgICAgPlxuICAgICAgICAgICAgPE1pYyBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgIDxzcGFuPlJlY29yZCBWb2ljZTwvc3Bhbj5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgPC9kaXY+XG4gICAgICApfVxuXG4gICAgICB7LyogU3RhdGUgMjogQWN0aXZlIFJlY29yZGluZyAqL31cbiAgICAgIHtpc1JlY29yZGluZyAmJiAoXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGJnLXJlZC01MDAvMTAgYm9yZGVyIGJvcmRlci1yZWQtNTAwLzIwIHAtMi41IHJvdW5kZWQteGxcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjVcIj5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInctMyBoLTMgcm91bmRlZC1mdWxsIGJnLXJlZC01MDAgYW5pbWF0ZS1waW5nXCIgLz5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtcmVkLTYwMCBkYXJrOnRleHQtcmVkLTQwMCBmb250LW1vbm9cIj5cbiAgICAgICAgICAgICAgUmVjb3JkaW5nLi4uIHtmb3JtYXRUaW1lKHJlY29yZGluZ1RpbWUpfVxuICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICBvbkNsaWNrPXtzdG9wUmVjb3JkaW5nfVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGdhcC0xIHB4LTMgcHktMSByb3VuZGVkLWxnIGJnLXJlZC01MDAgdGV4dC13aGl0ZSB0ZXh0LXhzIGZvbnQtYm9sZCBzaGFkb3cteHMgaG92ZXI6YmctcmVkLTYwMCB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICBhcmlhLWxhYmVsPVwiU3RvcCBhdWRpbyByZWNvcmRpbmdcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIDxTcXVhcmUgY2xhc3NOYW1lPVwidy0zLjUgaC0zLjUgZmlsbC1jdXJyZW50XCIgLz5cbiAgICAgICAgICAgIDxzcGFuPlN0b3A8L3NwYW4+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgIDwvZGl2PlxuICAgICAgKX1cblxuICAgICAgey8qIFN0YXRlIDM6IFJlY29yZGluZyBSZXZpZXcgJiBVcGxvYWQgKi99XG4gICAgICB7YXVkaW9VcmwgJiYgIWlzUmVjb3JkaW5nICYmIChcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTJcIj5cbiAgICAgICAgICA8YXVkaW9cbiAgICAgICAgICAgIHJlZj17YXVkaW9QbGF5ZXJSZWZ9XG4gICAgICAgICAgICBzcmM9e2F1ZGlvVXJsfVxuICAgICAgICAgICAgb25FbmRlZD17KCkgPT4gc2V0SXNQbGF5aW5nKGZhbHNlKX1cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImhpZGRlblwiXG4gICAgICAgICAgLz5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIHAtMi41IGJnLW11dGVkLzQwIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvMzBcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9e3RvZ2dsZVBsYXliYWNrfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctOCBoLTggcm91bmRlZC1mdWxsIGJnLXByaW1hcnkgdGV4dC1wcmltYXJ5LWZvcmVncm91bmQgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgc2hhZG93LXhzIGhvdmVyOnNjYWxlLTEwNSB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgYXJpYS1sYWJlbD17aXNQbGF5aW5nID8gXCJQYXVzZSBhdWRpbyBwbGF5YmFja1wiIDogXCJQbGF5IGF1ZGlvIHJlY29yZGluZyBwcmV2aWV3XCJ9XG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICB7aXNQbGF5aW5nID8gPFBhdXNlIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPiA6IDxQbGF5IGNsYXNzTmFtZT1cInctNCBoLTQgbWwtMC41XCIgLz59XG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0wLjVcIj5cbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5Wb2ljZSBNZXNzYWdlICh7Zm9ybWF0VGltZShyZWNvcmRpbmdUaW1lKX0pPC9wPlxuICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LW1vbm9cIj5hdWRpby93ZWJtPC9wPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9e2NsZWFyUmVjb3JkaW5nfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMS41IHJvdW5kZWQtbGcgaG92ZXI6YmctcmVkLTUwMC8xMCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1yZWQtNTAwIHRyYW5zaXRpb24tY29sb3JzIGN1cnNvci1wb2ludGVyXCJcbiAgICAgICAgICAgICAgICB0aXRsZT1cIkRpc2NhcmQgYXVkaW8gcmVjb3JkaW5nXCJcbiAgICAgICAgICAgICAgICBhcmlhLWxhYmVsPVwiRGlzY2FyZCByZWNvcmRpbmdcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgPFRyYXNoMiBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgICAgPC9idXR0b24+XG5cbiAgICAgICAgICAgICAgeyF1cGxvYWRTdWNjZXNzID8gKFxuICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgICAgb25DbGljaz17aGFuZGxlVXBsb2FkQW5kU2F2ZX1cbiAgICAgICAgICAgICAgICAgIGRpc2FibGVkPXtpc1VwbG9hZGluZ31cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSBweC0yLjUgcHktMS41IHJvdW5kZWQteGwgYmctZW1lcmFsZC01MDAgaG92ZXI6YmctZW1lcmFsZC02MDAgdGV4dC13aGl0ZSB0ZXh0LXhzIGZvbnQtYm9sZCBzaGFkb3cteHMgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXIgZGlzYWJsZWQ6b3BhY2l0eS01MFwiXG4gICAgICAgICAgICAgICAgICBhcmlhLWxhYmVsPVwiQXR0YWNoIGF1ZGlvIHRvIG1lc3NhZ2VcIlxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxVcGxvYWRDbG91ZCBjbGFzc05hbWU9XCJ3LTMuNSBoLTMuNVwiIC8+XG4gICAgICAgICAgICAgICAgICA8c3Bhbj57aXNVcGxvYWRpbmcgPyAnVXBsb2FkaW5nLi4uJyA6ICdBdHRhY2ggQXVkaW8nfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEgcHgtMi41IHB5LTEgcm91bmRlZC14bCBiZy1lbWVyYWxkLTUwMC8xNSB0ZXh0LWVtZXJhbGQtNjAwIHRleHQteHMgZm9udC1leHRyYWJvbGQgYm9yZGVyIGJvcmRlci1lbWVyYWxkLTUwMC8yMFwiPlxuICAgICAgICAgICAgICAgICAgPENoZWNrQ2lyY2xlIGNsYXNzTmFtZT1cInctMy41IGgtMy41XCIgLz4gUmVhZHlcbiAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICl9XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICApfVxuICAgIDwvZGl2PlxuICApO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgQXVkaW9SZWNvcmRlcjtcbiJdLCJmaWxlIjoiRDovUCBSIE8gSiBFIEMgVCBTL1dlYi9NUkYtY3JtL2Zyb250ZW5kL3NyYy9jb21wb25lbnRzL0F1ZGlvUmVjb3JkZXIuanN4In0=

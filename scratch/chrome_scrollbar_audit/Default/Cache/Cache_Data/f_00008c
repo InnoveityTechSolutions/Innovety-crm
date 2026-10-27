@@ -1,0 +1,464 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/organization/ShiftReportsModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"];
+import { motion } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import { FileText, Download, Printer, X, Calendar, RefreshCw, Layers } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const REPORTS = [
+  { id: "SHIFT_UTILIZATION", label: "Shift Utilization Report", description: "Assigned headcount, total logged hours, and shift utilization percentage." },
+  { id: "DEPARTMENT_COVERAGE", label: "Department Coverage Report", description: "Department staffing matrix, shift distribution, and coverage status." },
+  { id: "ATTENDANCE_EXCEPTIONS", label: "Attendance Exceptions Report", description: "Late arrivals, missed check-ins/outs, and unauthorized overtime logs." },
+  { id: "OVERTIME_SUMMARY", label: "Overtime Summary Report", description: "Detailed overtime hours distribution across members and shifts." },
+  { id: "SHIFT_CHANGE_HISTORY", label: "Shift Change History Audit", description: "Chronological timeline of shift edits, overrides, swaps, and reversions." }
+];
+const ShiftReportsModal = ({
+  isOpen,
+  onClose,
+  organizationId
+}) => {
+  _s();
+  const [selectedReport, setSelectedReport] = useState("SHIFT_UTILIZATION");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  if (!isOpen) return null;
+  const handleDownloadCsv = async () => {
+    if (!organizationId) return;
+    try {
+      setLoading(true);
+      const res = await api.get("/workforce/reports", {
+        params: {
+          organizationId,
+          reportType: selectedReport,
+          format: "csv",
+          startDate: startDate || void 0,
+          endDate: endDate || void 0
+        },
+        responseType: "blob"
+      });
+      const blob = new Blob([res.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${selectedReport.toLowerCase()}_report.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("[ShiftReports] Download error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleFetchPreview = async () => {
+    if (!organizationId) return;
+    try {
+      setLoading(true);
+      const res = await api.get("/workforce/reports", {
+        params: {
+          organizationId,
+          reportType: selectedReport,
+          format: "json",
+          startDate: startDate || void 0,
+          endDate: endDate || void 0
+        }
+      });
+      if (res.data?.success) {
+        setPreviewData(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("[ShiftReports] Preview error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handlePrint = () => {
+    window.print();
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white", children: /* @__PURE__ */ jsxDEV(
+    motion.div,
+    {
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.95 },
+      className: "w-full max-w-4xl rounded-3xl border border-border/70 bg-card p-6 sm:p-7 shadow-2xl space-y-5 text-left my-8 print:shadow-none print:border-none print:p-2",
+      children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/50 pb-3.5 print:border-b-2", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shadow-inner print:hidden", children: /* @__PURE__ */ jsxDEV(FileText, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 115,
+              columnNumber: 15
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 114,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-extrabold text-foreground", children: "Workforce & Shift Reports" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 118,
+                columnNumber: 15
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Generate and export shift analytics, department coverage, and audit history." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 121,
+                columnNumber: 15
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 117,
+              columnNumber: 13
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 113,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: onClose,
+              className: "p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted print:hidden",
+              children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 131,
+                columnNumber: 13
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 127,
+              columnNumber: 11
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 112,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden text-xs", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground", children: "Report Type" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 138,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "select",
+              {
+                value: selectedReport,
+                onChange: (e) => {
+                  setSelectedReport(e.target.value);
+                  setPreviewData(null);
+                },
+                className: "w-full p-2.5 rounded-xl border border-border bg-card font-bold",
+                children: REPORTS.map(
+                  (r) => /* @__PURE__ */ jsxDEV("option", { value: r.id, children: r.label }, r.id, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                    lineNumber: 148,
+                    columnNumber: 15
+                  }, this)
+                )
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 139,
+                columnNumber: 13
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 137,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground", children: "From Date (Optional)" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 154,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "date",
+                value: startDate,
+                onChange: (e) => setStartDate(e.target.value),
+                className: "w-full p-2 rounded-xl border border-border bg-card font-mono text-xs"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 155,
+                columnNumber: 13
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 153,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground", children: "To Date (Optional)" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 164,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "date",
+                value: endDate,
+                onChange: (e) => setEndDate(e.target.value),
+                className: "w-full p-2 rounded-xl border border-border bg-card font-mono text-xs"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 165,
+                columnNumber: 13
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 163,
+            columnNumber: 11
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 136,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between gap-2 print:hidden flex-wrap pt-1", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: handleFetchPreview,
+              disabled: loading,
+              className: "flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-border hover:bg-muted text-xs font-bold transition-all cursor-pointer disabled:opacity-50",
+              children: [
+                loading ? /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5 animate-spin" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                  lineNumber: 181,
+                  columnNumber: 24
+                }, this) : /* @__PURE__ */ jsxDEV(Layers, { className: "h-3.5 w-3.5 text-primary" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                  lineNumber: 181,
+                  columnNumber: 77
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { children: "Generate Preview" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                  lineNumber: 182,
+                  columnNumber: 13
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 176,
+              columnNumber: 11
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: handlePrint,
+                disabled: !previewData || previewData.length === 0,
+                className: "flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border hover:bg-muted text-xs font-bold transition-all cursor-pointer disabled:opacity-40",
+                children: [
+                  /* @__PURE__ */ jsxDEV(Printer, { className: "h-3.5 w-3.5 text-blue-600" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                    lineNumber: 191,
+                    columnNumber: 15
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Print / Save PDF" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                    lineNumber: 192,
+                    columnNumber: 15
+                  }, this)
+                ]
+              },
+              void 0,
+              true,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 186,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: handleDownloadCsv,
+                disabled: loading,
+                className: "flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50",
+                children: [
+                  /* @__PURE__ */ jsxDEV(Download, { className: "h-3.5 w-3.5" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                    lineNumber: 200,
+                    columnNumber: 15
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Export CSV" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                    lineNumber: 201,
+                    columnNumber: 15
+                  }, this)
+                ]
+              },
+              void 0,
+              true,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 195,
+                columnNumber: 13
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 185,
+            columnNumber: 11
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 175,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "rounded-2xl border border-border/70 bg-card overflow-hidden max-h-96 overflow-y-auto print:max-h-none print:border-none print:shadow-none", children: previewData === null ? /* @__PURE__ */ jsxDEV("div", { className: "p-12 text-center text-xs text-muted-foreground print:hidden", children: [
+          /* @__PURE__ */ jsxDEV(FileText, { className: "h-8 w-8 text-muted-foreground/40 mx-auto mb-2" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 210,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "font-bold text-foreground", children: "No preview generated yet" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 211,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "mt-0.5", children: 'Click "Generate Preview" to review rows before printing or exporting.' }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 212,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 209,
+          columnNumber: 11
+        }, this) : previewData.length === 0 ? /* @__PURE__ */ jsxDEV("div", { className: "p-8 text-center text-xs text-muted-foreground", children: "No records found for the selected report filters." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 215,
+          columnNumber: 11
+        }, this) : /* @__PURE__ */ jsxDEV("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxDEV("table", { className: "w-full text-xs text-left", children: [
+          /* @__PURE__ */ jsxDEV("thead", { className: "bg-muted/40 text-muted-foreground font-black text-[10px] uppercase tracking-wider border-b border-border/50", children: /* @__PURE__ */ jsxDEV("tr", { children: Object.keys(previewData[0]).map(
+            (header) => /* @__PURE__ */ jsxDEV("th", { className: "p-3 whitespace-nowrap", children: header }, header, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 224,
+              columnNumber: 19
+            }, this)
+          ) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 222,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 221,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("tbody", { className: "divide-y divide-border/40 font-medium", children: previewData.map(
+            (row, idx) => /* @__PURE__ */ jsxDEV("tr", { className: "hover:bg-muted/20 transition-colors", children: Object.keys(row).map(
+              (header) => /* @__PURE__ */ jsxDEV("td", { className: "p-3 text-foreground whitespace-nowrap", children: row[header] }, header, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+                lineNumber: 232,
+                columnNumber: 19
+              }, this)
+            ) }, idx, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+              lineNumber: 230,
+              columnNumber: 17
+            }, this)
+          ) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+            lineNumber: 228,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 220,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 219,
+          columnNumber: 11
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+          lineNumber: 207,
+          columnNumber: 9
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+      lineNumber: 105,
+      columnNumber: 7
+    },
+    this
+  ) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx",
+    lineNumber: 104,
+    columnNumber: 5
+  }, this);
+};
+_s(ShiftReportsModal, "hrFPEj0pyl6HqxCYg0Nsz/pHM88=");
+_c = ShiftReportsModal;
+export default ShiftReportsModal;
+var _c;
+$RefreshReg$(_c, "ShiftReportsModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftReportsModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBK0ZjOzs7Ozs7Ozs7Ozs7Ozs7OztBQS9GZCxPQUFPQSxTQUFTQyxnQkFBZ0I7QUFDaEMsU0FBU0MsY0FBYztBQUN2QixTQUFTQyxVQUFVQyxVQUFVQyxTQUFTQyxHQUFHQyxVQUFVQyxXQUFXQyxjQUFjO0FBQzVFLE9BQU9DLFNBQVM7QUFFaEIsTUFBTUMsVUFBVTtBQUFBLEVBQ2QsRUFBRUMsSUFBSSxxQkFBcUJDLE9BQU8sNEJBQTRCQyxhQUFhLDRFQUE0RTtBQUFBLEVBQ3ZKLEVBQUVGLElBQUksdUJBQXVCQyxPQUFPLDhCQUE4QkMsYUFBYSx1RUFBdUU7QUFBQSxFQUN0SixFQUFFRixJQUFJLHlCQUF5QkMsT0FBTyxnQ0FBZ0NDLGFBQWEsd0VBQXdFO0FBQUEsRUFDM0osRUFBRUYsSUFBSSxvQkFBb0JDLE9BQU8sMkJBQTJCQyxhQUFhLGtFQUFrRTtBQUFBLEVBQzNJLEVBQUVGLElBQUksd0JBQXdCQyxPQUFPLDhCQUE4QkMsYUFBYSwyRUFBMkU7QUFBQztBQUc5SixNQUFNQyxvQkFBb0JBLENBQUM7QUFBQSxFQUN6QkM7QUFBQUEsRUFDQUM7QUFBQUEsRUFDQUM7QUFDRixNQUFNO0FBQUFDLEtBQUE7QUFDSixRQUFNLENBQUNDLGdCQUFnQkMsaUJBQWlCLElBQUlwQixTQUFTLG1CQUFtQjtBQUN4RSxRQUFNLENBQUNxQixXQUFXQyxZQUFZLElBQUl0QixTQUFTLEVBQUU7QUFDN0MsUUFBTSxDQUFDdUIsU0FBU0MsVUFBVSxJQUFJeEIsU0FBUyxFQUFFO0FBQ3pDLFFBQU0sQ0FBQ3lCLFNBQVNDLFVBQVUsSUFBSTFCLFNBQVMsS0FBSztBQUM1QyxRQUFNLENBQUMyQixhQUFhQyxjQUFjLElBQUk1QixTQUFTLElBQUk7QUFFbkQsTUFBSSxDQUFDZSxPQUFRLFFBQU87QUFFcEIsUUFBTWMsb0JBQW9CLFlBQVk7QUFDcEMsUUFBSSxDQUFDWixlQUFnQjtBQUNyQixRQUFJO0FBQ0ZTLGlCQUFXLElBQUk7QUFDZixZQUFNSSxNQUFNLE1BQU1yQixJQUFJc0IsSUFBSSxzQkFBc0I7QUFBQSxRQUM5Q0MsUUFBUTtBQUFBLFVBQ05mO0FBQUFBLFVBQ0FnQixZQUFZZDtBQUFBQSxVQUNaZSxRQUFRO0FBQUEsVUFDUmIsV0FBV0EsYUFBYWM7QUFBQUEsVUFDeEJaLFNBQVNBLFdBQVdZO0FBQUFBLFFBQ3RCO0FBQUEsUUFDQUMsY0FBYztBQUFBLE1BQ2hCLENBQUM7QUFFRCxZQUFNQyxPQUFPLElBQUlDLEtBQUssQ0FBQ1IsSUFBSVMsSUFBSSxHQUFHLEVBQUVDLE1BQU0sV0FBVyxDQUFDO0FBQ3RELFlBQU1DLE1BQU1DLE9BQU9DLElBQUlDLGdCQUFnQlAsSUFBSTtBQUMzQyxZQUFNUSxJQUFJQyxTQUFTQyxjQUFjLEdBQUc7QUFDcENGLFFBQUVHLE9BQU9QO0FBQ1RJLFFBQUVJLFdBQVcsR0FBRzlCLGVBQWUrQixZQUFZLENBQUM7QUFDNUNKLGVBQVNLLEtBQUtDLFlBQVlQLENBQUM7QUFDM0JBLFFBQUVRLE1BQU07QUFDUlAsZUFBU0ssS0FBS0csWUFBWVQsQ0FBQztBQUFBLElBQzdCLFNBQVNVLEtBQUs7QUFDWkMsY0FBUUMsTUFBTSxrQ0FBa0NGLEdBQUc7QUFBQSxJQUNyRCxVQUFDO0FBQ0M3QixpQkFBVyxLQUFLO0FBQUEsSUFDbEI7QUFBQSxFQUNGO0FBRUEsUUFBTWdDLHFCQUFxQixZQUFZO0FBQ3JDLFFBQUksQ0FBQ3pDLGVBQWdCO0FBQ3JCLFFBQUk7QUFDRlMsaUJBQVcsSUFBSTtBQUNmLFlBQU1JLE1BQU0sTUFBTXJCLElBQUlzQixJQUFJLHNCQUFzQjtBQUFBLFFBQzlDQyxRQUFRO0FBQUEsVUFDTmY7QUFBQUEsVUFDQWdCLFlBQVlkO0FBQUFBLFVBQ1plLFFBQVE7QUFBQSxVQUNSYixXQUFXQSxhQUFhYztBQUFBQSxVQUN4QlosU0FBU0EsV0FBV1k7QUFBQUEsUUFDdEI7QUFBQSxNQUNGLENBQUM7QUFDRCxVQUFJTCxJQUFJUyxNQUFNb0IsU0FBUztBQUNyQi9CLHVCQUFlRSxJQUFJUyxLQUFLQSxRQUFRLEVBQUU7QUFBQSxNQUNwQztBQUFBLElBQ0YsU0FBU2dCLEtBQUs7QUFDWkMsY0FBUUMsTUFBTSxpQ0FBaUNGLEdBQUc7QUFBQSxJQUNwRCxVQUFDO0FBQ0M3QixpQkFBVyxLQUFLO0FBQUEsSUFDbEI7QUFBQSxFQUNGO0FBRUEsUUFBTWtDLGNBQWNBLE1BQU07QUFDeEJsQixXQUFPbUIsTUFBTTtBQUFBLEVBQ2Y7QUFFQSxTQUNFLHVCQUFDLFNBQUksV0FBVSxpSUFDYjtBQUFBLElBQUMsT0FBTztBQUFBLElBQVA7QUFBQSxNQUNDLFNBQVMsRUFBRUMsU0FBUyxHQUFHQyxPQUFPLEtBQUs7QUFBQSxNQUNuQyxTQUFTLEVBQUVELFNBQVMsR0FBR0MsT0FBTyxFQUFFO0FBQUEsTUFDaEMsTUFBTSxFQUFFRCxTQUFTLEdBQUdDLE9BQU8sS0FBSztBQUFBLE1BQ2hDLFdBQVU7QUFBQSxNQUdWO0FBQUEsK0JBQUMsU0FBSSxXQUFVLHVGQUNiO0FBQUEsaUNBQUMsU0FBSSxXQUFVLDJCQUNiO0FBQUEsbUNBQUMsU0FBSSxXQUFVLG9KQUNiLGlDQUFDLFlBQVMsV0FBVSxhQUFwQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE2QixLQUQvQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUVBO0FBQUEsWUFDQSx1QkFBQyxTQUNDO0FBQUEscUNBQUMsUUFBRyxXQUFVLDRDQUEwQyx5Q0FBeEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFFQTtBQUFBLGNBQ0EsdUJBQUMsT0FBRSxXQUFVLDZDQUEyQyw0RkFBeEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFFQTtBQUFBLGlCQU5GO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBT0E7QUFBQSxlQVhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBWUE7QUFBQSxVQUVBO0FBQUEsWUFBQztBQUFBO0FBQUEsY0FDQyxTQUFTL0M7QUFBQUEsY0FDVCxXQUFVO0FBQUEsY0FFVixpQ0FBQyxLQUFFLFdBQVUsYUFBYjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFzQjtBQUFBO0FBQUEsWUFKeEI7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBS0E7QUFBQSxhQXBCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBcUJBO0FBQUEsUUFHQSx1QkFBQyxTQUFJLFdBQVUsOERBQ2I7QUFBQSxpQ0FBQyxTQUFJLFdBQVUsYUFDYjtBQUFBLG1DQUFDLFdBQU0sV0FBVSw2QkFBNEIsMkJBQTdDO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXdEO0FBQUEsWUFDeEQ7QUFBQSxjQUFDO0FBQUE7QUFBQSxnQkFDQyxPQUFPRztBQUFBQSxnQkFDUCxVQUFVLENBQUM2QyxNQUFNO0FBQ2Y1QyxvQ0FBa0I0QyxFQUFFQyxPQUFPQyxLQUFLO0FBQ2hDdEMsaUNBQWUsSUFBSTtBQUFBLGdCQUNyQjtBQUFBLGdCQUNBLFdBQVU7QUFBQSxnQkFFVGxCLGtCQUFReUQ7QUFBQUEsa0JBQUksQ0FBQUMsTUFDWCx1QkFBQyxZQUFrQixPQUFPQSxFQUFFekQsSUFBS3lELFlBQUV4RCxTQUF0QndELEVBQUV6RCxJQUFmO0FBQUE7QUFBQTtBQUFBO0FBQUEseUJBQXlDO0FBQUEsZ0JBQzFDO0FBQUE7QUFBQSxjQVZIO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxZQVdBO0FBQUEsZUFiRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQWNBO0FBQUEsVUFFQSx1QkFBQyxTQUFJLFdBQVUsYUFDYjtBQUFBLG1DQUFDLFdBQU0sV0FBVSw2QkFBNEIsb0NBQTdDO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQWlFO0FBQUEsWUFDakU7QUFBQSxjQUFDO0FBQUE7QUFBQSxnQkFDQyxNQUFLO0FBQUEsZ0JBQ0wsT0FBT1U7QUFBQUEsZ0JBQ1AsVUFBVSxDQUFDMkMsTUFBTTFDLGFBQWEwQyxFQUFFQyxPQUFPQyxLQUFLO0FBQUEsZ0JBQzVDLFdBQVU7QUFBQTtBQUFBLGNBSlo7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFlBSWtGO0FBQUEsZUFOcEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFRQTtBQUFBLFVBRUEsdUJBQUMsU0FBSSxXQUFVLGFBQ2I7QUFBQSxtQ0FBQyxXQUFNLFdBQVUsNkJBQTRCLGtDQUE3QztBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUErRDtBQUFBLFlBQy9EO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsTUFBSztBQUFBLGdCQUNMLE9BQU8zQztBQUFBQSxnQkFDUCxVQUFVLENBQUN5QyxNQUFNeEMsV0FBV3dDLEVBQUVDLE9BQU9DLEtBQUs7QUFBQSxnQkFDMUMsV0FBVTtBQUFBO0FBQUEsY0FKWjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsWUFJa0Y7QUFBQSxlQU5wRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQVFBO0FBQUEsYUFuQ0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQW9DQTtBQUFBLFFBR0EsdUJBQUMsU0FBSSxXQUFVLHVFQUNiO0FBQUE7QUFBQSxZQUFDO0FBQUE7QUFBQSxjQUNDLFNBQVNSO0FBQUFBLGNBQ1QsVUFBVWpDO0FBQUFBLGNBQ1YsV0FBVTtBQUFBLGNBRVRBO0FBQUFBLDBCQUFVLHVCQUFDLGFBQVUsV0FBVSw4QkFBckI7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBK0MsSUFBTSx1QkFBQyxVQUFPLFdBQVUsOEJBQWxCO0FBQUE7QUFBQTtBQUFBO0FBQUEsdUJBQTRDO0FBQUEsZ0JBQzVHLHVCQUFDLFVBQUssZ0NBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBc0I7QUFBQTtBQUFBO0FBQUEsWUFOeEI7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBT0E7QUFBQSxVQUVBLHVCQUFDLFNBQUksV0FBVSwyQkFDYjtBQUFBO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsU0FBU21DO0FBQUFBLGdCQUNULFVBQVUsQ0FBQ2pDLGVBQWVBLFlBQVkwQyxXQUFXO0FBQUEsZ0JBQ2pELFdBQVU7QUFBQSxnQkFFVjtBQUFBLHlDQUFDLFdBQVEsV0FBVSwrQkFBbkI7QUFBQTtBQUFBO0FBQUE7QUFBQSx5QkFBOEM7QUFBQSxrQkFDOUMsdUJBQUMsVUFBSyxnQ0FBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHlCQUFzQjtBQUFBO0FBQUE7QUFBQSxjQU54QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsWUFPQTtBQUFBLFlBRUE7QUFBQSxjQUFDO0FBQUE7QUFBQSxnQkFDQyxTQUFTeEM7QUFBQUEsZ0JBQ1QsVUFBVUo7QUFBQUEsZ0JBQ1YsV0FBVTtBQUFBLGdCQUVWO0FBQUEseUNBQUMsWUFBUyxXQUFVLGlCQUFwQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHlCQUFpQztBQUFBLGtCQUNqQyx1QkFBQyxVQUFLLDBCQUFOO0FBQUE7QUFBQTtBQUFBO0FBQUEseUJBQWdCO0FBQUE7QUFBQTtBQUFBLGNBTmxCO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxZQU9BO0FBQUEsZUFqQkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFrQkE7QUFBQSxhQTVCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBNkJBO0FBQUEsUUFHQSx1QkFBQyxTQUFJLFdBQVUsNklBQ1pFLDBCQUFnQixPQUNmLHVCQUFDLFNBQUksV0FBVSwrREFDYjtBQUFBLGlDQUFDLFlBQVMsV0FBVSxtREFBcEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBbUU7QUFBQSxVQUNuRSx1QkFBQyxPQUFFLFdBQVUsNkJBQTRCLHdDQUF6QztBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFpRTtBQUFBLFVBQ2pFLHVCQUFDLE9BQUUsV0FBVSxVQUFTLHFGQUF0QjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUEyRjtBQUFBLGFBSDdGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFJQSxJQUNFQSxZQUFZMEMsV0FBVyxJQUN6Qix1QkFBQyxTQUFJLFdBQVUsaURBQStDLGlFQUE5RDtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBRUEsSUFFQSx1QkFBQyxTQUFJLFdBQVUsbUJBQ2IsaUNBQUMsV0FBTSxXQUFVLDRCQUNmO0FBQUEsaUNBQUMsV0FBTSxXQUFVLCtHQUNmLGlDQUFDLFFBQ0VDLGlCQUFPQyxLQUFLNUMsWUFBWSxDQUFDLENBQUMsRUFBRXdDO0FBQUFBLFlBQUksQ0FBQ0ssV0FDaEMsdUJBQUMsUUFBZ0IsV0FBVSx5QkFBeUJBLG9CQUEzQ0EsUUFBVDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUEyRDtBQUFBLFVBQzVELEtBSEg7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFJQSxLQUxGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBTUE7QUFBQSxVQUNBLHVCQUFDLFdBQU0sV0FBVSx5Q0FDZDdDLHNCQUFZd0M7QUFBQUEsWUFBSSxDQUFDTSxLQUFLQyxRQUNyQix1QkFBQyxRQUFhLFdBQVUsdUNBQ3JCSixpQkFBT0MsS0FBS0UsR0FBRyxFQUFFTjtBQUFBQSxjQUFJLENBQUNLLFdBQ3JCLHVCQUFDLFFBQWdCLFdBQVUseUNBQ3hCQyxjQUFJRCxNQUFNLEtBREpBLFFBQVQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFFQTtBQUFBLFlBQ0QsS0FMTUUsS0FBVDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQU1BO0FBQUEsVUFDRCxLQVRIO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBVUE7QUFBQSxhQWxCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBbUJBLEtBcEJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFxQkEsS0FqQ0o7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQW1DQTtBQUFBO0FBQUE7QUFBQSxJQXpJRjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsRUEwSUEsS0EzSUY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQTRJQTtBQUVKO0FBQUV4RCxHQXJOSUosbUJBQWlCO0FBQUEsS0FBakJBO0FBdU5OLGVBQWVBO0FBQWtCLElBQUE2RDtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsInVzZVN0YXRlIiwibW90aW9uIiwiRmlsZVRleHQiLCJEb3dubG9hZCIsIlByaW50ZXIiLCJYIiwiQ2FsZW5kYXIiLCJSZWZyZXNoQ3ciLCJMYXllcnMiLCJhcGkiLCJSRVBPUlRTIiwiaWQiLCJsYWJlbCIsImRlc2NyaXB0aW9uIiwiU2hpZnRSZXBvcnRzTW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwib3JnYW5pemF0aW9uSWQiLCJfcyIsInNlbGVjdGVkUmVwb3J0Iiwic2V0U2VsZWN0ZWRSZXBvcnQiLCJzdGFydERhdGUiLCJzZXRTdGFydERhdGUiLCJlbmREYXRlIiwic2V0RW5kRGF0ZSIsImxvYWRpbmciLCJzZXRMb2FkaW5nIiwicHJldmlld0RhdGEiLCJzZXRQcmV2aWV3RGF0YSIsImhhbmRsZURvd25sb2FkQ3N2IiwicmVzIiwiZ2V0IiwicGFyYW1zIiwicmVwb3J0VHlwZSIsImZvcm1hdCIsInVuZGVmaW5lZCIsInJlc3BvbnNlVHlwZSIsImJsb2IiLCJCbG9iIiwiZGF0YSIsInR5cGUiLCJ1cmwiLCJ3aW5kb3ciLCJVUkwiLCJjcmVhdGVPYmplY3RVUkwiLCJhIiwiZG9jdW1lbnQiLCJjcmVhdGVFbGVtZW50IiwiaHJlZiIsImRvd25sb2FkIiwidG9Mb3dlckNhc2UiLCJib2R5IiwiYXBwZW5kQ2hpbGQiLCJjbGljayIsInJlbW92ZUNoaWxkIiwiZXJyIiwiY29uc29sZSIsImVycm9yIiwiaGFuZGxlRmV0Y2hQcmV2aWV3Iiwic3VjY2VzcyIsImhhbmRsZVByaW50IiwicHJpbnQiLCJvcGFjaXR5Iiwic2NhbGUiLCJlIiwidGFyZ2V0IiwidmFsdWUiLCJtYXAiLCJyIiwibGVuZ3RoIiwiT2JqZWN0Iiwia2V5cyIsImhlYWRlciIsInJvdyIsImlkeCIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlNoaWZ0UmVwb3J0c01vZGFsLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUgfSBmcm9tICdyZWFjdCc7XG5pbXBvcnQgeyBtb3Rpb24gfSBmcm9tICdmcmFtZXItbW90aW9uJztcbmltcG9ydCB7IEZpbGVUZXh0LCBEb3dubG9hZCwgUHJpbnRlciwgWCwgQ2FsZW5kYXIsIFJlZnJlc2hDdywgTGF5ZXJzIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcblxuY29uc3QgUkVQT1JUUyA9IFtcbiAgeyBpZDogJ1NISUZUX1VUSUxJWkFUSU9OJywgbGFiZWw6ICdTaGlmdCBVdGlsaXphdGlvbiBSZXBvcnQnLCBkZXNjcmlwdGlvbjogJ0Fzc2lnbmVkIGhlYWRjb3VudCwgdG90YWwgbG9nZ2VkIGhvdXJzLCBhbmQgc2hpZnQgdXRpbGl6YXRpb24gcGVyY2VudGFnZS4nIH0sXG4gIHsgaWQ6ICdERVBBUlRNRU5UX0NPVkVSQUdFJywgbGFiZWw6ICdEZXBhcnRtZW50IENvdmVyYWdlIFJlcG9ydCcsIGRlc2NyaXB0aW9uOiAnRGVwYXJ0bWVudCBzdGFmZmluZyBtYXRyaXgsIHNoaWZ0IGRpc3RyaWJ1dGlvbiwgYW5kIGNvdmVyYWdlIHN0YXR1cy4nIH0sXG4gIHsgaWQ6ICdBVFRFTkRBTkNFX0VYQ0VQVElPTlMnLCBsYWJlbDogJ0F0dGVuZGFuY2UgRXhjZXB0aW9ucyBSZXBvcnQnLCBkZXNjcmlwdGlvbjogJ0xhdGUgYXJyaXZhbHMsIG1pc3NlZCBjaGVjay1pbnMvb3V0cywgYW5kIHVuYXV0aG9yaXplZCBvdmVydGltZSBsb2dzLicgfSxcbiAgeyBpZDogJ09WRVJUSU1FX1NVTU1BUlknLCBsYWJlbDogJ092ZXJ0aW1lIFN1bW1hcnkgUmVwb3J0JywgZGVzY3JpcHRpb246ICdEZXRhaWxlZCBvdmVydGltZSBob3VycyBkaXN0cmlidXRpb24gYWNyb3NzIG1lbWJlcnMgYW5kIHNoaWZ0cy4nIH0sXG4gIHsgaWQ6ICdTSElGVF9DSEFOR0VfSElTVE9SWScsIGxhYmVsOiAnU2hpZnQgQ2hhbmdlIEhpc3RvcnkgQXVkaXQnLCBkZXNjcmlwdGlvbjogJ0Nocm9ub2xvZ2ljYWwgdGltZWxpbmUgb2Ygc2hpZnQgZWRpdHMsIG92ZXJyaWRlcywgc3dhcHMsIGFuZCByZXZlcnNpb25zLicgfVxuXTtcblxuY29uc3QgU2hpZnRSZXBvcnRzTW9kYWwgPSAoe1xuICBpc09wZW4sXG4gIG9uQ2xvc2UsXG4gIG9yZ2FuaXphdGlvbklkXG59KSA9PiB7XG4gIGNvbnN0IFtzZWxlY3RlZFJlcG9ydCwgc2V0U2VsZWN0ZWRSZXBvcnRdID0gdXNlU3RhdGUoJ1NISUZUX1VUSUxJWkFUSU9OJyk7XG4gIGNvbnN0IFtzdGFydERhdGUsIHNldFN0YXJ0RGF0ZV0gPSB1c2VTdGF0ZSgnJyk7XG4gIGNvbnN0IFtlbmREYXRlLCBzZXRFbmREYXRlXSA9IHVzZVN0YXRlKCcnKTtcbiAgY29uc3QgW2xvYWRpbmcsIHNldExvYWRpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbcHJldmlld0RhdGEsIHNldFByZXZpZXdEYXRhXSA9IHVzZVN0YXRlKG51bGwpO1xuXG4gIGlmICghaXNPcGVuKSByZXR1cm4gbnVsbDtcblxuICBjb25zdCBoYW5kbGVEb3dubG9hZENzdiA9IGFzeW5jICgpID0+IHtcbiAgICBpZiAoIW9yZ2FuaXphdGlvbklkKSByZXR1cm47XG4gICAgdHJ5IHtcbiAgICAgIHNldExvYWRpbmcodHJ1ZSk7XG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkuZ2V0KCcvd29ya2ZvcmNlL3JlcG9ydHMnLCB7XG4gICAgICAgIHBhcmFtczoge1xuICAgICAgICAgIG9yZ2FuaXphdGlvbklkLFxuICAgICAgICAgIHJlcG9ydFR5cGU6IHNlbGVjdGVkUmVwb3J0LFxuICAgICAgICAgIGZvcm1hdDogJ2NzdicsXG4gICAgICAgICAgc3RhcnREYXRlOiBzdGFydERhdGUgfHwgdW5kZWZpbmVkLFxuICAgICAgICAgIGVuZERhdGU6IGVuZERhdGUgfHwgdW5kZWZpbmVkXG4gICAgICAgIH0sXG4gICAgICAgIHJlc3BvbnNlVHlwZTogJ2Jsb2InXG4gICAgICB9KTtcblxuICAgICAgY29uc3QgYmxvYiA9IG5ldyBCbG9iKFtyZXMuZGF0YV0sIHsgdHlwZTogJ3RleHQvY3N2JyB9KTtcbiAgICAgIGNvbnN0IHVybCA9IHdpbmRvdy5VUkwuY3JlYXRlT2JqZWN0VVJMKGJsb2IpO1xuICAgICAgY29uc3QgYSA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2EnKTtcbiAgICAgIGEuaHJlZiA9IHVybDtcbiAgICAgIGEuZG93bmxvYWQgPSBgJHtzZWxlY3RlZFJlcG9ydC50b0xvd2VyQ2FzZSgpfV9yZXBvcnQuY3N2YDtcbiAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQoYSk7XG4gICAgICBhLmNsaWNrKCk7XG4gICAgICBkb2N1bWVudC5ib2R5LnJlbW92ZUNoaWxkKGEpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgY29uc29sZS5lcnJvcignW1NoaWZ0UmVwb3J0c10gRG93bmxvYWQgZXJyb3I6JywgZXJyKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZUZldGNoUHJldmlldyA9IGFzeW5jICgpID0+IHtcbiAgICBpZiAoIW9yZ2FuaXphdGlvbklkKSByZXR1cm47XG4gICAgdHJ5IHtcbiAgICAgIHNldExvYWRpbmcodHJ1ZSk7XG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkuZ2V0KCcvd29ya2ZvcmNlL3JlcG9ydHMnLCB7XG4gICAgICAgIHBhcmFtczoge1xuICAgICAgICAgIG9yZ2FuaXphdGlvbklkLFxuICAgICAgICAgIHJlcG9ydFR5cGU6IHNlbGVjdGVkUmVwb3J0LFxuICAgICAgICAgIGZvcm1hdDogJ2pzb24nLFxuICAgICAgICAgIHN0YXJ0RGF0ZTogc3RhcnREYXRlIHx8IHVuZGVmaW5lZCxcbiAgICAgICAgICBlbmREYXRlOiBlbmREYXRlIHx8IHVuZGVmaW5lZFxuICAgICAgICB9XG4gICAgICB9KTtcbiAgICAgIGlmIChyZXMuZGF0YT8uc3VjY2Vzcykge1xuICAgICAgICBzZXRQcmV2aWV3RGF0YShyZXMuZGF0YS5kYXRhIHx8IFtdKTtcbiAgICAgIH1cbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ1tTaGlmdFJlcG9ydHNdIFByZXZpZXcgZXJyb3I6JywgZXJyKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZVByaW50ID0gKCkgPT4ge1xuICAgIHdpbmRvdy5wcmludCgpO1xuICB9O1xuXG4gIHJldHVybiAoXG4gICAgPGRpdiBjbGFzc05hbWU9XCJmaXhlZCBpbnNldC0wIHotNTAgb3ZlcmZsb3cteS1hdXRvIGJnLWJsYWNrLzYwIGJhY2tkcm9wLWJsdXIteHMgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcC00IHByaW50OnAtMCBwcmludDpiZy13aGl0ZVwiPlxuICAgICAgPG1vdGlvbi5kaXZcbiAgICAgICAgaW5pdGlhbD17eyBvcGFjaXR5OiAwLCBzY2FsZTogMC45NSB9fVxuICAgICAgICBhbmltYXRlPXt7IG9wYWNpdHk6IDEsIHNjYWxlOiAxIH19XG4gICAgICAgIGV4aXQ9e3sgb3BhY2l0eTogMCwgc2NhbGU6IDAuOTUgfX1cbiAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LTR4bCByb3VuZGVkLTN4bCBib3JkZXIgYm9yZGVyLWJvcmRlci83MCBiZy1jYXJkIHAtNiBzbTpwLTcgc2hhZG93LTJ4bCBzcGFjZS15LTUgdGV4dC1sZWZ0IG15LTggcHJpbnQ6c2hhZG93LW5vbmUgcHJpbnQ6Ym9yZGVyLW5vbmUgcHJpbnQ6cC0yXCJcbiAgICAgID5cbiAgICAgICAgey8qIEhlYWRlciAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlci81MCBwYi0zLjUgcHJpbnQ6Ym9yZGVyLWItMlwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTNcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0xMCB3LTEwIHJvdW5kZWQtMnhsIGJnLWVtZXJhbGQtNTAwLzEwIHRleHQtZW1lcmFsZC02MDAgYm9yZGVyIGJvcmRlci1lbWVyYWxkLTUwMC8yMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBzaGFkb3ctaW5uZXIgcHJpbnQ6aGlkZGVuXCI+XG4gICAgICAgICAgICAgIDxGaWxlVGV4dCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQtYmFzZSBmb250LWV4dHJhYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5cbiAgICAgICAgICAgICAgICBXb3JrZm9yY2UgJiBTaGlmdCBSZXBvcnRzXG4gICAgICAgICAgICAgIDwvaDM+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgR2VuZXJhdGUgYW5kIGV4cG9ydCBzaGlmdCBhbmFseXRpY3MsIGRlcGFydG1lbnQgY292ZXJhZ2UsIGFuZCBhdWRpdCBoaXN0b3J5LlxuICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgIG9uQ2xpY2s9e29uQ2xvc2V9XG4gICAgICAgICAgICBjbGFzc05hbWU9XCJwLTEuNSByb3VuZGVkLXhsIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3Zlcjp0ZXh0LWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgcHJpbnQ6aGlkZGVuXCJcbiAgICAgICAgICA+XG4gICAgICAgICAgICA8WCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIENvbnRyb2xzICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTMgcHJpbnQ6aGlkZGVuIHRleHQteHNcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5SZXBvcnQgVHlwZTwvbGFiZWw+XG4gICAgICAgICAgICA8c2VsZWN0XG4gICAgICAgICAgICAgIHZhbHVlPXtzZWxlY3RlZFJlcG9ydH1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiB7XG4gICAgICAgICAgICAgICAgc2V0U2VsZWN0ZWRSZXBvcnQoZS50YXJnZXQudmFsdWUpO1xuICAgICAgICAgICAgICAgIHNldFByZXZpZXdEYXRhKG51bGwpO1xuICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcC0yLjUgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1jYXJkIGZvbnQtYm9sZFwiXG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIHtSRVBPUlRTLm1hcChyID0+IChcbiAgICAgICAgICAgICAgICA8b3B0aW9uIGtleT17ci5pZH0gdmFsdWU9e3IuaWR9PntyLmxhYmVsfTwvb3B0aW9uPlxuICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgIDwvc2VsZWN0PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+RnJvbSBEYXRlIChPcHRpb25hbCk8L2xhYmVsPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJkYXRlXCJcbiAgICAgICAgICAgICAgdmFsdWU9e3N0YXJ0RGF0ZX1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRTdGFydERhdGUoZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcC0yIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctY2FyZCBmb250LW1vbm8gdGV4dC14c1wiXG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+VG8gRGF0ZSAoT3B0aW9uYWwpPC9sYWJlbD5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwiZGF0ZVwiXG4gICAgICAgICAgICAgIHZhbHVlPXtlbmREYXRlfVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEVuZERhdGUoZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcC0yIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctY2FyZCBmb250LW1vbm8gdGV4dC14c1wiXG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICB7LyogQWN0aW9uIEJ1dHRvbnMgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGdhcC0yIHByaW50OmhpZGRlbiBmbGV4LXdyYXAgcHQtMVwiPlxuICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZUZldGNoUHJldmlld31cbiAgICAgICAgICAgIGRpc2FibGVkPXtsb2FkaW5nfVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBweC0zLjUgcHktMiByb3VuZGVkLXhsIGJnLWNhcmQgYm9yZGVyIGJvcmRlci1ib3JkZXIgaG92ZXI6YmctbXV0ZWQgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXIgZGlzYWJsZWQ6b3BhY2l0eS01MFwiXG4gICAgICAgICAgPlxuICAgICAgICAgICAge2xvYWRpbmcgPyA8UmVmcmVzaEN3IGNsYXNzTmFtZT1cImgtMy41IHctMy41IGFuaW1hdGUtc3BpblwiIC8+IDogPExheWVycyBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSB0ZXh0LXByaW1hcnlcIiAvPn1cbiAgICAgICAgICAgIDxzcGFuPkdlbmVyYXRlIFByZXZpZXc8L3NwYW4+XG4gICAgICAgICAgPC9idXR0b24+XG5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZVByaW50fVxuICAgICAgICAgICAgICBkaXNhYmxlZD17IXByZXZpZXdEYXRhIHx8IHByZXZpZXdEYXRhLmxlbmd0aCA9PT0gMH1cbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBweC0zLjUgcHktMiByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGhvdmVyOmJnLW11dGVkIHRleHQteHMgZm9udC1ib2xkIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyIGRpc2FibGVkOm9wYWNpdHktNDBcIlxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICA8UHJpbnRlciBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSB0ZXh0LWJsdWUtNjAwXCIgLz5cbiAgICAgICAgICAgICAgPHNwYW4+UHJpbnQgLyBTYXZlIFBERjwvc3Bhbj5cbiAgICAgICAgICAgIDwvYnV0dG9uPlxuXG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZURvd25sb2FkQ3N2fVxuICAgICAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZ31cbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBweC00IHB5LTIgcm91bmRlZC14bCBiZy1lbWVyYWxkLTYwMCBob3ZlcjpiZy1lbWVyYWxkLTcwMCB0ZXh0LXdoaXRlIHRleHQteHMgZm9udC1ibGFjayBzaGFkb3ctbWQgc2hhZG93LWVtZXJhbGQtNjAwLzIwIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyIGRpc2FibGVkOm9wYWNpdHktNTBcIlxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICA8RG93bmxvYWQgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjVcIiAvPlxuICAgICAgICAgICAgICA8c3Bhbj5FeHBvcnQgQ1NWPC9zcGFuPlxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBEYXRhIFByZXZpZXcgVGFibGUgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicm91bmRlZC0yeGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNzAgYmctY2FyZCBvdmVyZmxvdy1oaWRkZW4gbWF4LWgtOTYgb3ZlcmZsb3cteS1hdXRvIHByaW50Om1heC1oLW5vbmUgcHJpbnQ6Ym9yZGVyLW5vbmUgcHJpbnQ6c2hhZG93LW5vbmVcIj5cbiAgICAgICAgICB7cHJldmlld0RhdGEgPT09IG51bGwgPyAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMTIgdGV4dC1jZW50ZXIgdGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgcHJpbnQ6aGlkZGVuXCI+XG4gICAgICAgICAgICAgIDxGaWxlVGV4dCBjbGFzc05hbWU9XCJoLTggdy04IHRleHQtbXV0ZWQtZm9yZWdyb3VuZC80MCBteC1hdXRvIG1iLTJcIiAvPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+Tm8gcHJldmlldyBnZW5lcmF0ZWQgeWV0PC9wPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJtdC0wLjVcIj5DbGljayBcIkdlbmVyYXRlIFByZXZpZXdcIiB0byByZXZpZXcgcm93cyBiZWZvcmUgcHJpbnRpbmcgb3IgZXhwb3J0aW5nLjwvcD5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICkgOiBwcmV2aWV3RGF0YS5sZW5ndGggPT09IDAgPyAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtOCB0ZXh0LWNlbnRlciB0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICBObyByZWNvcmRzIGZvdW5kIGZvciB0aGUgc2VsZWN0ZWQgcmVwb3J0IGZpbHRlcnMuXG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApIDogKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJvdmVyZmxvdy14LWF1dG9cIj5cbiAgICAgICAgICAgICAgPHRhYmxlIGNsYXNzTmFtZT1cInctZnVsbCB0ZXh0LXhzIHRleHQtbGVmdFwiPlxuICAgICAgICAgICAgICAgIDx0aGVhZCBjbGFzc05hbWU9XCJiZy1tdXRlZC80MCB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1ibGFjayB0ZXh0LVsxMHB4XSB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgYm9yZGVyLWIgYm9yZGVyLWJvcmRlci81MFwiPlxuICAgICAgICAgICAgICAgICAgPHRyPlxuICAgICAgICAgICAgICAgICAgICB7T2JqZWN0LmtleXMocHJldmlld0RhdGFbMF0pLm1hcCgoaGVhZGVyKSA9PiAoXG4gICAgICAgICAgICAgICAgICAgICAgPHRoIGtleT17aGVhZGVyfSBjbGFzc05hbWU9XCJwLTMgd2hpdGVzcGFjZS1ub3dyYXBcIj57aGVhZGVyfTwvdGg+XG4gICAgICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICAgICAgPC90cj5cbiAgICAgICAgICAgICAgICA8L3RoZWFkPlxuICAgICAgICAgICAgICAgIDx0Ym9keSBjbGFzc05hbWU9XCJkaXZpZGUteSBkaXZpZGUtYm9yZGVyLzQwIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICB7cHJldmlld0RhdGEubWFwKChyb3csIGlkeCkgPT4gKFxuICAgICAgICAgICAgICAgICAgICA8dHIga2V5PXtpZHh9IGNsYXNzTmFtZT1cImhvdmVyOmJnLW11dGVkLzIwIHRyYW5zaXRpb24tY29sb3JzXCI+XG4gICAgICAgICAgICAgICAgICAgICAge09iamVjdC5rZXlzKHJvdykubWFwKChoZWFkZXIpID0+IChcbiAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBrZXk9e2hlYWRlcn0gY2xhc3NOYW1lPVwicC0zIHRleHQtZm9yZWdyb3VuZCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICB7cm93W2hlYWRlcl19XG4gICAgICAgICAgICAgICAgICAgICAgICA8L3RkPlxuICAgICAgICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICAgICAgICA8L3RyPlxuICAgICAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICAgICAgPC90Ym9keT5cbiAgICAgICAgICAgICAgPC90YWJsZT5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9tb3Rpb24uZGl2PlxuICAgIDwvZGl2PlxuICApO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgU2hpZnRSZXBvcnRzTW9kYWw7XG4iXSwiZmlsZSI6IkQ6L1AgUiBPIEogRSBDIFQgUy9XZWIvTVJGLWNybS9mcm9udGVuZC9zcmMvY29tcG9uZW50cy9vcmdhbml6YXRpb24vU2hpZnRSZXBvcnRzTW9kYWwuanN4In0=

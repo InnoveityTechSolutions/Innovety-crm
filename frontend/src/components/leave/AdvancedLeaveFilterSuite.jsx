@@ -18,13 +18,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Ban,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import api from '../../services/api';
 import ApplyLeaveModal from './ApplyLeaveModal';
 import CompanyLeaveAuditModal from '../attendance/CompanyLeaveAuditModal';
+import CompOffManagementSection from './CompOffManagementSection';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../../config/crmModules';
 import CompanyScopeSelector from '../common/CompanyScopeSelector';
 import { useCompanyScope } from '../../context/CompanyScopeContext';
 
@@ -47,7 +51,8 @@ const LEAVE_TYPES = [
   { id: 'CASUAL', label: 'Casual Leave' },
   { id: 'SICK', label: 'Sick Leave' },
   { id: 'EMERGENCY', label: 'Emergency Leave' },
-  { id: 'WFH', label: 'Work From Home (WFH)' }
+  { id: 'WFH', label: 'Work From Home (WFH)' },
+  { id: 'COMP_OFF', label: 'Compensatory Off (Comp-Off)' }
 ];
 
 const QUICK_FILTERS = [
@@ -91,18 +96,21 @@ const getQuickFilterDates = (preset) => {
 
 const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefresh }) => {
   const { user: currentUser } = useAuth();
+  const { canEdit } = usePermissions();
+  const canEditLeave = canEdit(CRM_MODULE_KEYS.LEAVE_MANAGEMENT);
   const { selectedCompany } = useCompanyScope();
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
   const isAdmin = userRole === 'ADMIN';
   const isTL = userRole === 'TEAM_LEADER';
   
-  // Approver status check: Admin & TL can sanction team members' leaves
-  const canSanction = isAdmin || isTL;
+  // Approver status check: Admin & TL can sanction team members' leaves provided they have edit permission
+  const canSanction = (isAdmin || isTL) && canEditLeave;
 
-  // Main Tab State (Sanction WFH & Leaves vs History)
+  // Main Tab State (Sanction WFH & Leaves vs History vs CompOff)
   const getInitialTab = () => {
-    if (!canSanction) return 'History';
     const q = new URLSearchParams(window.location.search).get('tab');
+    if (q === 'CompOff' || q === 'compoff') return 'CompOff';
+    if (!canSanction) return 'History';
     if (q === 'History' || q === 'Desk') return 'History';
     return 'Sanction';
   };
@@ -131,11 +139,15 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
   };
 
   useEffect(() => {
-    if (!canSanction) {
-      setMainTab('History');
+    const q = new URLSearchParams(window.location.search).get('tab');
+    if (q === 'CompOff' || q === 'compoff') {
+      setMainTab('CompOff');
       return;
     }
-    const q = new URLSearchParams(window.location.search).get('tab');
+    if (!canSanction) {
+      if (mainTab !== 'CompOff') setMainTab('History');
+      return;
+    }
     if (q === 'History' || q === 'Desk') setMainTab('History');
     else if (q === 'Sanction') setMainTab('Sanction');
   }, [window.location.search, canSanction]);
@@ -159,6 +171,32 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
   const [actionRemarks, setActionRemarks] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [compOffEstimate, setCompOffEstimate] = useState(null);
+  const [loadingEstimate, setLoadingEstimate] = useState(false);
+
+  // Fetch FIFO estimate when reviewing a COMP_OFF leave request
+  useEffect(() => {
+    if (selectedLeave && (selectedLeave.leaveType === 'COMP_OFF' || selectedLeave.type === 'COMP_OFF')) {
+      const fetchEstimate = async () => {
+        try {
+          setLoadingEstimate(true);
+          const res = await api.get('/comp-off/estimate-consumption', {
+            params: { leaveRequestId: selectedLeave.id }
+          });
+          setCompOffEstimate(res.data);
+        } catch (err) {
+          console.warn('Failed to fetch comp-off estimate preview:', err);
+          setCompOffEstimate(null);
+        } finally {
+          setLoadingEstimate(false);
+        }
+      };
+      fetchEstimate();
+    } else {
+      setCompOffEstimate(null);
+      setLoadingEstimate(false);
+    }
+  }, [selectedLeave]);
 
   // Quick Filter Chip Handler
   const handleQuickFilterClick = (preset) => {
@@ -400,7 +438,7 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
 
         {/* Action Export & Apply Leave Buttons */}
         <div className="flex flex-wrap items-center gap-2 shrink-0 print:hidden">
-          {['ADMIN', 'SUPER_ADMIN'].includes(userRole) && (
+          {['ADMIN', 'SUPER_ADMIN'].includes(userRole) && canEditLeave && (
             <button
               onClick={() => setLeaveReportModalOpen(true)}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer w-full sm:w-auto"
@@ -439,9 +477,9 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
         </div>
       </div>
 
-      {/* Sub-tabs Navigation (Admin & TL Sanction Queue vs History) */}
-      {canSanction && (
-        <div className="flex border-b border-border/40 gap-6 print:hidden">
+      {/* Sub-tabs Navigation */}
+      <div className="flex border-b border-border/40 gap-6 print:hidden">
+        {canSanction && (
           <button
             onClick={() => setMainTab('Sanction')}
             className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all relative cursor-pointer ${
@@ -451,19 +489,31 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
             Sanction WFH & Leaves ({leaves.filter(l => ['PENDING_ADMIN_APPROVAL', 'PENDING_TL_APPROVAL', 'PENDING'].includes(l.status)).length})
             {mainTab === 'Sanction' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />}
           </button>
-          <button
-            onClick={() => setMainTab('History')}
-            className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all relative cursor-pointer ${
-              mainTab === 'History' ? 'text-primary font-black' : 'text-muted-foreground hover:text-foreground font-semibold'
-            }`}
-          >
-            History
-            {mainTab === 'History' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />}
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => setMainTab('History')}
+          className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all relative cursor-pointer ${
+            mainTab === 'History' ? 'text-primary font-black' : 'text-muted-foreground hover:text-foreground font-semibold'
+          }`}
+        >
+          {canSanction ? 'History' : 'Leave History & Applications'}
+          {mainTab === 'History' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />}
+        </button>
+        <button
+          onClick={() => setMainTab('CompOff')}
+          className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all relative cursor-pointer flex items-center gap-1.5 ${
+            mainTab === 'CompOff' ? 'text-indigo-600 dark:text-indigo-400 font-black' : 'text-muted-foreground hover:text-foreground font-semibold'
+          }`}
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>Comp-Off Ledger & Claims</span>
+          {mainTab === 'CompOff' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-t" />}
+        </button>
+      </div>
 
-      {mainTab === 'Sanction' && canSanction ? (
+      {mainTab === 'CompOff' ? (
+        <CompOffManagementSection userRole={userRole} onRefreshParent={onRefresh} />
+      ) : mainTab === 'Sanction' && canSanction ? (
         <div className="space-y-6">
           {/* Admin / TL Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print:grid-cols-3">
@@ -1052,6 +1102,66 @@ const AdvancedLeaveFilterSuite = ({ leaves = [], userRole = 'EMPLOYEE', onRefres
                 </span>
               </div>
             </div>
+
+            {/* FIFO Comp-Off Consumption Estimate Card */}
+            {(selectedLeave.leaveType === 'COMP_OFF' || selectedLeave.type === 'COMP_OFF') && (
+              <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-indigo-500" />
+                    <span className="font-extrabold text-foreground">
+                      Comp-Off Credit Consumption (FIFO Estimate)
+                    </span>
+                  </div>
+                  {loadingEstimate ? (
+                    <span className="text-[10px] text-muted-foreground animate-pulse">Calculating estimate...</span>
+                  ) : compOffEstimate ? (
+                    <span className={`text-[10px] font-mono font-extrabold px-2 py-0.5 rounded ${
+                      compOffEstimate.canCover
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                    }`}>
+                      {compOffEstimate.canCover ? 'Sufficient Balance' : 'Insufficient Credits'}
+                    </span>
+                  ) : null}
+                </div>
+
+                {compOffEstimate && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Required Days: <strong className="text-foreground font-mono">{compOffEstimate.requiredDays}d</strong></span>
+                      <span>Available in Ledger: <strong className="text-foreground font-mono">{compOffEstimate.totalAvailable}d</strong></span>
+                    </div>
+
+                    {Array.isArray(compOffEstimate.breakdown) && compOffEstimate.breakdown.length > 0 && (
+                      <div className="space-y-1.5 pt-1 border-t border-indigo-500/20">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                          Deduction Breakdown (Earliest Expiring Credits First):
+                        </span>
+                        <div className="space-y-1">
+                          {compOffEstimate.breakdown.map((item, idx) => (
+                            <div key={idx} className="p-2 rounded-xl bg-card/70 border border-border/40 text-[11px] flex items-center justify-between font-mono">
+                              <div>
+                                <span className="text-foreground font-bold">Earned: {new Date(item.workDate).toLocaleDateString()}</span>
+                                <span className="text-muted-foreground text-[10px] ml-1.5">(Expires: {new Date(item.expiresAt).toLocaleDateString()})</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-rose-600 dark:text-rose-400 font-bold">-{item.deducting}d</span>
+                                <span className="text-muted-foreground text-[10px] ml-1.5">({item.remainingAfter}d remaining)</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-muted-foreground italic">
+                      * This is an estimate based on current FIFO ledger ordering. Actual deduction occurs upon final Admin approval.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Approval Workflow Timeline */}
             <div className="space-y-2 pt-2 border-t border-border/40">

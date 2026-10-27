@@ -1,0 +1,1089 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/attendance/AttendanceAuditDetailsModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useEffect = __vite__cjsImport3_react["useEffect"]; const useMemo = __vite__cjsImport3_react["useMemo"];
+import {
+  X,
+  Clock,
+  MapPin,
+  Briefcase,
+  AlertCircle,
+  Building2,
+  Home,
+  CheckCircle2,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  Calendar
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import UserAvatar from "/src/components/common/UserAvatar.jsx";
+import AttendanceMapEmbed, { isValidCoordinate } from "/src/components/attendance/AttendanceMapEmbed.jsx?t=1791629410475";
+const formatDateDDMMYYYY = (dateInput) => {
+  if (!dateInput) return "—";
+  if (typeof dateInput === "string" && dateInput.includes("T")) {
+    const [yyyy, mm, dd] = dateInput.split("T")[0].split("-");
+    if (yyyy && mm && dd) return `${dd}/${mm}/${yyyy}`;
+  }
+  const obj = new Date(dateInput);
+  if (isNaN(obj.getTime())) return "—";
+  const day = String(obj.getUTCDate ? obj.getUTCDate() : obj.getDate()).padStart(2, "0");
+  const month = String((obj.getUTCMonth ? obj.getUTCMonth() : obj.getMonth()) + 1).padStart(2, "0");
+  const year = obj.getUTCFullYear ? obj.getUTCFullYear() : obj.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return "Not recorded";
+  const d = new Date(timestamp);
+  if (isNaN(d.getTime())) return "Not recorded";
+  return d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+};
+const formatWorkType = (workType, otherText) => {
+  if (!workType) return "Not recorded";
+  const upper = String(workType).toUpperCase();
+  if (upper === "OFFICE") return "Office";
+  if (upper === "HOME" || upper === "WORK_FROM_HOME" || upper === "WFH") return "Home";
+  if (upper === "OTHER") {
+    return otherText ? `Other (${otherText.trim()})` : "Other";
+  }
+  return workType;
+};
+export default function AttendanceAuditDetailsModal({ isOpen, onClose, record }) {
+  _s();
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+  const clockInCoords = useMemo(() => {
+    if (!record) return { latitude: null, longitude: null };
+    if (isValidCoordinate(record.clockInLatitude, record.clockInLongitude)) {
+      return { latitude: record.clockInLatitude, longitude: record.clockInLongitude };
+    }
+    if (record.clockInLocation) {
+      const match = record.clockInLocation.match(/Lat:\s*([-\d.]+),\s*Lon:\s*([-\d.]+)/i);
+      if (match) {
+        return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+      }
+    }
+    return { latitude: null, longitude: null };
+  }, [record]);
+  const clockOutCoords = useMemo(() => {
+    if (!record) return { latitude: null, longitude: null };
+    if (isValidCoordinate(record.clockOutLatitude, record.clockOutLongitude)) {
+      return { latitude: record.clockOutLatitude, longitude: record.clockOutLongitude };
+    }
+    if (record.clockOutLocation) {
+      const match = record.clockOutLocation.match(/Lat:\s*([-\d.]+),\s*Lon:\s*([-\d.]+)/i);
+      if (match) {
+        return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+      }
+    }
+    return { latitude: null, longitude: null };
+  }, [record]);
+  const clockInAddress = useMemo(() => {
+    if (!record) return "Address unavailable";
+    if (record.clockInAddress && record.clockInAddress.trim()) {
+      return record.clockInAddress.trim();
+    }
+    if (record.attendanceLocation?.address && record.attendanceLocation.address.trim()) {
+      return record.attendanceLocation.address.trim();
+    }
+    return "Address unavailable";
+  }, [record]);
+  const clockOutAddress = useMemo(() => {
+    if (!record) return "Address unavailable";
+    if (record.clockOutAddress && record.clockOutAddress.trim()) {
+      return record.clockOutAddress.trim();
+    }
+    return "Address unavailable";
+  }, [record]);
+  if (!isOpen || !record) return null;
+  const isAutoClockOut = Boolean(record.autoClockOut || record.clockOutReason === "AUTO");
+  const hasClockOut = Boolean(record.clockOut);
+  const isSynthetic = Boolean(record.isSynthetic);
+  const getStatusBadge = (status) => {
+    const s = String(status || "").toUpperCase();
+    if (s === "PRESENT" || s === "WORK_FROM_HOME") {
+      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+    }
+    if (s === "LATE") {
+      return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
+    }
+    if (s === "HALF_DAY") {
+      return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+    }
+    if (s === "ABSENT") {
+      return "bg-rose-500/10 text-rose-600 border-rose-500/20";
+    }
+    if (s === "HOLIDAY") {
+      return "bg-sky-500/10 text-sky-600 border-sky-500/20";
+    }
+    return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+  };
+  return /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      className: "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto",
+      onClick: onClose,
+      children: /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          className: "w-full max-w-5xl my-auto rounded-2xl border border-border/40 bg-card p-3.5 sm:p-4 md:p-5 pt-3 sm:pt-3.5 pb-3 sm:pb-3.5 shadow-2xl animate-in zoom-in-95 duration-200 text-left flex flex-col md:max-h-[92vh] max-h-none overflow-hidden",
+          onClick: (e) => e.stopPropagation(),
+          children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-start justify-between border-b border-border/40 pb-2 sm:pb-2.5", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5 sm:gap-3", children: [
+                /* @__PURE__ */ jsxDEV(UserAvatar, { user: record.user, size: "lg", className: "h-10 w-10 sm:h-11 sm:w-11 rounded-xl" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 193,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                    /* @__PURE__ */ jsxDEV("h2", { className: "text-base sm:text-lg font-bold text-foreground", children: record.user?.name || "Employee Attendance" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 196,
+                      columnNumber: 17
+                    }, this),
+                    /* @__PURE__ */ jsxDEV(
+                      "span",
+                      {
+                        className: `inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${getStatusBadge(
+                          record.status
+                        )}`,
+                        children: record.status
+                      },
+                      void 0,
+                      false,
+                      {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 199,
+                        columnNumber: 17
+                      },
+                      this
+                    )
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 195,
+                    columnNumber: 15
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5", children: [
+                    /* @__PURE__ */ jsxDEV("span", { className: "font-mono font-semibold text-foreground/80", children: record.user?.employeeId || "ID: —" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 208,
+                      columnNumber: 17
+                    }, this),
+                    record.user?.department && ` • ${record.user.department}`,
+                    record.user?.role && ` • ${record.user.role.replace("_", " ")}`
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 207,
+                    columnNumber: 15
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 194,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 192,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  onClick: onClose,
+                  className: "p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer",
+                  title: "Close modal",
+                  children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 222,
+                    columnNumber: 13
+                  }, this)
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 217,
+                  columnNumber: 11
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+              lineNumber: 191,
+              columnNumber: 9
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "mt-2 sm:mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2 bg-muted/30 px-3 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-border/30 text-xs", children: [
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-semibold uppercase block", children: "Date" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 229,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground font-mono", children: formatDateDDMMYYYY(record.date) }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 230,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 228,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-semibold uppercase block", children: "Working Hours" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 235,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground font-mono", children: record.workingHours !== null && record.workingHours !== void 0 ? `${record.workingHours} hrs` : "—" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 236,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 234,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-semibold uppercase block", children: "Shift / Timing" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 243,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-foreground truncate block", children: record.shiftName || "Company Default" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 244,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 242,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-semibold uppercase block", children: "Session Type" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 249,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-foreground", children: record.clockIn ? "Recorded Session" : isSynthetic ? "Calendar Entry" : "Manual Entry" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 250,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 248,
+                columnNumber: 11
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+              lineNumber: 227,
+              columnNumber: 9
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "mt-2.5 sm:mt-3 flex-1 md:overflow-y-auto md:min-h-0 space-y-2.5 sm:space-y-3 pb-1", children: [
+              !record.clockIn && /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-xl border border-dashed border-border/60 bg-muted/20 text-center", children: [
+                /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-4 w-4 text-muted-foreground/70 mx-auto mb-1" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 261,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-semibold text-foreground", children: "No Clock-In Recorded for this Date" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 262,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground mt-0.5", children: [
+                  "Attendance was recorded as ",
+                  /* @__PURE__ */ jsxDEV("strong", { className: "font-semibold", children: record.status }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 264,
+                    columnNumber: 44
+                  }, this),
+                  "."
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 263,
+                  columnNumber: 15
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 260,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-3.5 items-stretch", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "rounded-2xl border border-border/40 bg-card/70 p-3 sm:p-3.5 flex flex-col justify-between shadow-sm", children: /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/30 pb-1.5 mb-2", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+                      /* @__PURE__ */ jsxDEV("div", { className: "h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold shrink-0", children: /* @__PURE__ */ jsxDEV(LogIn, { className: "h-3.5 w-3.5" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 278,
+                        columnNumber: 23
+                      }, this) }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 277,
+                        columnNumber: 21
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { children: [
+                        /* @__PURE__ */ jsxDEV("h3", { className: "text-xs sm:text-sm font-bold text-foreground", children: "Clock-In Details" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 281,
+                          columnNumber: 23
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground", children: "Recorded check-in session" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 282,
+                          columnNumber: 23
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 280,
+                        columnNumber: 21
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 276,
+                      columnNumber: 19
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] sm:text-[11px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md", children: "Clock-In" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 285,
+                      columnNumber: 19
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 275,
+                    columnNumber: 17
+                  }, this),
+                  record.clockIn ? /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 text-xs", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Work Type:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 294,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Briefcase, { className: "h-3.5 w-3.5 text-primary shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 296,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words", children: formatWorkType(record.workLocation, record.workLocationOther) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 297,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 295,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 293,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-In Time:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 303,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-mono font-bold text-foreground flex items-center gap-1.5 flex-wrap", children: [
+                        /* @__PURE__ */ jsxDEV(Clock, { className: "h-3.5 w-3.5 text-emerald-600 shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 305,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { children: formatTimestamp(record.clockIn) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 306,
+                          columnNumber: 25
+                        }, this),
+                        record.lateMinutes ? /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-sans font-bold text-yellow-600 bg-yellow-500/10 px-1.5 py-0.5 rounded ml-1", children: [
+                          record.lateMinutes,
+                          "m late"
+                        ] }, void 0, true, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 308,
+                          columnNumber: 23
+                        }, this) : null
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 304,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 302,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-In Address:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 317,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 text-foreground/90 flex items-start gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(MapPin, { className: "h-3.5 w-3.5 text-primary shrink-0 mt-0.5" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 319,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words leading-relaxed", children: clockInAddress }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 320,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 318,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 316,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 pt-0.5", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground block", children: "Clock-In Location:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 326,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV(
+                        AttendanceMapEmbed,
+                        {
+                          latitude: clockInCoords.latitude,
+                          longitude: clockInCoords.longitude,
+                          title: "Clock-In Location Map",
+                          height: "h-28 sm:h-32"
+                        },
+                        void 0,
+                        false,
+                        {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 329,
+                          columnNumber: 23
+                        },
+                        this
+                      )
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 325,
+                      columnNumber: 21
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 291,
+                    columnNumber: 17
+                  }, this) : /* @__PURE__ */ jsxDEV("div", { className: "p-4 rounded-xl border border-dashed border-border/50 bg-muted/10 text-center my-auto py-6", children: [
+                    /* @__PURE__ */ jsxDEV(Clock, { className: "h-6 w-6 text-muted-foreground/60 mx-auto mb-1.5" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 339,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-semibold text-foreground", children: "No Clock-In Recorded" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 340,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground mt-0.5", children: "No arrival session on record for this date." }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 341,
+                      columnNumber: 21
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 338,
+                    columnNumber: 17
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 273,
+                  columnNumber: 15
+                }, this) }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 272,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "rounded-2xl border border-border/40 bg-card/70 p-3 sm:p-3.5 flex flex-col justify-between shadow-sm", children: /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/30 pb-1.5 mb-2", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+                      /* @__PURE__ */ jsxDEV("div", { className: "h-6 w-6 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold shrink-0", children: /* @__PURE__ */ jsxDEV(LogOut, { className: "h-3.5 w-3.5" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 354,
+                        columnNumber: 23
+                      }, this) }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 353,
+                        columnNumber: 21
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { children: [
+                        /* @__PURE__ */ jsxDEV("h3", { className: "text-xs sm:text-sm font-bold text-foreground", children: "Clock-Out Details" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 357,
+                          columnNumber: 23
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground", children: "Recorded departure session" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 358,
+                          columnNumber: 23
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 356,
+                        columnNumber: 21
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 352,
+                      columnNumber: 19
+                    }, this),
+                    !hasClockOut && /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] sm:text-[11px] font-mono font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md", children: "Not Clocked Out" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 364,
+                      columnNumber: 19
+                    }, this),
+                    hasClockOut && isAutoClockOut && /* @__PURE__ */ jsxDEV("span", { className: "inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 370,
+                        columnNumber: 23
+                      }, this),
+                      "Auto Clock-Out"
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 369,
+                      columnNumber: 19
+                    }, this),
+                    hasClockOut && !isAutoClockOut && /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] sm:text-[11px] font-mono font-bold text-indigo-600 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md", children: "Manual Clock-Out" }, void 0, false, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 375,
+                      columnNumber: 19
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 351,
+                    columnNumber: 17
+                  }, this),
+                  !hasClockOut && /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 text-xs", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Work Type:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 385,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Briefcase, { className: "h-3.5 w-3.5 text-primary shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 387,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words", children: formatWorkType(record.workLocation, record.workLocationOther) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 388,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 386,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 384,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Time:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 392,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-mono font-bold text-amber-600 flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Clock, { className: "h-3.5 w-3.5 text-amber-600 shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 394,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { children: "Session in progress" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 395,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 393,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 391,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Address:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 399,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 text-muted-foreground flex items-start gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(MapPin, { className: "h-3.5 w-3.5 text-muted-foreground/60 shrink-0 mt-0.5" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 401,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { children: "Pending employee departure" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 402,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 400,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 398,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 pt-0.5", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground block", children: "Clock-Out Location:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 406,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "h-28 sm:h-32 rounded-xl border border-dashed border-border/50 bg-muted/15 flex flex-col items-center justify-center p-3 text-center", children: [
+                        /* @__PURE__ */ jsxDEV(Clock, { className: "h-6 w-6 text-amber-500/70 mb-1" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 410,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-bold text-foreground", children: "Active Session Open" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 411,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "text-[10.5px] text-muted-foreground mt-0.5 max-w-xs leading-relaxed", children: "Employee has not submitted clock-out yet. Location will be recorded upon departure." }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 412,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 409,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 405,
+                      columnNumber: 21
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 383,
+                    columnNumber: 17
+                  }, this),
+                  hasClockOut && isAutoClockOut && /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 text-xs", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Work Type:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 425,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Briefcase, { className: "h-3.5 w-3.5 text-primary shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 427,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words", children: formatWorkType(
+                          record.clockOutWorkLocation || record.workLocation,
+                          record.clockOutWorkLocationOther || record.workLocationOther
+                        ) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 428,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 426,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 424,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Time:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 439,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-mono font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Clock, { className: "h-3.5 w-3.5 text-indigo-600 shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 441,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { children: formatTimestamp(record.clockOut) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 442,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-sans font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1", children: "System Shift End" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 443,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 440,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 438,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Address:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 451,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 text-foreground/80 flex items-start gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(MapPin, { className: "h-3.5 w-3.5 text-muted-foreground/70 shrink-0 mt-0.5" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 453,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words leading-relaxed", children: record.clockOutAddress && record.clockOutAddress.trim() ? record.clockOutAddress.trim() : "Not recorded (Automated System Departure)" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 454,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 452,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 450,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 pt-0.5", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground block", children: "Clock-Out Location:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 464,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "h-28 sm:h-32 rounded-xl border border-dashed border-border/50 bg-muted/15 flex flex-col justify-between p-2.5 sm:p-3 text-center", children: [
+                        /* @__PURE__ */ jsxDEV("div", { className: "flex-1 flex flex-col items-center justify-center", children: [
+                          /* @__PURE__ */ jsxDEV("div", { className: "h-5 w-5 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mb-0.5", children: /* @__PURE__ */ jsxDEV(ShieldCheck, { className: "h-3 w-3" }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 470,
+                            columnNumber: 29
+                          }, this) }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 469,
+                            columnNumber: 27
+                          }, this),
+                          /* @__PURE__ */ jsxDEV("span", { className: "text-xs font-bold text-foreground", children: "Location Not Captured" }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 472,
+                            columnNumber: 27
+                          }, this),
+                          /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-muted-foreground mt-0.5 max-w-xs leading-tight", children: "Automatic clock-out occurred via scheduled system rules at shift end. Device GPS coordinates were not captured per privacy rules." }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 473,
+                            columnNumber: 27
+                          }, this)
+                        ] }, void 0, true, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 468,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("div", { className: "pt-1 border-t border-border/30 flex items-center justify-between text-[10px] text-muted-foreground", children: [
+                          /* @__PURE__ */ jsxDEV("span", { className: "font-mono", children: "Shift Policy Auto-End" }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 478,
+                            columnNumber: 27
+                          }, this),
+                          /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded", children: "Automated" }, void 0, false, {
+                            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                            lineNumber: 479,
+                            columnNumber: 27
+                          }, this)
+                        ] }, void 0, true, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 477,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 467,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 463,
+                      columnNumber: 21
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 422,
+                    columnNumber: 17
+                  }, this),
+                  hasClockOut && !isAutoClockOut && /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 text-xs", children: [
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Work Type:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 493,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Briefcase, { className: "h-3.5 w-3.5 text-primary shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 495,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words", children: formatWorkType(
+                          record.clockOutWorkLocation || record.workLocation,
+                          record.clockOutWorkLocationOther || record.workLocationOther
+                        ) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 496,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 494,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 492,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Time:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 507,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 font-mono font-bold text-foreground flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(Clock, { className: "h-3.5 w-3.5 text-indigo-600 shrink-0" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 509,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { children: formatTimestamp(record.clockOut) }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 510,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 508,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 506,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 items-baseline", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Clock-Out Address:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 516,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("div", { className: "sm:col-span-2 text-foreground/90 flex items-start gap-1.5", children: [
+                        /* @__PURE__ */ jsxDEV(MapPin, { className: "h-3.5 w-3.5 text-primary shrink-0 mt-0.5" }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 518,
+                          columnNumber: 25
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "break-words leading-relaxed", children: clockOutAddress }, void 0, false, {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 519,
+                          columnNumber: 25
+                        }, this)
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 517,
+                        columnNumber: 23
+                      }, this)
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 515,
+                      columnNumber: 21
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 pt-0.5", children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-semibold text-muted-foreground block", children: "Clock-Out Location:" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                        lineNumber: 525,
+                        columnNumber: 23
+                      }, this),
+                      /* @__PURE__ */ jsxDEV(
+                        AttendanceMapEmbed,
+                        {
+                          latitude: clockOutCoords.latitude,
+                          longitude: clockOutCoords.longitude,
+                          title: "Clock-Out Location Map",
+                          height: "h-28 sm:h-32"
+                        },
+                        void 0,
+                        false,
+                        {
+                          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                          lineNumber: 528,
+                          columnNumber: 23
+                        },
+                        this
+                      )
+                    ] }, void 0, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                      lineNumber: 524,
+                      columnNumber: 21
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                    lineNumber: 490,
+                    columnNumber: 17
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 349,
+                  columnNumber: 15
+                }, this) }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 348,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 270,
+                columnNumber: 11
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+              lineNumber: 257,
+              columnNumber: 9
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] text-muted-foreground/80 hidden sm:inline", children: [
+                "Press ",
+                /* @__PURE__ */ jsxDEV("kbd", { className: "px-1.5 py-0.5 text-[10px] font-mono bg-muted border border-border/50 rounded-md", children: "Esc" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 545,
+                  columnNumber: 19
+                }, this),
+                " or click outside to dismiss"
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                lineNumber: 544,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  onClick: onClose,
+                  className: "px-4 py-1.5 sm:px-5 sm:py-2 rounded-xl text-xs font-bold bg-muted hover:bg-muted/80 text-foreground transition-colors cursor-pointer ml-auto",
+                  children: "Close"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+                  lineNumber: 547,
+                  columnNumber: 11
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+              lineNumber: 543,
+              columnNumber: 9
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+          lineNumber: 186,
+          columnNumber: 7
+        },
+        this
+      )
+    },
+    void 0,
+    false,
+    {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx",
+      lineNumber: 182,
+      columnNumber: 5
+    },
+    this
+  );
+}
+_s(AttendanceAuditDetailsModal, "09B/7QN/kxEvMBtukrC5RJUzF/4=");
+_c = AttendanceAuditDetailsModal;
+var _c;
+$RefreshReg$(_c, "AttendanceAuditDetailsModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/attendance/AttendanceAuditDetailsModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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aW4iLCJCcmllZmNhc2UiLCJBbGVydENpcmNsZSIsIkJ1aWxkaW5nMiIsIkhvbWUiLCJDaGVja0NpcmNsZTIiLCJMb2dJbiIsIkxvZ091dCIsIlNoaWVsZENoZWNrIiwiQ2FsZW5kYXIiLCJVc2VyQXZhdGFyIiwiQXR0ZW5kYW5jZU1hcEVtYmVkIiwiaXNWYWxpZENvb3JkaW5hdGUiLCJmb3JtYXREYXRlRERNTVlZWVkiLCJkYXRlSW5wdXQiLCJpbmNsdWRlcyIsInl5eXkiLCJtbSIsImRkIiwic3BsaXQiLCJvYmoiLCJEYXRlIiwiaXNOYU4iLCJnZXRUaW1lIiwiZGF5IiwiU3RyaW5nIiwiZ2V0VVRDRGF0ZSIsImdldERhdGUiLCJwYWRTdGFydCIsIm1vbnRoIiwiZ2V0VVRDTW9udGgiLCJnZXRNb250aCIsInllYXIiLCJnZXRVVENGdWxsWWVhciIsImdldEZ1bGxZZWFyIiwiZm9ybWF0VGltZXN0YW1wIiwidGltZXN0YW1wIiwiZCIsInRvTG9jYWxlVGltZVN0cmluZyIsImhvdXIiLCJtaW51dGUiLCJzZWNvbmQiLCJob3VyMTIiLCJmb3JtYXRXb3JrVHlwZSIsIndvcmtUeXBlIiwib3RoZXJUZXh0IiwidXBwZXIiLCJ0b1VwcGVyQ2FzZSIsInRyaW0iLCJBdHRlbmRhbmNlQXVkaXREZXRhaWxzTW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwicmVjb3JkIiwiX3MiLCJvcmlnaW5hbEJvZHlPdmVyZmxvdyIsImRvY3VtZW50IiwiYm9keSIsInN0eWxlIiwib3ZlcmZsb3ciLCJoYW5kbGVLZXlEb3duIiwiZSIsImtleSIsIndpbmRvdyIsImFkZEV2ZW50TGlzdGVuZXIiLCJyZW1vdmVFdmVudExpc3RlbmVyIiwiY2xvY2tJbkNvb3JkcyIsImxhdGl0dWRlIiwibG9uZ2l0dWRlIiwiY2xvY2tJbkxhdGl0dWRlIiwiY2xvY2tJbkxvbmdpdHVkZSIsImNsb2NrSW5Mb2NhdGlvbiIsIm1hdGNoIiwicGFyc2VGbG9hdCIsImNsb2NrT3V0Q29vcmRzIiwiY2xvY2tPdXRMYXRpdHVkZSIsImNsb2NrT3V0TG9uZ2l0dWRlIiwiY2xvY2tPdXRMb2NhdGlvbiIsImNsb2NrSW5BZGRyZXNzIiwiYXR0ZW5kYW5jZUxvY2F0aW9uIiwiYWRkcmVzcyIsImNsb2NrT3V0QWRkcmVzcyIsImlzQXV0b0Nsb2NrT3V0IiwiQm9vbGVhbiIsImF1dG9DbG9ja091dCIsImNsb2NrT3V0UmVhc29uIiwiaGFzQ2xvY2tPdXQiLCJjbG9ja091dCIsImlzU3ludGhldGljIiwiZ2V0U3RhdHVzQmFkZ2UiLCJzdGF0dXMiLCJzIiwic3RvcFByb3BhZ2F0aW9uIiwidXNlciIsIm5hbWUiLCJlbXBsb3llZUlkIiwiZGVwYXJ0bWVudCIsInJvbGUiLCJyZXBsYWNlIiwiZGF0ZSIsIndvcmtpbmdIb3VycyIsInVuZGVmaW5lZCIsInNoaWZ0TmFtZSIsImNsb2NrSW4iLCJ3b3JrTG9jYXRpb24iLCJ3b3JrTG9jYXRpb25PdGhlciIsImxhdGVNaW51dGVzIiwiY2xvY2tPdXRXb3JrTG9jYXRpb24iLCJjbG9ja091dFdvcmtMb2NhdGlvbk90aGVyIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiQXR0ZW5kYW5jZUF1ZGl0RGV0YWlsc01vZGFsLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlRWZmZWN0LCB1c2VNZW1vIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IHtcbiAgWCxcbiAgQ2xvY2ssXG4gIE1hcFBpbixcbiAgQnJpZWZjYXNlLFxuICBBbGVydENpcmNsZSxcbiAgQnVpbGRpbmcyLFxuICBIb21lLFxuICBDaGVja0NpcmNsZTIsXG4gIExvZ0luLFxuICBMb2dPdXQsXG4gIFNoaWVsZENoZWNrLFxuICBDYWxlbmRhclxufSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IFVzZXJBdmF0YXIgZnJvbSAnLi4vY29tbW9uL1VzZXJBdmF0YXInO1xuaW1wb3J0IEF0dGVuZGFuY2VNYXBFbWJlZCwgeyBpc1ZhbGlkQ29vcmRpbmF0ZSB9IGZyb20gJy4vQXR0ZW5kYW5jZU1hcEVtYmVkJztcblxuLyoqXG4gKiBGb3JtYXQgZGF0ZSBhcyBERC9NTS9ZWVlZXG4gKi9cbmNvbnN0IGZvcm1hdERhdGVERE1NWVlZWSA9IChkYXRlSW5wdXQpID0+IHtcbiAgaWYgKCFkYXRlSW5wdXQpIHJldHVybiAn4oCUJztcbiAgaWYgKHR5cGVvZiBkYXRlSW5wdXQgPT09ICdzdHJpbmcnICYmIGRhdGVJbnB1dC5pbmNsdWRlcygnVCcpKSB7XG4gICAgY29uc3QgW3l5eXksIG1tLCBkZF0gPSBkYXRlSW5wdXQuc3BsaXQoJ1QnKVswXS5zcGxpdCgnLScpO1xuICAgIGlmICh5eXl5ICYmIG1tICYmIGRkKSByZXR1cm4gYCR7ZGR9LyR7bW19LyR7eXl5eX1gO1xuICB9XG4gIGNvbnN0IG9iaiA9IG5ldyBEYXRlKGRhdGVJbnB1dCk7XG4gIGlmIChpc05hTihvYmouZ2V0VGltZSgpKSkgcmV0dXJuICfigJQnO1xuICBjb25zdCBkYXkgPSBTdHJpbmcob2JqLmdldFVUQ0RhdGUgPyBvYmouZ2V0VVRDRGF0ZSgpIDogb2JqLmdldERhdGUoKSkucGFkU3RhcnQoMiwgJzAnKTtcbiAgY29uc3QgbW9udGggPSBTdHJpbmcoKG9iai5nZXRVVENNb250aCA/IG9iai5nZXRVVENNb250aCgpIDogb2JqLmdldE1vbnRoKCkpICsgMSkucGFkU3RhcnQoMiwgJzAnKTtcbiAgY29uc3QgeWVhciA9IG9iai5nZXRVVENGdWxsWWVhciA/IG9iai5nZXRVVENGdWxsWWVhcigpIDogb2JqLmdldEZ1bGxZZWFyKCk7XG4gIHJldHVybiBgJHtkYXl9LyR7bW9udGh9LyR7eWVhcn1gO1xufTtcblxuLyoqXG4gKiBGb3JtYXQgdGltZXN0YW1wIGludG8gaHVtYW4tcmVhZGFibGUgdGltZSArIGRhdGVcbiAqL1xuY29uc3QgZm9ybWF0VGltZXN0YW1wID0gKHRpbWVzdGFtcCkgPT4ge1xuICBpZiAoIXRpbWVzdGFtcCkgcmV0dXJuICdOb3QgcmVjb3JkZWQnO1xuICBjb25zdCBkID0gbmV3IERhdGUodGltZXN0YW1wKTtcbiAgaWYgKGlzTmFOKGQuZ2V0VGltZSgpKSkgcmV0dXJuICdOb3QgcmVjb3JkZWQnO1xuICByZXR1cm4gZC50b0xvY2FsZVRpbWVTdHJpbmcoJ2VuLVVTJywge1xuICAgIGhvdXI6ICcyLWRpZ2l0JyxcbiAgICBtaW51dGU6ICcyLWRpZ2l0JyxcbiAgICBzZWNvbmQ6ICcyLWRpZ2l0JyxcbiAgICBob3VyMTI6IHRydWVcbiAgfSk7XG59O1xuXG4vKipcbiAqIE5vcm1hbGl6ZXMgd29yayB0eXBlIGludG8gXCJPZmZpY2VcIiwgXCJIb21lXCIsIG9yIFwiT3RoZXJcIlxuICovXG5jb25zdCBmb3JtYXRXb3JrVHlwZSA9ICh3b3JrVHlwZSwgb3RoZXJUZXh0KSA9PiB7XG4gIGlmICghd29ya1R5cGUpIHJldHVybiAnTm90IHJlY29yZGVkJztcbiAgY29uc3QgdXBwZXIgPSBTdHJpbmcod29ya1R5cGUpLnRvVXBwZXJDYXNlKCk7XG4gIGlmICh1cHBlciA9PT0gJ09GRklDRScpIHJldHVybiAnT2ZmaWNlJztcbiAgaWYgKHVwcGVyID09PSAnSE9NRScgfHwgdXBwZXIgPT09ICdXT1JLX0ZST01fSE9NRScgfHwgdXBwZXIgPT09ICdXRkgnKSByZXR1cm4gJ0hvbWUnO1xuICBpZiAodXBwZXIgPT09ICdPVEhFUicpIHtcbiAgICByZXR1cm4gb3RoZXJUZXh0ID8gYE90aGVyICgke290aGVyVGV4dC50cmltKCl9KWAgOiAnT3RoZXInO1xuICB9XG4gIHJldHVybiB3b3JrVHlwZTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIEF0dGVuZGFuY2VBdWRpdERldGFpbHNNb2RhbCh7IGlzT3Blbiwgb25DbG9zZSwgcmVjb3JkIH0pIHtcbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBpZiAoIWlzT3BlbikgcmV0dXJuO1xuXG4gICAgLy8gUHJldmVudCBiYWNrZ3JvdW5kIHBhZ2Ugc2Nyb2xsaW5nIHdoaWxlIG1vZGFsIGlzIG9wZW4sIHJlc3RvcmUgcHJldmlvdXMgc2V0dGluZyBvbiBjbG9zZS91bm1vdW50XG4gICAgY29uc3Qgb3JpZ2luYWxCb2R5T3ZlcmZsb3cgPSBkb2N1bWVudC5ib2R5LnN0eWxlLm92ZXJmbG93O1xuICAgIGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSAnaGlkZGVuJztcblxuICAgIGNvbnN0IGhhbmRsZUtleURvd24gPSAoZSkgPT4ge1xuICAgICAgaWYgKGUua2V5ID09PSAnRXNjYXBlJykge1xuICAgICAgICBvbkNsb3NlKCk7XG4gICAgICB9XG4gICAgfTtcbiAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigna2V5ZG93bicsIGhhbmRsZUtleURvd24pO1xuXG4gICAgcmV0dXJuICgpID0+IHtcbiAgICAgIGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSBvcmlnaW5hbEJvZHlPdmVyZmxvdztcbiAgICAgIHdpbmRvdy5yZW1vdmVFdmVudExpc3RlbmVyKCdrZXlkb3duJywgaGFuZGxlS2V5RG93bik7XG4gICAgfTtcbiAgfSwgW2lzT3Blbiwgb25DbG9zZV0pO1xuXG4gIC8vIEV4dHJhY3QgLyByZXNvbHZlIGNvb3JkaW5hdGVzIHdpdGggZmFsbGJhY2sgdG8gc3RyaW5nIG1hdGNoaW5nXG4gIGNvbnN0IGNsb2NrSW5Db29yZHMgPSB1c2VNZW1vKCgpID0+IHtcbiAgICBpZiAoIXJlY29yZCkgcmV0dXJuIHsgbGF0aXR1ZGU6IG51bGwsIGxvbmdpdHVkZTogbnVsbCB9O1xuICAgIGlmIChpc1ZhbGlkQ29vcmRpbmF0ZShyZWNvcmQuY2xvY2tJbkxhdGl0dWRlLCByZWNvcmQuY2xvY2tJbkxvbmdpdHVkZSkpIHtcbiAgICAgIHJldHVybiB7IGxhdGl0dWRlOiByZWNvcmQuY2xvY2tJbkxhdGl0dWRlLCBsb25naXR1ZGU6IHJlY29yZC5jbG9ja0luTG9uZ2l0dWRlIH07XG4gICAgfVxuICAgIGlmIChyZWNvcmQuY2xvY2tJbkxvY2F0aW9uKSB7XG4gICAgICBjb25zdCBtYXRjaCA9IHJlY29yZC5jbG9ja0luTG9jYXRpb24ubWF0Y2goL0xhdDpcXHMqKFstXFxkLl0rKSxcXHMqTG9uOlxccyooWy1cXGQuXSspL2kpO1xuICAgICAgaWYgKG1hdGNoKSB7XG4gICAgICAgIHJldHVybiB7IGxhdGl0dWRlOiBwYXJzZUZsb2F0KG1hdGNoWzFdKSwgbG9uZ2l0dWRlOiBwYXJzZUZsb2F0KG1hdGNoWzJdKSB9O1xuICAgICAgfVxuICAgIH1cbiAgICByZXR1cm4geyBsYXRpdHVkZTogbnVsbCwgbG9uZ2l0dWRlOiBudWxsIH07XG4gIH0sIFtyZWNvcmRdKTtcblxuICBjb25zdCBjbG9ja091dENvb3JkcyA9IHVzZU1lbW8oKCkgPT4ge1xuICAgIGlmICghcmVjb3JkKSByZXR1cm4geyBsYXRpdHVkZTogbnVsbCwgbG9uZ2l0dWRlOiBudWxsIH07XG4gICAgaWYgKGlzVmFsaWRDb29yZGluYXRlKHJlY29yZC5jbG9ja091dExhdGl0dWRlLCByZWNvcmQuY2xvY2tPdXRMb25naXR1ZGUpKSB7XG4gICAgICByZXR1cm4geyBsYXRpdHVkZTogcmVjb3JkLmNsb2NrT3V0TGF0aXR1ZGUsIGxvbmdpdHVkZTogcmVjb3JkLmNsb2NrT3V0TG9uZ2l0dWRlIH07XG4gICAgfVxuICAgIGlmIChyZWNvcmQuY2xvY2tPdXRMb2NhdGlvbikge1xuICAgICAgY29uc3QgbWF0Y2ggPSByZWNvcmQuY2xvY2tPdXRMb2NhdGlvbi5tYXRjaCgvTGF0OlxccyooWy1cXGQuXSspLFxccypMb246XFxzKihbLVxcZC5dKykvaSk7XG4gICAgICBpZiAobWF0Y2gpIHtcbiAgICAgICAgcmV0dXJuIHsgbGF0aXR1ZGU6IHBhcnNlRmxvYXQobWF0Y2hbMV0pLCBsb25naXR1ZGU6IHBhcnNlRmxvYXQobWF0Y2hbMl0pIH07XG4gICAgICB9XG4gICAgfVxuICAgIHJldHVybiB7IGxhdGl0dWRlOiBudWxsLCBsb25naXR1ZGU6IG51bGwgfTtcbiAgfSwgW3JlY29yZF0pO1xuXG4gIC8vIFJlc29sdmVkIGFkZHJlc3Nlc1xuICBjb25zdCBjbG9ja0luQWRkcmVzcyA9IHVzZU1lbW8oKCkgPT4ge1xuICAgIGlmICghcmVjb3JkKSByZXR1cm4gJ0FkZHJlc3MgdW5hdmFpbGFibGUnO1xuICAgIGlmIChyZWNvcmQuY2xvY2tJbkFkZHJlc3MgJiYgcmVjb3JkLmNsb2NrSW5BZGRyZXNzLnRyaW0oKSkge1xuICAgICAgcmV0dXJuIHJlY29yZC5jbG9ja0luQWRkcmVzcy50cmltKCk7XG4gICAgfVxuICAgIGlmIChyZWNvcmQuYXR0ZW5kYW5jZUxvY2F0aW9uPy5hZGRyZXNzICYmIHJlY29yZC5hdHRlbmRhbmNlTG9jYXRpb24uYWRkcmVzcy50cmltKCkpIHtcbiAgICAgIHJldHVybiByZWNvcmQuYXR0ZW5kYW5jZUxvY2F0aW9uLmFkZHJlc3MudHJpbSgpO1xuICAgIH1cbiAgICByZXR1cm4gJ0FkZHJlc3MgdW5hdmFpbGFibGUnO1xuICB9LCBbcmVjb3JkXSk7XG5cbiAgY29uc3QgY2xvY2tPdXRBZGRyZXNzID0gdXNlTWVtbygoKSA9PiB7XG4gICAgaWYgKCFyZWNvcmQpIHJldHVybiAnQWRkcmVzcyB1bmF2YWlsYWJsZSc7XG4gICAgaWYgKHJlY29yZC5jbG9ja091dEFkZHJlc3MgJiYgcmVjb3JkLmNsb2NrT3V0QWRkcmVzcy50cmltKCkpIHtcbiAgICAgIHJldHVybiByZWNvcmQuY2xvY2tPdXRBZGRyZXNzLnRyaW0oKTtcbiAgICB9XG4gICAgcmV0dXJuICdBZGRyZXNzIHVuYXZhaWxhYmxlJztcbiAgfSwgW3JlY29yZF0pO1xuXG4gIGlmICghaXNPcGVuIHx8ICFyZWNvcmQpIHJldHVybiBudWxsO1xuXG4gIGNvbnN0IGlzQXV0b0Nsb2NrT3V0ID0gQm9vbGVhbihyZWNvcmQuYXV0b0Nsb2NrT3V0IHx8IHJlY29yZC5jbG9ja091dFJlYXNvbiA9PT0gJ0FVVE8nKTtcbiAgY29uc3QgaGFzQ2xvY2tPdXQgPSBCb29sZWFuKHJlY29yZC5jbG9ja091dCk7XG4gIGNvbnN0IGlzU3ludGhldGljID0gQm9vbGVhbihyZWNvcmQuaXNTeW50aGV0aWMpO1xuXG4gIC8vIFN0YXR1cyBiYWRnZSBzdHlsaW5nXG4gIGNvbnN0IGdldFN0YXR1c0JhZGdlID0gKHN0YXR1cykgPT4ge1xuICAgIGNvbnN0IHMgPSBTdHJpbmcoc3RhdHVzIHx8ICcnKS50b1VwcGVyQ2FzZSgpO1xuICAgIGlmIChzID09PSAnUFJFU0VOVCcgfHwgcyA9PT0gJ1dPUktfRlJPTV9IT01FJykge1xuICAgICAgcmV0dXJuICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGJvcmRlci1lbWVyYWxkLTUwMC8yMCc7XG4gICAgfVxuICAgIGlmIChzID09PSAnTEFURScpIHtcbiAgICAgIHJldHVybiAnYmcteWVsbG93LTUwMC8xMCB0ZXh0LXllbGxvdy02MDAgYm9yZGVyLXllbGxvdy01MDAvMjAnO1xuICAgIH1cbiAgICBpZiAocyA9PT0gJ0hBTEZfREFZJykge1xuICAgICAgcmV0dXJuICdiZy1wdXJwbGUtNTAwLzEwIHRleHQtcHVycGxlLTYwMCBib3JkZXItcHVycGxlLTUwMC8yMCc7XG4gICAgfVxuICAgIGlmIChzID09PSAnQUJTRU5UJykge1xuICAgICAgcmV0dXJuICdiZy1yb3NlLTUwMC8xMCB0ZXh0LXJvc2UtNjAwIGJvcmRlci1yb3NlLTUwMC8yMCc7XG4gICAgfVxuICAgIGlmIChzID09PSAnSE9MSURBWScpIHtcbiAgICAgIHJldHVybiAnYmctc2t5LTUwMC8xMCB0ZXh0LXNreS02MDAgYm9yZGVyLXNreS01MDAvMjAnO1xuICAgIH1cbiAgICByZXR1cm4gJ2JnLWFtYmVyLTUwMC8xMCB0ZXh0LWFtYmVyLTYwMCBib3JkZXItYW1iZXItNTAwLzIwJztcbiAgfTtcblxuICByZXR1cm4gKFxuICAgIDxkaXZcbiAgICAgIGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei1bNjBdIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGJnLWJsYWNrLzYwIGJhY2tkcm9wLWJsdXItc20gcC0zIHNtOnAtNCBvdmVyZmxvdy15LWF1dG9cIlxuICAgICAgb25DbGljaz17b25DbG9zZX1cbiAgICA+XG4gICAgICA8ZGl2XG4gICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBtYXgtdy01eGwgbXktYXV0byByb3VuZGVkLTJ4bCBib3JkZXIgYm9yZGVyLWJvcmRlci80MCBiZy1jYXJkIHAtMy41IHNtOnAtNCBtZDpwLTUgcHQtMyBzbTpwdC0zLjUgcGItMyBzbTpwYi0zLjUgc2hhZG93LTJ4bCBhbmltYXRlLWluIHpvb20taW4tOTUgZHVyYXRpb24tMjAwIHRleHQtbGVmdCBmbGV4IGZsZXgtY29sIG1kOm1heC1oLVs5MnZoXSBtYXgtaC1ub25lIG92ZXJmbG93LWhpZGRlblwiXG4gICAgICAgIG9uQ2xpY2s9eyhlKSA9PiBlLnN0b3BQcm9wYWdhdGlvbigpfVxuICAgICAgPlxuICAgICAgICB7LyogSGVhZGVyICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtc3RhcnQganVzdGlmeS1iZXR3ZWVuIGJvcmRlci1iIGJvcmRlci1ib3JkZXIvNDAgcGItMiBzbTpwYi0yLjVcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjUgc206Z2FwLTNcIj5cbiAgICAgICAgICAgIDxVc2VyQXZhdGFyIHVzZXI9e3JlY29yZC51c2VyfSBzaXplPVwibGdcIiBjbGFzc05hbWU9XCJoLTEwIHctMTAgc206aC0xMSBzbTp3LTExIHJvdW5kZWQteGxcIiAvPlxuICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiBmbGV4LXdyYXBcIj5cbiAgICAgICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC1iYXNlIHNtOnRleHQtbGcgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAge3JlY29yZC51c2VyPy5uYW1lIHx8ICdFbXBsb3llZSBBdHRlbmRhbmNlJ31cbiAgICAgICAgICAgICAgICA8L2gyPlxuICAgICAgICAgICAgICAgIDxzcGFuXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2BpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIgcm91bmRlZC1mdWxsIHB4LTIgcHktMC41IHRleHQtWzEwcHhdIGZvbnQtYm9sZCB1cHBlcmNhc2UgYm9yZGVyICR7Z2V0U3RhdHVzQmFkZ2UoXG4gICAgICAgICAgICAgICAgICAgIHJlY29yZC5zdGF0dXNcbiAgICAgICAgICAgICAgICAgICl9YH1cbiAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICB7cmVjb3JkLnN0YXR1c31cbiAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0wLjVcIj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LW1vbm8gZm9udC1zZW1pYm9sZCB0ZXh0LWZvcmVncm91bmQvODBcIj5cbiAgICAgICAgICAgICAgICAgIHtyZWNvcmQudXNlcj8uZW1wbG95ZWVJZCB8fCAnSUQ6IOKAlCd9XG4gICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgIHtyZWNvcmQudXNlcj8uZGVwYXJ0bWVudCAmJiBgIOKAoiAke3JlY29yZC51c2VyLmRlcGFydG1lbnR9YH1cbiAgICAgICAgICAgICAgICB7cmVjb3JkLnVzZXI/LnJvbGUgJiYgYCDigKIgJHtyZWNvcmQudXNlci5yb2xlLnJlcGxhY2UoJ18nLCAnICcpfWB9XG4gICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17b25DbG9zZX1cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMS41IHJvdW5kZWQtbGcgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZCB0cmFuc2l0aW9uLWNvbG9ycyBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICB0aXRsZT1cIkNsb3NlIG1vZGFsXCJcbiAgICAgICAgICA+XG4gICAgICAgICAgICA8WCBjbGFzc05hbWU9XCJoLTUgdy01XCIgLz5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIENvbXBhY3QgU3VtbWFyeSBCYW5uZXIgZGlyZWN0bHkgYmVsb3cgaGVhZGVyICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm10LTIgc206bXQtMi41IGdyaWQgZ3JpZC1jb2xzLTIgc206Z3JpZC1jb2xzLTQgZ2FwLTIgYmctbXV0ZWQvMzAgcHgtMyBweS0xLjUgc206cHgtMyBzbTpweS0yIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvMzAgdGV4dC14c1wiPlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1zZW1pYm9sZCB1cHBlcmNhc2UgYmxvY2tcIj5EYXRlPC9zcGFuPlxuICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBmb250LW1vbm9cIj5cbiAgICAgICAgICAgICAge2Zvcm1hdERhdGVERE1NWVlZWShyZWNvcmQuZGF0ZSl9XG4gICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LXNlbWlib2xkIHVwcGVyY2FzZSBibG9ja1wiPldvcmtpbmcgSG91cnM8L3NwYW4+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICB7cmVjb3JkLndvcmtpbmdIb3VycyAhPT0gbnVsbCAmJiByZWNvcmQud29ya2luZ0hvdXJzICE9PSB1bmRlZmluZWRcbiAgICAgICAgICAgICAgICA/IGAke3JlY29yZC53b3JraW5nSG91cnN9IGhyc2BcbiAgICAgICAgICAgICAgICA6ICfigJQnfVxuICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1zZW1pYm9sZCB1cHBlcmNhc2UgYmxvY2tcIj5TaGlmdCAvIFRpbWluZzwvc3Bhbj5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1mb3JlZ3JvdW5kIHRydW5jYXRlIGJsb2NrXCI+XG4gICAgICAgICAgICAgIHtyZWNvcmQuc2hpZnROYW1lIHx8ICdDb21wYW55IERlZmF1bHQnfVxuICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1zZW1pYm9sZCB1cHBlcmNhc2UgYmxvY2tcIj5TZXNzaW9uIFR5cGU8L3NwYW4+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICB7cmVjb3JkLmNsb2NrSW4gPyAnUmVjb3JkZWQgU2Vzc2lvbicgOiBpc1N5bnRoZXRpYyA/ICdDYWxlbmRhciBFbnRyeScgOiAnTWFudWFsIEVudHJ5J31cbiAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIENvbnRlbnQgQXJlYSAoU2Nyb2xscyBjbGVhbmx5IGlmIHZpZXdwb3J0IGdlbnVpbmVseSByZXF1aXJlcyBpdCwgYm90dG9tIHBhZGRlZCB0byBwcmV2ZW50IGNsaXBwaW5nKSAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtdC0yLjUgc206bXQtMyBmbGV4LTEgbWQ6b3ZlcmZsb3cteS1hdXRvIG1kOm1pbi1oLTAgc3BhY2UteS0yLjUgc206c3BhY2UteS0zIHBiLTFcIj5cbiAgICAgICAgICB7LyogSWYgY29tcGxldGVseSBzeW50aGV0aWMgKGUuZy4gQWJzZW50IHdpdGhvdXQgYW55IGNsb2NrLWluIHNlc3Npb24pICovfVxuICAgICAgICAgIHshcmVjb3JkLmNsb2NrSW4gJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTMgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWRhc2hlZCBib3JkZXItYm9yZGVyLzYwIGJnLW11dGVkLzIwIHRleHQtY2VudGVyXCI+XG4gICAgICAgICAgICAgIDxBbGVydENpcmNsZSBjbGFzc05hbWU9XCJoLTQgdy00IHRleHQtbXV0ZWQtZm9yZWdyb3VuZC83MCBteC1hdXRvIG1iLTFcIiAvPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtc2VtaWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+Tm8gQ2xvY2stSW4gUmVjb3JkZWQgZm9yIHRoaXMgRGF0ZTwvcD5cbiAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTAuNVwiPlxuICAgICAgICAgICAgICAgIEF0dGVuZGFuY2Ugd2FzIHJlY29yZGVkIGFzIDxzdHJvbmcgY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZFwiPntyZWNvcmQuc3RhdHVzfTwvc3Ryb25nPi5cbiAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cblxuICAgICAgICAgIHsvKiBUV08tQ09MVU1OIFNJREUtQlktU0lERSBMQVlPVVQgKDEgY29sIG9uIG1vYmlsZSwgMiBjb2xzIG9uIG1kKykgKi99XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIG1kOmdyaWQtY29scy0yIGdhcC0zIGxnOmdhcC0zLjUgaXRlbXMtc3RyZXRjaFwiPlxuICAgICAgICAgICAgey8qIC0tLS0tLS0tLS0tLS0tLS0tLS0tIENPTFVNTiAxOiBDTE9DSy1JTiBDQVJEIC0tLS0tLS0tLS0tLS0tLS0tLS0tICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyb3VuZGVkLTJ4bCBib3JkZXIgYm9yZGVyLWJvcmRlci80MCBiZy1jYXJkLzcwIHAtMyBzbTpwLTMuNSBmbGV4IGZsZXgtY29sIGp1c3RpZnktYmV0d2VlbiBzaGFkb3ctc21cIj5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICB7LyogMS4gQ2xvY2stSW4gSGVhZGluZyBhbmQgU3RhdHVzIEJhZGdlICovfVxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGJvcmRlci1iIGJvcmRlci1ib3JkZXIvMzAgcGItMS41IG1iLTJcIj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTYgdy02IHJvdW5kZWQtbGcgYmctZW1lcmFsZC01MDAvMTAgdGV4dC1lbWVyYWxkLTYwMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBmb250LWJvbGQgc2hyaW5rLTBcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8TG9nSW4gY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjVcIiAvPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC14cyBzbTp0ZXh0LXNtIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5DbG9jay1JbiBEZXRhaWxzPC9oMz5cbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5SZWNvcmRlZCBjaGVjay1pbiBzZXNzaW9uPC9wPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gc206dGV4dC1bMTFweF0gZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LWVtZXJhbGQtNjAwIGJnLWVtZXJhbGQtNTAwLzEwIGJvcmRlciBib3JkZXItZW1lcmFsZC01MDAvMjAgcHgtMiBweS0wLjUgcm91bmRlZC1tZFwiPlxuICAgICAgICAgICAgICAgICAgICBDbG9jay1JblxuICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAge3JlY29yZC5jbG9ja0luID8gKFxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNSB0ZXh0LXhzXCI+XG4gICAgICAgICAgICAgICAgICAgIHsvKiAyLiBXb3JrIFR5cGUgKi99XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+V29yayBUeXBlOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNtOmNvbC1zcGFuLTIgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8QnJpZWZjYXNlIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtcHJpbWFyeSBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJicmVhay13b3Jkc1wiPntmb3JtYXRXb3JrVHlwZShyZWNvcmQud29ya0xvY2F0aW9uLCByZWNvcmQud29ya0xvY2F0aW9uT3RoZXIpfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgICAgICAgey8qIDMuIEFjdHVhbCBDbG9jay1JbiBUaW1lc3RhbXAgKi99XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+Q2xvY2stSW4gVGltZTo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzbTpjb2wtc3Bhbi0yIGZvbnQtbW9ubyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgZmxleC13cmFwXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8Q2xvY2sgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1lbWVyYWxkLTYwMCBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj57Zm9ybWF0VGltZXN0YW1wKHJlY29yZC5jbG9ja0luKX08L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICB7cmVjb3JkLmxhdGVNaW51dGVzID8gKFxuICAgICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LXNhbnMgZm9udC1ib2xkIHRleHQteWVsbG93LTYwMCBiZy15ZWxsb3ctNTAwLzEwIHB4LTEuNSBweS0wLjUgcm91bmRlZCBtbC0xXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAge3JlY29yZC5sYXRlTWludXRlc31tIGxhdGVcbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICAgKSA6IG51bGx9XG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICAgIHsvKiA0LiBTYXZlZCBDbG9jay1JbiBBZGRyZXNzICovfVxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTEgc206Z2FwLTIgaXRlbXMtYmFzZWxpbmVcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkNsb2NrLUluIEFkZHJlc3M6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic206Y29sLXNwYW4tMiB0ZXh0LWZvcmVncm91bmQvOTAgZmxleCBpdGVtcy1zdGFydCBnYXAtMS41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8TWFwUGluIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtcHJpbWFyeSBzaHJpbmstMCBtdC0wLjVcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiYnJlYWstd29yZHMgbGVhZGluZy1yZWxheGVkXCI+e2Nsb2NrSW5BZGRyZXNzfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgICAgICAgey8qIDUuIEdvb2dsZSBNYXBzIEVtYmVkICYgNi4gT3BlbiBpbiBHb29nbGUgTWFwcyBMaW5rICovfVxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMSBwdC0wLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9ja1wiPlxuICAgICAgICAgICAgICAgICAgICAgICAgQ2xvY2stSW4gTG9jYXRpb246XG4gICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxBdHRlbmRhbmNlTWFwRW1iZWRcbiAgICAgICAgICAgICAgICAgICAgICAgIGxhdGl0dWRlPXtjbG9ja0luQ29vcmRzLmxhdGl0dWRlfVxuICAgICAgICAgICAgICAgICAgICAgICAgbG9uZ2l0dWRlPXtjbG9ja0luQ29vcmRzLmxvbmdpdHVkZX1cbiAgICAgICAgICAgICAgICAgICAgICAgIHRpdGxlPVwiQ2xvY2stSW4gTG9jYXRpb24gTWFwXCJcbiAgICAgICAgICAgICAgICAgICAgICAgIGhlaWdodD1cImgtMjggc206aC0zMlwiXG4gICAgICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWRhc2hlZCBib3JkZXItYm9yZGVyLzUwIGJnLW11dGVkLzEwIHRleHQtY2VudGVyIG15LWF1dG8gcHktNlwiPlxuICAgICAgICAgICAgICAgICAgICA8Q2xvY2sgY2xhc3NOYW1lPVwiaC02IHctNiB0ZXh0LW11dGVkLWZvcmVncm91bmQvNjAgbXgtYXV0byBtYi0xLjVcIiAvPlxuICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtc2VtaWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+Tm8gQ2xvY2stSW4gUmVjb3JkZWQ8L3A+XG4gICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0wLjVcIj5ObyBhcnJpdmFsIHNlc3Npb24gb24gcmVjb3JkIGZvciB0aGlzIGRhdGUuPC9wPlxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgey8qIC0tLS0tLS0tLS0tLS0tLS0tLS0tIENPTFVNTiAyOiBDTE9DSy1PVVQgQ0FSRCAtLS0tLS0tLS0tLS0tLS0tLS0tLSAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicm91bmRlZC0yeGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNDAgYmctY2FyZC83MCBwLTMgc206cC0zLjUgZmxleCBmbGV4LWNvbCBqdXN0aWZ5LWJldHdlZW4gc2hhZG93LXNtXCI+XG4gICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgey8qIDEuIENsb2NrLU91dCBIZWFkaW5nIGFuZCBTdGF0dXMgQmFkZ2UgKi99XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlci8zMCBwYi0xLjUgbWItMlwiPlxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImgtNiB3LTYgcm91bmRlZC1sZyBiZy1pbmRpZ28tNTAwLzEwIHRleHQtaW5kaWdvLTYwMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBmb250LWJvbGQgc2hyaW5rLTBcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8TG9nT3V0IGNsYXNzTmFtZT1cImgtMy41IHctMy41XCIgLz5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQteHMgc206dGV4dC1zbSBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+Q2xvY2stT3V0IERldGFpbHM8L2gzPlxuICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlJlY29yZGVkIGRlcGFydHVyZSBzZXNzaW9uPC9wPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICB7LyogU3RhdHVzIEJhZGdlICovfVxuICAgICAgICAgICAgICAgICAgeyFoYXNDbG9ja091dCAmJiAoXG4gICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHNtOnRleHQtWzExcHhdIGZvbnQtbW9ubyBmb250LWJvbGQgdGV4dC1hbWJlci02MDAgYmctYW1iZXItNTAwLzEwIGJvcmRlciBib3JkZXItYW1iZXItNTAwLzIwIHB4LTIgcHktMC41IHJvdW5kZWQtbWRcIj5cbiAgICAgICAgICAgICAgICAgICAgICBOb3QgQ2xvY2tlZCBPdXRcbiAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgIHtoYXNDbG9ja091dCAmJiBpc0F1dG9DbG9ja091dCAmJiAoXG4gICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHRleHQtWzEwcHhdIHNtOnRleHQtWzExcHhdIGZvbnQtbW9ubyBmb250LWJvbGQgdGV4dC1hbWJlci02MDAgYmctYW1iZXItNTAwLzEwIGJvcmRlciBib3JkZXItYW1iZXItNTAwLzIwIHB4LTIgcHktMC41IHJvdW5kZWQtbWRcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ3LTEuNSBoLTEuNSByb3VuZGVkLWZ1bGwgYmctYW1iZXItNTAwIGFuaW1hdGUtcHVsc2VcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgIEF1dG8gQ2xvY2stT3V0XG4gICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgICB7aGFzQ2xvY2tPdXQgJiYgIWlzQXV0b0Nsb2NrT3V0ICYmIChcbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gc206dGV4dC1bMTFweF0gZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LWluZGlnby02MDAgYmctaW5kaWdvLTUwMC8xMCBib3JkZXIgYm9yZGVyLWluZGlnby01MDAvMjAgcHgtMiBweS0wLjUgcm91bmRlZC1tZFwiPlxuICAgICAgICAgICAgICAgICAgICAgIE1hbnVhbCBDbG9jay1PdXRcbiAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgIHsvKiBTdGF0ZSBBOiBOb3QgY2xvY2tlZCBvdXQgeWV0ICovfVxuICAgICAgICAgICAgICAgIHshaGFzQ2xvY2tPdXQgJiYgKFxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEuNSB0ZXh0LXhzXCI+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+V29yayBUeXBlOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNtOmNvbC1zcGFuLTIgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8QnJpZWZjYXNlIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtcHJpbWFyeSBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJicmVhay13b3Jkc1wiPntmb3JtYXRXb3JrVHlwZShyZWNvcmQud29ya0xvY2F0aW9uLCByZWNvcmQud29ya0xvY2F0aW9uT3RoZXIpfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+Q2xvY2stT3V0IFRpbWU6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic206Y29sLXNwYW4tMiBmb250LW1vbm8gZm9udC1ib2xkIHRleHQtYW1iZXItNjAwIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxDbG9jayBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSB0ZXh0LWFtYmVyLTYwMCBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj5TZXNzaW9uIGluIHByb2dyZXNzPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIHNtOmdyaWQtY29scy0zIGdhcC0xIHNtOmdhcC0yIGl0ZW1zLWJhc2VsaW5lXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5DbG9jay1PdXQgQWRkcmVzczo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzbTpjb2wtc3Bhbi0yIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLXN0YXJ0IGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxNYXBQaW4gY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kLzYwIHNocmluay0wIG10LTAuNVwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj5QZW5kaW5nIGVtcGxveWVlIGRlcGFydHVyZTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xIHB0LTAuNVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICBDbG9jay1PdXQgTG9jYXRpb246XG4gICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0yOCBzbTpoLTMyIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1kYXNoZWQgYm9yZGVyLWJvcmRlci81MCBiZy1tdXRlZC8xNSBmbGV4IGZsZXgtY29sIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTMgdGV4dC1jZW50ZXJcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxDbG9jayBjbGFzc05hbWU9XCJoLTYgdy02IHRleHQtYW1iZXItNTAwLzcwIG1iLTFcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+QWN0aXZlIFNlc3Npb24gT3Blbjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwLjVweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTAuNSBtYXgtdy14cyBsZWFkaW5nLXJlbGF4ZWRcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgRW1wbG95ZWUgaGFzIG5vdCBzdWJtaXR0ZWQgY2xvY2stb3V0IHlldC4gTG9jYXRpb24gd2lsbCBiZSByZWNvcmRlZCB1cG9uIGRlcGFydHVyZS5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApfVxuXG4gICAgICAgICAgICAgICAgey8qIFN0YXRlIEI6IEF1dG9tYXRpYyBDbG9jay1PdXQgKi99XG4gICAgICAgICAgICAgICAge2hhc0Nsb2NrT3V0ICYmIGlzQXV0b0Nsb2NrT3V0ICYmIChcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjUgdGV4dC14c1wiPlxuICAgICAgICAgICAgICAgICAgICB7LyogV29yayBUeXBlICovfVxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTEgc206Z2FwLTIgaXRlbXMtYmFzZWxpbmVcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPldvcmsgVHlwZTo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzbTpjb2wtc3Bhbi0yIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNVwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgPEJyaWVmY2FzZSBjbGFzc05hbWU9XCJoLTMuNSB3LTMuNSB0ZXh0LXByaW1hcnkgc2hyaW5rLTBcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiYnJlYWstd29yZHNcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAge2Zvcm1hdFdvcmtUeXBlKFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlY29yZC5jbG9ja091dFdvcmtMb2NhdGlvbiB8fCByZWNvcmQud29ya0xvY2F0aW9uLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlY29yZC5jbG9ja091dFdvcmtMb2NhdGlvbk90aGVyIHx8IHJlY29yZC53b3JrTG9jYXRpb25PdGhlclxuICAgICAgICAgICAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgICAgICB7LyogQ2xvY2stT3V0IFRpbWUgKi99XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+Q2xvY2stT3V0IFRpbWU6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic206Y29sLXNwYW4tMiBmb250LW1vbm8gZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8Q2xvY2sgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1pbmRpZ28tNjAwIHNocmluay0wXCIgLz5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuPntmb3JtYXRUaW1lc3RhbXAocmVjb3JkLmNsb2NrT3V0KX08L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LXNhbnMgZm9udC1ib2xkIHRleHQtYW1iZXItNjAwIGJnLWFtYmVyLTUwMC8xMCBweC0xLjUgcHktMC41IHJvdW5kZWQgbWwtMVwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICBTeXN0ZW0gU2hpZnQgRW5kXG4gICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICAgIHsvKiBTYXZlZCBDbG9jay1PdXQgQWRkcmVzcyAqL31cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIHNtOmdyaWQtY29scy0zIGdhcC0xIHNtOmdhcC0yIGl0ZW1zLWJhc2VsaW5lXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5DbG9jay1PdXQgQWRkcmVzczo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzbTpjb2wtc3Bhbi0yIHRleHQtZm9yZWdyb3VuZC84MCBmbGV4IGl0ZW1zLXN0YXJ0IGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxNYXBQaW4gY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kLzcwIHNocmluay0wIG10LTAuNVwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJicmVhay13b3JkcyBsZWFkaW5nLXJlbGF4ZWRcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAge3JlY29yZC5jbG9ja091dEFkZHJlc3MgJiYgcmVjb3JkLmNsb2NrT3V0QWRkcmVzcy50cmltKClcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICA/IHJlY29yZC5jbG9ja091dEFkZHJlc3MudHJpbSgpXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgOiAnTm90IHJlY29yZGVkIChBdXRvbWF0ZWQgU3lzdGVtIERlcGFydHVyZSknfVxuICAgICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgICAgICB7LyogVmlzdWFsbHkgYmFsYW5jZWQgbG9jYXRpb24gYXJlYSBtYXRjaGluZyBHb29nbGUgTWFwcyBzbG90IG9uIGxlZnQgKi99XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xIHB0LTAuNVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICBDbG9jay1PdXQgTG9jYXRpb246XG4gICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0yOCBzbTpoLTMyIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1kYXNoZWQgYm9yZGVyLWJvcmRlci81MCBiZy1tdXRlZC8xNSBmbGV4IGZsZXgtY29sIGp1c3RpZnktYmV0d2VlbiBwLTIuNSBzbTpwLTMgdGV4dC1jZW50ZXJcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleC0xIGZsZXggZmxleC1jb2wgaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC01IHctNSByb3VuZGVkLWZ1bGwgYmctYW1iZXItNTAwLzEwIHRleHQtYW1iZXItNjAwIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIG1iLTAuNVwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxTaGllbGRDaGVjayBjbGFzc05hbWU9XCJoLTMgdy0zXCIgLz5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZFwiPkxvY2F0aW9uIE5vdCBDYXB0dXJlZDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIG10LTAuNSBtYXgtdy14cyBsZWFkaW5nLXRpZ2h0XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgQXV0b21hdGljIGNsb2NrLW91dCBvY2N1cnJlZCB2aWEgc2NoZWR1bGVkIHN5c3RlbSBydWxlcyBhdCBzaGlmdCBlbmQuIERldmljZSBHUFMgY29vcmRpbmF0ZXMgd2VyZSBub3QgY2FwdHVyZWQgcGVyIHByaXZhY3kgcnVsZXMuXG4gICAgICAgICAgICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwdC0xIGJvcmRlci10IGJvcmRlci1ib3JkZXIvMzAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIHRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LW1vbm9cIj5TaGlmdCBQb2xpY3kgQXV0by1FbmQ8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1hbWJlci02MDAgYmctYW1iZXItNTAwLzEwIHB4LTEuNSBweS0wLjUgcm91bmRlZFwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIEF1dG9tYXRlZFxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApfVxuXG4gICAgICAgICAgICAgICAgey8qIFN0YXRlIEM6IE1hbnVhbCBDbG9jay1PdXQgKi99XG4gICAgICAgICAgICAgICAge2hhc0Nsb2NrT3V0ICYmICFpc0F1dG9DbG9ja091dCAmJiAoXG4gICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMS41IHRleHQteHNcIj5cbiAgICAgICAgICAgICAgICAgICAgey8qIFdvcmsgVHlwZSAqL31cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0xIHNtOmdyaWQtY29scy0zIGdhcC0xIHNtOmdhcC0yIGl0ZW1zLWJhc2VsaW5lXCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5Xb3JrIFR5cGU6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic206Y29sLXNwYW4tMiBmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxCcmllZmNhc2UgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1wcmltYXJ5IHNocmluay0wXCIgLz5cbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImJyZWFrLXdvcmRzXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIHtmb3JtYXRXb3JrVHlwZShcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICByZWNvcmQuY2xvY2tPdXRXb3JrTG9jYXRpb24gfHwgcmVjb3JkLndvcmtMb2NhdGlvbixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICByZWNvcmQuY2xvY2tPdXRXb3JrTG9jYXRpb25PdGhlciB8fCByZWNvcmQud29ya0xvY2F0aW9uT3RoZXJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgICAgICAgey8qIEFjdHVhbCBDbG9jay1PdXQgVGltZXN0YW1wICovfVxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTEgc206Z2FwLTIgaXRlbXMtYmFzZWxpbmVcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LXNlbWlib2xkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPkNsb2NrLU91dCBUaW1lOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNtOmNvbC1zcGFuLTIgZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNVwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgPENsb2NrIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtaW5kaWdvLTYwMCBzaHJpbmstMFwiIC8+XG4gICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj57Zm9ybWF0VGltZXN0YW1wKHJlY29yZC5jbG9ja091dCl9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgICAgICB7LyogU2F2ZWQgQ2xvY2stT3V0IEFkZHJlc3MgKi99XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMyBnYXAtMSBzbTpnYXAtMiBpdGVtcy1iYXNlbGluZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtc2VtaWJvbGQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+Q2xvY2stT3V0IEFkZHJlc3M6PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic206Y29sLXNwYW4tMiB0ZXh0LWZvcmVncm91bmQvOTAgZmxleCBpdGVtcy1zdGFydCBnYXAtMS41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgICA8TWFwUGluIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtcHJpbWFyeSBzaHJpbmstMCBtdC0wLjVcIiAvPlxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiYnJlYWstd29yZHMgbGVhZGluZy1yZWxheGVkXCI+e2Nsb2NrT3V0QWRkcmVzc308L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICAgIHsvKiBHb29nbGUgTWFwcyBFbWJlZCAmIE9wZW4gaW4gR29vZ2xlIE1hcHMgTGluayAqL31cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEgcHQtMC41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1zZW1pYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2tcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIENsb2NrLU91dCBMb2NhdGlvbjpcbiAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPEF0dGVuZGFuY2VNYXBFbWJlZFxuICAgICAgICAgICAgICAgICAgICAgICAgbGF0aXR1ZGU9e2Nsb2NrT3V0Q29vcmRzLmxhdGl0dWRlfVxuICAgICAgICAgICAgICAgICAgICAgICAgbG9uZ2l0dWRlPXtjbG9ja091dENvb3Jkcy5sb25naXR1ZGV9XG4gICAgICAgICAgICAgICAgICAgICAgICB0aXRsZT1cIkNsb2NrLU91dCBMb2NhdGlvbiBNYXBcIlxuICAgICAgICAgICAgICAgICAgICAgICAgaGVpZ2h0PVwiaC0yOCBzbTpoLTMyXCJcbiAgICAgICAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBNb2RhbCBGb290ZXIgKFJlYWQtT25seSkgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtMi41IHNtOm10LTMgcHQtMiBzbTpwdC0yLjUgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci80MCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW5cIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQvODAgaGlkZGVuIHNtOmlubGluZVwiPlxuICAgICAgICAgICAgUHJlc3MgPGtiZCBjbGFzc05hbWU9XCJweC0xLjUgcHktMC41IHRleHQtWzEwcHhdIGZvbnQtbW9ubyBiZy1tdXRlZCBib3JkZXIgYm9yZGVyLWJvcmRlci81MCByb3VuZGVkLW1kXCI+RXNjPC9rYmQ+IG9yIGNsaWNrIG91dHNpZGUgdG8gZGlzbWlzc1xuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtNCBweS0xLjUgc206cHgtNSBzbTpweS0yIHJvdW5kZWQteGwgdGV4dC14cyBmb250LWJvbGQgYmctbXV0ZWQgaG92ZXI6YmctbXV0ZWQvODAgdGV4dC1mb3JlZ3JvdW5kIHRyYW5zaXRpb24tY29sb3JzIGN1cnNvci1wb2ludGVyIG1sLWF1dG9cIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIENsb3NlXG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9kaXY+XG4gICAgPC9kaXY+XG4gICk7XG59XG4iXSwiZmlsZSI6IkQ6L1AgUiBPIEogRSBDIFQgUy9XZWIvTVJGLWNybS9mcm9udGVuZC9zcmMvY29tcG9uZW50cy9hdHRlbmRhbmNlL0F0dGVuZGFuY2VBdWRpdERldGFpbHNNb2RhbC5qc3gifQ==

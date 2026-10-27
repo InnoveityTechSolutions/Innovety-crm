@@ -1,0 +1,16 @@
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE `assetestimateitem`;
+TRUNCATE TABLE `assetestimate`;
+TRUNCATE TABLE `companydocument`;
+TRUNCATE TABLE `compoffsession`;
+TRUNCATE TABLE `compoffconsumption`;
+TRUNCATE TABLE `compoffcredit`;
+TRUNCATE TABLE `compoffpermissionrequest`;
+TRUNCATE TABLE `meetingreport`;
+TRUNCATE TABLE `meetingattendee`;
+TRUNCATE TABLE `meeting`;
+TRUNCATE TABLE `accesstemplatepermission`;
+TRUNCATE TABLE `accesstemplate`;
+TRUNCATE TABLE `userattendancelocation`;
+TRUNCATE TABLE `attendancelocation`;
+SET FOREIGN_KEY_CHECKS = 1;

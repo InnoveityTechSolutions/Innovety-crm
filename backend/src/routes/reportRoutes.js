@@ -18,9 +18,10 @@ const {
   exportAttendanceReport
 } = require('../controllers/attendanceReportController');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissionMiddleware');
 
-// Reports base authentication
-router.use(authenticate, requireRole(['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']));
+// Reports base authentication & module permission
+router.use(authenticate, requireRole(['ADMIN', 'TEAM_LEADER', 'SUPER_ADMIN']), requirePermission('reports', 'VIEW'));
 
 // Attendance Reports (Phase 4 & Phase 7: Strictly Admin & Super Admin ONLY)
 router.get('/attendance/daily', requireRole(['SUPER_ADMIN', 'ADMIN']), getDailyAttendanceReport);

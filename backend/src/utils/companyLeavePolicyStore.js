@@ -28,7 +28,9 @@ function getCompanyLeavePolicy(organizationId, role = null) {
     maxCarryForwardDays: 5.0,
     halfDayAllowed: true,
     workingDaysOnly: true,
-    autoApproval: false
+    autoApproval: false,
+    compOffValidityDays: 90,
+    compOffClaimWindowDays: 30
   };
 
   if (!organizationId || !fs.existsSync(STORE_PATH)) {
@@ -194,7 +196,7 @@ function removeLeaveTypeFromCompany(organizationId, leaveTypeId) {
 function filterLeaveTypesForCompany(allTypes, organizationId) {
   if (!Array.isArray(allTypes)) return [];
   if (!organizationId) {
-    return allTypes.filter((lt) => ['CL', 'SL'].includes((lt.code || '').toUpperCase()) || lt.isActive);
+    return allTypes.filter((lt) => lt.isSystem || ['CL', 'SL', 'COMP_OFF', 'WFH'].includes((lt.code || '').toUpperCase()) || lt.isActive);
   }
 
   const companyTypeIds = getCompanyLeaveTypeIds(organizationId);
@@ -203,8 +205,8 @@ function filterLeaveTypesForCompany(allTypes, organizationId) {
   // If company has an explicit types list configured
   if (Array.isArray(companyTypeIds)) {
     return allTypes.filter((lt) => {
-      // Core system leave types (CL, SL) are ALWAYS included for every company
-      if (['CL', 'SL'].includes((lt.code || '').toUpperCase())) return true;
+      // Core system leave types (CL, SL, COMP_OFF, WFH) are ALWAYS included for every company
+      if (lt.isSystem || ['CL', 'SL', 'COMP_OFF', 'WFH'].includes((lt.code || '').toUpperCase())) return true;
       // Must be explicitly assigned to this company
       return companyTypeIds.includes(lt.id);
     });
@@ -212,7 +214,7 @@ function filterLeaveTypesForCompany(allTypes, organizationId) {
 
   // Fallback for companies with no explicit types configuration yet
   return allTypes.filter((lt) => {
-    const isSystemType = ['CL', 'SL'].includes((lt.code || '').toUpperCase());
+    const isSystemType = lt.isSystem || ['CL', 'SL', 'COMP_OFF', 'WFH'].includes((lt.code || '').toUpperCase());
     if (isSystemType) return true;
     if (allAssignedTypeIds.has(lt.id)) return false;
     return Boolean(lt.isActive);

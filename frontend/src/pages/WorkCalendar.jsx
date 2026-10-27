@@ -17,12 +17,18 @@ import {
   Lock,
   Building2,
   Palmtree,
-  Clock
+  Clock,
+  Video,
+  Plus
 } from 'lucide-react';
 import api, { getSocket } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
+import { usePermissions } from '../hooks/usePermissions';
+import ScheduleMeetingModal from '../components/meetings/ScheduleMeetingModal';
+import MeetingDetailDrawer from '../components/meetings/MeetingDetailDrawer';
+import MeetingReportModal from '../components/meetings/MeetingReportModal';
 
 // Helper component for smooth horizontal scrolling text when title overflows cell width
 const AutoMarqueeText = ({ text, className = '' }) => {
@@ -100,6 +106,14 @@ const STATUS_TOKENS = {
     indicatorBg: 'bg-[#9E5D12] dark:bg-amber-400',
     textCls: 'text-[#9E5D12] dark:text-amber-200',
     icon: Palmtree
+  },
+  COMP_OFF: {
+    label: 'Comp-Off Work',
+    cellBg: 'bg-[#EDE9FE] dark:bg-purple-950/40 text-[#6D28D9] dark:text-purple-200 hover:bg-[#DDD6FE] dark:hover:bg-purple-900/50 border-[#C4B5FD]/40',
+    legendBg: 'bg-[#EDE9FE] text-[#6D28D9] border-[#C4B5FD] dark:bg-purple-950/50 dark:text-purple-200 dark:border-purple-800/60',
+    indicatorBg: 'bg-[#7C3AED] dark:bg-purple-400',
+    textCls: 'text-[#6D28D9] dark:text-purple-200',
+    icon: Clock
   }
 };
 
@@ -107,6 +121,8 @@ const STATUS_TOKENS = {
 STATUS_TOKENS.WORKING_DAY = STATUS_TOKENS.Working;
 STATUS_TOKENS.HOLIDAY = STATUS_TOKENS.Holiday;
 STATUS_TOKENS.SUNDAY = STATUS_TOKENS.Holiday;
+STATUS_TOKENS.COMP_OFF_WORK = STATUS_TOKENS.COMP_OFF;
+STATUS_TOKENS.Comp_Off = STATUS_TOKENS.COMP_OFF;
 
 const WorkCalendar = () => {
   const { user } = useAuth();
@@ -157,6 +173,43 @@ const WorkCalendar = () => {
     selectedOrgIdRef.current = targetOrg;
   }, [targetOrg]);
 
+  // Phase 3 Meetings Module Integration
+  const { canEdit } = usePermissions();
+  const canScheduleMeeting = canEdit('meetings');
+
+  const [meetings, setMeetings] = useState([]);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [isMeetingDrawerOpen, setIsMeetingDrawerOpen] = useState(false);
+  const [isScheduleMeetingOpen, setIsScheduleMeetingOpen] = useState(false);
+  const [scheduleInitialDate, setScheduleInitialDate] = useState('');
+  const [editingMeeting, setEditingMeeting] = useState(null);
+  const [reportMeeting, setReportMeeting] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Index meetings by date string 'YYYY-MM-DD'
+  const meetingsByDate = React.useMemo(() => {
+    const map = {};
+    (meetings || []).forEach(m => {
+      let dStr = null;
+      if (m.date) {
+        dStr = typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.date)
+          ? m.date.slice(0, 10)
+          : new Date(m.date).toISOString().slice(0, 10);
+      } else if (m.startTime) {
+        const s = new Date(m.startTime);
+        if (!isNaN(s.getTime())) {
+          dStr = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
+        }
+      }
+      if (!dStr) return;
+      if (!map[dStr]) map[dStr] = [];
+      if (!map[dStr].some(existing => existing.id === m.id)) {
+        map[dStr].push(m);
+      }
+    });
+    return map;
+  }, [meetings]);
+
   // Fetch Monthly Calendar Data
   const fetchCalendar = async (targetOrgOverride) => {
     try {
@@ -189,36 +242,70 @@ const WorkCalendar = () => {
     }
   };
 
+  // Fetch Meetings for this scope
+  const fetchMeetings = async (targetOrgOverride) => {
+    try {
+      const activeOrg = targetOrgOverride !== undefined ? targetOrgOverride : (selectedOrgIdRef.current || targetOrg);
+      if (orgsLoading) return;
+      const params = activeOrg ? { organizationId: activeOrg } : {};
+      const res = await api.get('/meetings', { params });
+      setMeetings(res.data?.meetings || []);
+    } catch (err) {
+      console.error('[WorkCalendar] Failed to load meetings:', err);
+    }
+  };
+
   useEffect(() => {
     if (orgsLoading) return;
     if (companies && companies.length > 0 && !selectedOrgId) return;
     setCalendarDays([]);
     fetchCalendar(selectedOrgId);
+    fetchMeetings(selectedOrgId);
   }, [month, year, selectedOrgId, orgsLoading, companies]);
 
-  // Real-time synchronization when shifts, schedules, or member assignments update
+  // Real-time synchronization when shifts, schedules, member assignments, or meetings update
   useEffect(() => {
     const handleShiftUpdated = () => {
       fetchCalendar();
     };
 
+    const handleMeetingsUpdated = () => {
+      fetchMeetings();
+    };
+
     window.addEventListener('shift_updated', handleShiftUpdated);
     window.addEventListener('schedule_updated', handleShiftUpdated);
+    window.addEventListener('meeting_created', handleMeetingsUpdated);
+    window.addEventListener('meeting_updated', handleMeetingsUpdated);
+    window.addEventListener('meeting_rescheduled', handleMeetingsUpdated);
+    window.addEventListener('meeting_cancelled', handleMeetingsUpdated);
 
     const socket = getSocket();
     if (socket) {
       socket.on('shift_updated', handleShiftUpdated);
       socket.on('schedule_updated', handleShiftUpdated);
       socket.on('work_calendar_updated', handleShiftUpdated);
+      socket.on('meeting_created', handleMeetingsUpdated);
+      socket.on('meeting_updated', handleMeetingsUpdated);
+      socket.on('meeting_rescheduled', handleMeetingsUpdated);
+      socket.on('meeting_cancelled', handleMeetingsUpdated);
     }
 
     return () => {
       window.removeEventListener('shift_updated', handleShiftUpdated);
       window.removeEventListener('schedule_updated', handleShiftUpdated);
+      window.removeEventListener('meeting_created', handleMeetingsUpdated);
+      window.removeEventListener('meeting_updated', handleMeetingsUpdated);
+      window.removeEventListener('meeting_rescheduled', handleMeetingsUpdated);
+      window.removeEventListener('meeting_cancelled', handleMeetingsUpdated);
       if (socket) {
         socket.off('shift_updated', handleShiftUpdated);
         socket.off('schedule_updated', handleShiftUpdated);
         socket.off('work_calendar_updated', handleShiftUpdated);
+        socket.off('meeting_created', handleMeetingsUpdated);
+        socket.off('meeting_updated', handleMeetingsUpdated);
+        socket.off('meeting_rescheduled', handleMeetingsUpdated);
+        socket.off('meeting_cancelled', handleMeetingsUpdated);
       }
     };
   }, [month, year, selectedOrgId]);
@@ -245,6 +332,7 @@ const WorkCalendar = () => {
     else if (dayItem.status === 'WFH') defaultStatus = 'WFH';
     else if (dayItem.status === 'Holiday' || dayItem.status === 'HOLIDAY' || dayItem.status === 'SUNDAY') defaultStatus = 'HOLIDAY';
     else if (dayItem.status === 'MY_LEAVE') defaultStatus = dayItem.dayOfWeek === 6 ? 'WFH' : 'WORKING_DAY';
+    else if (dayItem.status === 'COMP_OFF') defaultStatus = 'HOLIDAY';
 
     setEditForm({
       date: dayItem.date,
@@ -254,8 +342,8 @@ const WorkCalendar = () => {
       isPermanent: Boolean(dayItem.isPermanent)
     });
 
-    // Admin / Super Admin opening an editable (non-Sunday) date -> open Override Form directly
-    if (isAdminOrSuperAdmin && !dayItem.isSunday) {
+    // Admin / Super Admin opening an editable (non-Sunday, non-CompOff) date -> open Override Form directly
+    if (isAdminOrSuperAdmin && !dayItem.isSunday && dayItem.status !== 'COMP_OFF') {
       setIsEditMode(true);
     } else {
       setIsEditMode(false);
@@ -382,30 +470,46 @@ const WorkCalendar = () => {
         </div>
 
         {/* Month Navigation & Controls */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto bg-card border border-border rounded-xl p-1.5 shadow-sm">
-          <button
-            onClick={handlePrevMonth}
-            className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-            title="Previous Month"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleToday}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-          >
-            Today
-          </button>
-          <span className="px-3 py-1 font-semibold text-sm min-w-[130px] text-center text-foreground">
-            {monthName} {year}
-          </span>
-          <button
-            onClick={handleNextMonth}
-            className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-            title="Next Month"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+          {canScheduleMeeting && (
+            <button
+              onClick={() => {
+                setScheduleInitialDate(todayStr);
+                setEditingMeeting(null);
+                setIsScheduleMeetingOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary-hover transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Schedule Meeting</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-1.5 bg-card border border-border rounded-xl p-1 shadow-sm">
+            <button
+              onClick={handlePrevMonth}
+              className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleToday}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+            >
+              Today
+            </button>
+            <span className="px-3 py-1 font-semibold text-sm min-w-[130px] text-center text-foreground">
+              {monthName} {year}
+            </span>
+            <button
+              onClick={handleNextMonth}
+              className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Next Month"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -446,7 +550,7 @@ const WorkCalendar = () => {
       <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm">
         <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Legend:</span>
         <div className="flex flex-wrap items-center gap-2 md:gap-4">
-          {['Working', 'WFH', 'Holiday', 'MY_LEAVE'].map((key) => {
+          {['Working', 'WFH', 'Holiday', 'MY_LEAVE', 'COMP_OFF'].map((key) => {
             const config = STATUS_TOKENS[key];
             if (!config) return null;
             const Icon = config.icon;
@@ -461,6 +565,12 @@ const WorkCalendar = () => {
               </div>
             );
           })}
+          {/* Meetings Legend Item */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+            <Video className="w-3.5 h-3.5" />
+            <span>Meeting</span>
+          </div>
         </div>
       </div>
 
@@ -548,6 +658,49 @@ const WorkCalendar = () => {
                       />
                     </div>
                   )}
+
+                  {/* Scheduled Meetings Chips */}
+                  {(() => {
+                    const dayMeetings = meetingsByDate[dayItem.date] || [];
+                    if (dayMeetings.length === 0) return null;
+                    return (
+                      <div className="mt-1 w-full flex flex-col gap-1 px-1 z-10">
+                        {dayMeetings.slice(0, 2).map((m) => {
+                          const timeStr = m.startTime
+                            ? new Date(m.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                            : '';
+                          const isCancelled = m.status === 'CANCELLED';
+                          const isCompleted = m.status === 'COMPLETED';
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMeeting(m);
+                                setIsMeetingDrawerOpen(true);
+                              }}
+                              className={`w-full px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 truncate transition-all hover:scale-[1.02] shadow-2xs cursor-pointer ${
+                                isCancelled
+                                  ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 line-through'
+                                  : isCompleted
+                                  ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                                  : 'bg-emerald-600 text-white dark:bg-emerald-500'
+                              }`}
+                              title={`${m.title} (${timeStr})`}
+                            >
+                              <Video className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">{timeStr ? `${timeStr} ` : ''}{m.title}</span>
+                            </div>
+                          );
+                        })}
+                        {dayMeetings.length > 2 && (
+                          <span className="text-[9px] font-bold text-muted-foreground text-center">
+                            +{dayMeetings.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -650,8 +803,26 @@ const WorkCalendar = () => {
                     </div>
                   )}
 
-                  {/* Sunday Locked Warning Banner */}
-                  {selectedDay.isSunday && (
+                  {/* Approved Comp-Off Work Banner or Sunday Locked Warning Banner */}
+                  {(selectedDay.status === 'COMP_OFF' || selectedDay.compOffDetails) ? (
+                    <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 flex items-start gap-2.5 text-xs">
+                      <Clock className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-purple-400" />
+                      <div>
+                        <strong className="font-semibold block">Approved Comp-Off Work</strong>
+                        <span>{selectedDay.compOffDetails?.reason || selectedDay.reason || 'Approved off-day work session.'}</span>
+                        {selectedDay.compOffDetails?.approvedBy && (
+                          <span className="block mt-1 text-[11px] text-muted-foreground">
+                            Sanctioned by: <strong>{selectedDay.compOffDetails.approvedBy}</strong>
+                          </span>
+                        )}
+                        {selectedDay.isSunday && (
+                          <span className="block mt-1 text-[11px] text-purple-600/80 dark:text-purple-300/80 italic">
+                            (Scheduled on Sunday weekly off)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : selectedDay.isSunday ? (
                     <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 flex items-start gap-2.5 text-xs">
                       <Lock className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                       <div>
@@ -659,7 +830,68 @@ const WorkCalendar = () => {
                         Sunday is a fixed weekly holiday and cannot be modified.
                       </div>
                     </div>
-                  )}
+                  ) : null}
+
+                  {/* Scheduled Meetings on this Date */}
+                  <div className="space-y-2 pt-2 border-t border-border/60">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Video className="w-3.5 h-3.5 text-primary" />
+                        <span>Scheduled Meetings ({(meetingsByDate[selectedDay.date] || []).length})</span>
+                      </label>
+                      {canScheduleMeeting && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScheduleInitialDate(selectedDay.date);
+                            setEditingMeeting(null);
+                            setIsScheduleMeetingOpen(true);
+                          }}
+                          className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Schedule</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {(meetingsByDate[selectedDay.date] || []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic bg-muted/20 p-2.5 rounded-xl border border-border/40">
+                        No meetings scheduled on this day.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {(meetingsByDate[selectedDay.date] || []).map((m) => {
+                          const timeStr = m.startTime
+                            ? new Date(m.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '';
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedMeeting(m);
+                                setIsMeetingDrawerOpen(true);
+                              }}
+                              className="p-2.5 rounded-xl bg-background hover:bg-muted/50 border border-border flex items-center justify-between text-xs cursor-pointer transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${
+                                  m.status === 'COMPLETED' ? 'bg-sky-500' : m.status === 'CANCELLED' ? 'bg-rose-500' : 'bg-emerald-500'
+                                }`} />
+                                <div>
+                                  <p className="font-bold text-foreground truncate max-w-[180px]">{m.title}</p>
+                                  <p className="text-[10px] text-muted-foreground">{timeStr}</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-bold text-primary hover:underline">
+                                View Details
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Read-Only Action Buttons */}
                   <div className="flex items-center justify-end gap-2 border-t border-border/40 pt-4">
@@ -674,7 +906,7 @@ const WorkCalendar = () => {
                       </button>
                     )}
 
-                    {isAdminOrSuperAdmin && !selectedDay.isSunday && (
+                    {isAdminOrSuperAdmin && !selectedDay.isSunday && selectedDay.status !== 'COMP_OFF' && (
                       <button
                         onClick={handleStartEdit}
                         className="px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -793,6 +1025,54 @@ const WorkCalendar = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Phase 3 Meeting Modals & Drawers */}
+      <ScheduleMeetingModal
+        isOpen={isScheduleMeetingOpen}
+        onClose={() => {
+          setIsScheduleMeetingOpen(false);
+          setEditingMeeting(null);
+        }}
+        initialDate={scheduleInitialDate}
+        editingMeeting={editingMeeting}
+        onSuccess={() => {
+          fetchMeetings();
+        }}
+      />
+
+      <MeetingDetailDrawer
+        isOpen={isMeetingDrawerOpen}
+        onClose={() => {
+          setIsMeetingDrawerOpen(false);
+          setSelectedMeeting(null);
+        }}
+        meeting={selectedMeeting}
+        onEdit={(m) => {
+          setIsMeetingDrawerOpen(false);
+          setEditingMeeting(m);
+          setIsScheduleMeetingOpen(true);
+        }}
+        onOpenReport={(m) => {
+          setIsMeetingDrawerOpen(false);
+          setReportMeeting(m);
+          setIsReportModalOpen(true);
+        }}
+        onMeetingUpdated={() => {
+          fetchMeetings();
+        }}
+      />
+
+      <MeetingReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setReportMeeting(null);
+        }}
+        meeting={reportMeeting}
+        onSuccess={() => {
+          fetchMeetings();
+        }}
+      />
     </motion.div>
   );
 };

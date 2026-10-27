@@ -10,6 +10,7 @@ const {
   resetUserPassword,
   bulkImport,
   bulkDelete,
+  bulkUpdateAutoClockOut,
   promoteUser,
   getUserPromotionHistory,
   removeProfilePicture,
@@ -45,8 +46,10 @@ router.get('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN', 'TEAM_LEAD
 router.delete('/profile-photo', authenticate, removeProfilePicture);
 router.delete('/profile/picture', authenticate, removeProfilePicture);
 
-// All user creation, modification, promotion, and deletion routes strictly require ADMIN or SUPER_ADMIN privilege
-router.use(authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']));
+const { requirePermission } = require('../middleware/permissionMiddleware');
+
+// All user creation, modification, promotion, and deletion routes strictly require ADMIN or SUPER_ADMIN privilege AND user_management EDIT permission
+router.use(authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), requirePermission('user_management', 'EDIT'));
 
 router.post('/me/welcome-complete', completeWelcomePopup);
 router.post('/:id/reset-welcome', resetWelcomePopup);
@@ -60,5 +63,6 @@ router.put('/:id/status', toggleUserStatus);
 router.put('/:id/reset-password', resetUserPassword);
 router.post('/bulk-import', bulkImport);
 router.post('/bulk-delete', bulkDelete);
+router.post('/bulk-auto-clock-out', bulkUpdateAutoClockOut);
 
 module.exports = router;

@@ -144,6 +144,111 @@ const resolveMonthlyCalendar = async ({ user, month, year, organizationId }) => 
     });
   }
 
+  // 4. Fetch approved Comp-Off work dates (strictly approved, deduplicated across requests/sessions/credits)
+  const compOffWhere = {
+    workDate: {
+      gte: startRange,
+      lte: endRange
+    }
+  };
+  if (targetOrgId) {
+    compOffWhere.organizationId = targetOrgId;
+  }
+  if (isNonAdminUser && user?.id) {
+    compOffWhere.userId = user.id;
+  }
+
+  const [approvedPermissions, approvedSessions, approvedCredits] = await Promise.all([
+    prisma.compOffPermissionRequest.findMany({
+      where: {
+        ...compOffWhere,
+        status: 'APPROVED'
+      },
+      include: {
+        user: { select: { id: true, name: true, employeeId: true } },
+        approvedBy: { select: { id: true, name: true } }
+      }
+    }),
+    prisma.compOffSession.findMany({
+      where: {
+        ...compOffWhere,
+        approvalStatus: 'APPROVED'
+      },
+      include: {
+        user: { select: { id: true, name: true, employeeId: true } }
+      }
+    }),
+    prisma.compOffCredit.findMany({
+      where: {
+        ...compOffWhere,
+        status: { in: ['APPROVED', 'EXHAUSTED'] }
+      },
+      include: {
+        user: { select: { id: true, name: true, employeeId: true } }
+      }
+    })
+  ]);
+
+  // Aggregate and deduplicate by YYYY-MM-DD
+  const compOffMap = new Map();
+
+  const registerCompOff = (workDate, data) => {
+    if (!workDate) return;
+    const dStr = workDate instanceof Date ? workDate.toISOString().split('T')[0] : String(workDate).split('T')[0];
+    if (!compOffMap.has(dStr)) {
+      compOffMap.set(dStr, {
+        workDate: dStr,
+        items: [],
+        primaryReason: data.reason || 'Approved Comp-Off Work',
+        primaryTitle: 'Comp-Off Work',
+        primaryUser: data.user,
+        approvedBy: data.approvedBy || 'Admin'
+      });
+    }
+    const entry = compOffMap.get(dStr);
+    if (!entry.items.some(i => i.id === data.id && i.source === data.source)) {
+      entry.items.push(data);
+    }
+  };
+
+  approvedPermissions.forEach(p => {
+    registerCompOff(p.workDate, {
+      id: p.id,
+      source: 'PERMISSION',
+      title: 'Comp-Off Work',
+      reason: p.reason || 'Approved advance Comp-Off work',
+      holidayType: p.holidayType,
+      user: p.user,
+      approvedBy: p.approvedBy?.name || 'Admin',
+      status: 'APPROVED'
+    });
+  });
+
+  approvedSessions.forEach(s => {
+    registerCompOff(s.workDate, {
+      id: s.id,
+      source: 'SESSION',
+      title: 'Comp-Off Work',
+      reason: s.locationReason || 'Completed & verified off-day session',
+      durationHours: s.durationHours,
+      calculatedCredit: s.calculatedCredit,
+      user: s.user,
+      status: 'APPROVED'
+    });
+  });
+
+  approvedCredits.forEach(c => {
+    registerCompOff(c.workDate, {
+      id: c.id,
+      source: 'CREDIT',
+      title: 'Comp-Off Work',
+      reason: c.reason || 'Sanctioned Comp-Off credit',
+      creditDays: c.creditDays,
+      user: c.user,
+      status: c.status
+    });
+  });
+
   const isAdminOrSuperAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role);
 
   const resolvedDays = [];
@@ -156,6 +261,7 @@ const resolveMonthlyCalendar = async ({ user, month, year, organizationId }) => 
 
     const specificOverride = specificOverridesMap.get(dateStr);
     const permanentRule = permanentRulesMap.get(day);
+    const compOffInfo = compOffMap.get(dateStr);
 
     let resolvedStatus = 'Working';
     let title = 'Working Day';
@@ -165,30 +271,67 @@ const resolveMonthlyCalendar = async ({ user, month, year, organizationId }) => 
     let isSunday = false;
     let canEdit = isAdminOrSuperAdmin && dayOfWeek !== 0;
     let createdBy = null;
+    let compOffDetails = null;
+
+    if (compOffInfo) {
+      compOffDetails = {
+        workDate: dateStr,
+        status: 'APPROVED',
+        title: compOffInfo.items.length > 1 && !isNonAdminUser
+          ? `${compOffInfo.items.length} Comp-Off Workers`
+          : 'Comp-Off Work',
+        reason: compOffInfo.primaryReason,
+        approvedBy: compOffInfo.approvedBy,
+        itemsCount: compOffInfo.items.length
+      };
+    }
 
     // STEP 1: Sunday is fixed HOLIDAY (locked)
     if (dayOfWeek === 0) {
-      resolvedStatus = 'Holiday';
-      title = 'Sunday';
-      reason = 'Fixed Weekly Holiday';
       isSunday = true;
       canEdit = false;
+
+      if (compOffDetails) {
+        resolvedStatus = 'COMP_OFF';
+        title = 'Comp-Off Work';
+        reason = compOffDetails.reason || 'Approved Comp-Off work on Sunday';
+      } else {
+        resolvedStatus = 'Holiday';
+        title = 'Sunday';
+        reason = 'Fixed Weekly Holiday';
+      }
     }
     // STEP 2: Company Holiday (Specific date override or Permanent Rule)
     else if (specificOverride && specificOverride.status === 'HOLIDAY') {
-      resolvedStatus = 'Holiday';
-      title = specificOverride.title || 'Company Holiday';
-      reason = specificOverride.reason || 'Company Holiday';
       overrideId = specificOverride.id;
       isPermanent = specificOverride.isPermanent;
       createdBy = specificOverride.createdBy?.name || null;
+
+      if (compOffDetails) {
+        resolvedStatus = 'COMP_OFF';
+        title = 'Comp-Off Work';
+        reason = compOffDetails.reason || `Approved Comp-Off work on ${specificOverride.title || 'Company Holiday'}`;
+        canEdit = false;
+      } else {
+        resolvedStatus = 'Holiday';
+        title = specificOverride.title || 'Company Holiday';
+        reason = specificOverride.reason || 'Company Holiday';
+      }
     } else if (!specificOverride && permanentRule && permanentRule.status === 'HOLIDAY') {
-      resolvedStatus = 'Holiday';
-      title = permanentRule.title || 'Company Holiday';
-      reason = permanentRule.reason || 'Annual Permanent Holiday';
       overrideId = permanentRule.id;
       isPermanent = true;
       createdBy = permanentRule.createdBy?.name || null;
+
+      if (compOffDetails) {
+        resolvedStatus = 'COMP_OFF';
+        title = 'Comp-Off Work';
+        reason = compOffDetails.reason || `Approved Comp-Off work on ${permanentRule.title || 'Company Holiday'}`;
+        canEdit = false;
+      } else {
+        resolvedStatus = 'Holiday';
+        title = permanentRule.title || 'Company Holiday';
+        reason = permanentRule.reason || 'Annual Permanent Holiday';
+      }
     }
     // STEP 3: User Approved Leave (for non-admin users on non-company-holiday days)
     else if (
@@ -222,9 +365,16 @@ const resolveMonthlyCalendar = async ({ user, month, year, organizationId }) => 
     // STEP 5: Dynamic Shift Engine Integration (getShiftDayStatus)
     else {
       const shiftStatus = shiftService.getShiftDayStatus(userShift, dayName, currentDate);
-      resolvedStatus = shiftStatus || 'Working';
-      title = resolvedStatus === 'Working' ? 'Working Day' : resolvedStatus === 'WFH' ? 'Work From Home' : 'Holiday';
-      reason = `${shiftName} Schedule`;
+      if (shiftStatus === 'Holiday' && compOffDetails) {
+        resolvedStatus = 'COMP_OFF';
+        title = 'Comp-Off Work';
+        reason = compOffDetails.reason || `Approved Comp-Off work on ${shiftName} off-day`;
+        canEdit = false;
+      } else {
+        resolvedStatus = shiftStatus || 'Working';
+        title = resolvedStatus === 'Working' ? 'Working Day' : resolvedStatus === 'WFH' ? 'Work From Home' : 'Holiday';
+        reason = `${shiftName} Schedule`;
+      }
     }
 
     resolvedDays.push({
@@ -237,7 +387,8 @@ const resolveMonthlyCalendar = async ({ user, month, year, organizationId }) => 
       isPermanent,
       isSunday,
       canEdit,
-      createdBy: isAdminOrSuperAdmin ? createdBy : undefined
+      createdBy: isAdminOrSuperAdmin ? createdBy : undefined,
+      compOffDetails: compOffDetails || undefined
     });
   }
 

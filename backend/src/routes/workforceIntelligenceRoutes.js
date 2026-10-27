@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissionMiddleware');
 const {
   getExecutiveKpis,
   getExecutiveTrends,
@@ -31,7 +32,7 @@ router.get('/insights', getInsights);
 router.patch('/insights/:id/dismiss', dismissInsight);
 
 // 4. Employee Self-Service
-router.get('/self-service', getSelfService);
+router.get('/self-service', requirePermission('self_service', 'VIEW'), getSelfService);
 
 // 5. Team Leader Performance
 router.get('/team-performance', getTeamPerformance);

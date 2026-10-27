@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api, { getUploadUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import UserAvatar from '../components/common/UserAvatar';
 import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../config/crmModules';
 import { motion } from 'framer-motion';
+import CreateEstimateModal from '../components/assets/CreateEstimateModal';
+import EstimateHistorySection from '../components/assets/EstimateHistorySection';
 import {
   Laptop,
   Plus,
@@ -45,24 +49,39 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } }
 };
 
-const DEFAULT_CATEGORIES = [
-  { label: 'Laptop', value: 'LAPTOP' },
-  { label: 'Desktop', value: 'DESKTOP' },
-  { label: 'Monitor', value: 'MONITOR' },
-  { label: 'Mobile', value: 'MOBILE' },
-  { label: 'Keyboard', value: 'KEYBOARD' },
-  { label: 'Mouse', value: 'MOUSE' },
-  { label: 'Headset', value: 'HEADSET' },
-  { label: 'Tablet', value: 'TABLET' },
-  { label: 'Printer', value: 'PRINTER' },
-  { label: 'Network Equipment', value: 'NETWORK' },
-  { label: 'Office Furniture', value: 'FURNITURE' },
-  { label: 'Other', value: 'OTHER' }
+const CATEGORY_GROUPS = [
+  'Tangible Assets',
+  'Intangible Assets',
+  'Other'
+];
+
+const TANGIBLE_TYPES = [
+  'Land',
+  'Buildings',
+  'Plant and Machinery',
+  'Furniture and Fixtures',
+  'Vehicles',
+  'Office Equipment',
+  'Computers and Peripherals',
+  'Electrical Installations'
+];
+
+const INTANGIBLE_TYPES = [
+  'Goodwill',
+  'Brands',
+  'Trademarks',
+  'Computer Software',
+  'Patents',
+  'Copyrights',
+  'Mining Rights'
 ];
 
 const AssetManagement = () => {
   const { user } = useAuth();
+  const { canEdit } = usePermissions();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canEditAssets = isSuperAdmin || canEdit(CRM_MODULE_KEYS.ASSETS);
+  const isManagementRole = ['ADMIN', 'SUPER_ADMIN', 'TEAM_LEADER'].includes(user?.role) && canEditAssets;
   const { selectedOrgId, effectiveOrgId, loading: orgsLoading } = useCompanyScope();
   const targetOrg = isSuperAdmin ? selectedOrgId : (effectiveOrgId || user?.organizationId);
   const selectedOrgIdRef = useRef(targetOrg);
@@ -78,10 +97,20 @@ const AssetManagement = () => {
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
 
-  // Dynamic custom categories state
-  const [customCategoriesList, setCustomCategoriesList] = useState([]);
+  // Navigation tab: 'inventory' | 'history'
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') === 'history' ? 'history' : 'inventory';
+  });
+
+  // Category selection states
+  const [selectedCategoryGroup, setSelectedCategoryGroup] = useState('');
+  const [selectedAssetType, setSelectedAssetType] = useState('');
   const [customCategoryInput, setCustomCategoryInput] = useState('');
-  const [isCustomCategoryMode, setIsCustomCategoryMode] = useState(false);
+  const [customCategoriesList, setCustomCategoriesList] = useState([]);
+  const [previewAssetId, setPreviewAssetId] = useState('');
+  const [bulkSerialNumbers, setBulkSerialNumbers] = useState(['']);
+  const [serialNumberErrors, setSerialNumberErrors] = useState({});
 
   // Users list for assignment dropdown
   const [allUsers, setAllUsers] = useState([]);
@@ -96,10 +125,15 @@ const AssetManagement = () => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [billFile, setBillFile] = useState(null);
 
+  // Estimate Generation state
+  const [selectedAssetIds, setSelectedAssetIds] = useState([]);
+  const [estimateModalOpen, setEstimateModalOpen] = useState(false);
+
   // Form states
+
   const [assetForm, setAssetForm] = useState({
     name: '',
-    category: 'LAPTOP',
+    category: '',
     quantity: 1,
     brand: '',
     model: '',
@@ -133,21 +167,42 @@ const AssetManagement = () => {
     onConfirm: null
   });
 
-  const isManagementRole = ['ADMIN', 'SUPER_ADMIN', 'TEAM_LEADER'].includes(user?.role);
+  const toggleSelectAsset = (assetId) => {
+    setSelectedAssetIds((prev) =>
+      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (assets.length > 0 && selectedAssetIds.length === assets.length) {
+      setSelectedAssetIds([]);
+    } else {
+      setSelectedAssetIds(assets.map((a) => a.id));
+    }
+  };
+
+  const clearSelectedAssets = () => {
+    setSelectedAssetIds([]);
+  };
 
   const getFinalCategoryToSave = () => {
-    if (isCustomCategoryMode || assetForm.category === 'OTHER' || assetForm.category === 'ADD_NEW') {
+    if (selectedCategoryGroup === 'Tangible Assets') {
+      return selectedAssetType.trim();
+    }
+    if (selectedCategoryGroup === 'Intangible Assets') {
+      return selectedAssetType.trim();
+    }
+    if (selectedCategoryGroup === 'Other') {
       const trimmed = customCategoryInput.trim();
       if (trimmed) {
-        const formatted = trimmed.toUpperCase();
-        if (!customCategoriesList.includes(formatted)) {
-          setCustomCategoriesList(prev => [...prev, formatted]);
+        if (!customCategoriesList.includes(trimmed)) {
+          setCustomCategoriesList((prev) => [...prev, trimmed]);
         }
-        return formatted;
+        return trimmed;
       }
-      return 'OTHER';
+      return 'Other';
     }
-    return assetForm.category;
+    return assetForm.category || 'Other';
   };
 
   const fetchAssets = async () => {
@@ -170,11 +225,17 @@ const AssetManagement = () => {
       setTotalCount(res.data.meta?.totalCount || 0);
 
       // Collect custom categories from database assets
-      const dbCategories = fetchedAssets
-        .map(a => a.category)
-        .filter(c => c && !DEFAULT_CATEGORIES.some(dc => dc.value === c));
+      const sourceCategories = (res.data.categories && res.data.categories.length > 0)
+        ? res.data.categories
+        : fetchedAssets.map((a) => a.category);
+      const dbCategories = sourceCategories.filter(
+        (c) =>
+          c &&
+          !TANGIBLE_TYPES.some((t) => t.toLowerCase() === c.toLowerCase()) &&
+          !INTANGIBLE_TYPES.some((it) => it.toLowerCase() === c.toLowerCase())
+      );
       if (dbCategories.length > 0) {
-        setCustomCategoriesList(prev => Array.from(new Set([...prev, ...dbCategories])));
+        setCustomCategoriesList((prev) => Array.from(new Set([...prev, ...dbCategories])));
       }
 
       setLoading(false);
@@ -215,6 +276,20 @@ const AssetManagement = () => {
     }
   };
 
+  const fetchNextAssetId = useCallback(async () => {
+    try {
+      const target = selectedOrgIdRef.current || selectedOrgId;
+      const res = await api.get('/assets/next-id', {
+        params: target ? { organizationId: target } : {}
+      });
+      if (res.data?.nextAssetId) {
+        setPreviewAssetId(res.data.nextAssetId);
+      }
+    } catch (err) {
+      console.error('Failed to preview next asset ID:', err);
+    }
+  }, [selectedOrgId]);
+
   useEffect(() => {
     selectedOrgIdRef.current = targetOrg;
     setAssets([]);
@@ -226,18 +301,63 @@ const AssetManagement = () => {
     }
   }, [page, statusFilter, categoryFilter, brandFilter, targetOrg, user?.organizationId, orgsLoading]);
 
+  useEffect(() => {
+    if (createModalOpen) {
+      fetchNextAssetId();
+    }
+  }, [createModalOpen, fetchNextAssetId]);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
     fetchAssets();
   };
 
+  const handleQuantityChange = (val) => {
+    setAssetForm((prev) => ({ ...prev, quantity: val }));
+    setSerialNumberErrors({});
+    const qty = parseInt(val, 10);
+    if (!isNaN(qty) && qty >= 1) {
+      setBulkSerialNumbers((prev) => {
+        const next = [...prev];
+        if (qty === 1) {
+          const firstVal = next.length > 0 && next[0] ? next[0] : (assetForm.serialNumber || '');
+          setAssetForm((f) => ({ ...f, serialNumber: firstVal }));
+          return [firstVal];
+        }
+        while (next.length < qty) {
+          next.push('');
+        }
+        return next.slice(0, qty);
+      });
+    }
+  };
+
+  const handleBulkSerialChange = (index, value) => {
+    setBulkSerialNumbers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    if (index === 0) {
+      setAssetForm((prev) => ({ ...prev, serialNumber: value }));
+    }
+    setSerialNumberErrors((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
   const resetForm = () => {
-    setIsCustomCategoryMode(false);
+    setSelectedCategoryGroup('');
+    setSelectedAssetType('');
     setCustomCategoryInput('');
+    setBulkSerialNumbers(['']);
+    setSerialNumberErrors({});
     setAssetForm({
       name: '',
-      category: 'LAPTOP',
+      category: '',
       quantity: 1,
       brand: '',
       model: '',
@@ -255,10 +375,61 @@ const AssetManagement = () => {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
 
+    // Category and Asset Type Validation
+    if (!selectedCategoryGroup) {
+      setAlertMsg({ type: 'error', text: 'Category is required.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Tangible Assets' && !selectedAssetType) {
+      setAlertMsg({ type: 'error', text: 'Asset Type is required for Tangible Assets.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Intangible Assets' && !selectedAssetType) {
+      setAlertMsg({ type: 'error', text: 'Asset Type is required for Intangible Assets.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Other' && !customCategoryInput.trim()) {
+      setAlertMsg({ type: 'error', text: 'Custom category is required for Other.' });
+      return;
+    }
+
     const qty = parseInt(assetForm.quantity, 10);
     if (isNaN(qty) || qty < 1 || qty > 500) {
       setAlertMsg({ type: 'error', text: 'Quantity must be a valid integer between 1 and 500.' });
       return;
+    }
+
+    if (qty >= 2) {
+      const errors = {};
+      const trimmedList = bulkSerialNumbers.map((s) => (s || '').trim());
+
+      trimmedList.forEach((s, idx) => {
+        if (!s) {
+          errors[idx] = 'Required';
+        }
+      });
+
+      const seen = new Map();
+      trimmedList.forEach((s, idx) => {
+        if (s) {
+          if (seen.has(s)) {
+            errors[idx] = 'Duplicate';
+            errors[seen.get(s)] = 'Duplicate';
+          } else {
+            seen.set(s, idx);
+          }
+        }
+      });
+
+      if (Object.keys(errors).length > 0) {
+        setSerialNumberErrors(errors);
+        const hasDuplicates = Object.values(errors).includes('Duplicate');
+        const msg = hasDuplicates
+          ? 'Serial numbers must be unique.'
+          : 'Every serial number is required.';
+        setAlertMsg({ type: 'error', text: msg });
+        return;
+      }
     }
 
     try {
@@ -270,10 +441,20 @@ const AssetManagement = () => {
           formData.append('category', finalCategory);
         } else if (key === 'quantity') {
           formData.append('quantity', qty);
-        } else {
+        } else if (key !== 'serialNumber') {
           formData.append(key, assetForm[key]);
         }
       });
+
+      if (qty >= 2) {
+        const trimmedList = bulkSerialNumbers.map((s) => (s || '').trim());
+        formData.append('serialNumbers', JSON.stringify(trimmedList));
+      } else {
+        const singleSn = (assetForm.serialNumber || bulkSerialNumbers[0] || '').trim();
+        formData.append('serialNumber', singleSn);
+        formData.append('serialNumbers', JSON.stringify([singleSn]));
+      }
+
       const targetOrg = selectedOrgIdRef.current || selectedOrgId;
       if (targetOrg) {
         formData.append('organizationId', targetOrg);
@@ -287,12 +468,14 @@ const AssetManagement = () => {
       });
 
       const createdCount = res.data?.created || qty || 1;
+      const createdId = res.data?.assetId ? ` (${res.data.assetId})` : '';
       setCreateModalOpen(false);
       resetForm();
       setBillFile(null);
-      setAlertMsg({ type: 'success', text: `${createdCount} ${createdCount === 1 ? 'asset' : 'assets'} added successfully.` });
+      setAlertMsg({ type: 'success', text: `${createdCount} ${createdCount === 1 ? 'asset' : 'assets'} added successfully${createdId}.` });
       fetchAssets();
       fetchAssetAnalytics();
+      fetchNextAssetId();
     } catch (err) {
       setAlertMsg({ type: 'error', text: err.response?.data?.message || 'Failed to create asset.' });
       setLoading(false);
@@ -301,14 +484,36 @@ const AssetManagement = () => {
 
   const openEditModal = (asset) => {
     setSelectedAsset(asset);
-    const existingCat = asset.category || 'LAPTOP';
-    const isStandard = DEFAULT_CATEGORIES.some(dc => dc.value === existingCat);
-    if (!isStandard && existingCat !== 'OTHER') {
-      setIsCustomCategoryMode(true);
-      setCustomCategoryInput(existingCat);
-    } else {
-      setIsCustomCategoryMode(false);
+    const existingCat = (asset.category || '').trim();
+
+    const matchingTangible = TANGIBLE_TYPES.find(
+      (t) => t.toLowerCase() === existingCat.toLowerCase()
+    );
+    const matchingIntangible = INTANGIBLE_TYPES.find(
+      (it) => it.toLowerCase() === existingCat.toLowerCase()
+    );
+
+    if (matchingTangible) {
+      setSelectedCategoryGroup('Tangible Assets');
+      setSelectedAssetType(matchingTangible);
       setCustomCategoryInput('');
+    } else if (matchingIntangible) {
+      setSelectedCategoryGroup('Intangible Assets');
+      setSelectedAssetType(matchingIntangible);
+      setCustomCategoryInput('');
+    } else if (existingCat.toLowerCase() === 'tangible assets') {
+      setSelectedCategoryGroup('Tangible Assets');
+      setSelectedAssetType('');
+      setCustomCategoryInput('');
+    } else if (existingCat.toLowerCase() === 'intangible assets') {
+      setSelectedCategoryGroup('Intangible Assets');
+      setSelectedAssetType('');
+      setCustomCategoryInput('');
+    } else {
+      // Custom category or legacy category (e.g. LAPTOP, DESKTOP, Camera, CCTV)
+      setSelectedCategoryGroup('Other');
+      setSelectedAssetType('');
+      setCustomCategoryInput(existingCat);
     }
 
     setAssetForm({
@@ -330,6 +535,25 @@ const AssetManagement = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+
+    // Category and Asset Type Validation
+    if (!selectedCategoryGroup) {
+      setAlertMsg({ type: 'error', text: 'Category is required.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Tangible Assets' && !selectedAssetType) {
+      setAlertMsg({ type: 'error', text: 'Asset Type is required for Tangible Assets.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Intangible Assets' && !selectedAssetType) {
+      setAlertMsg({ type: 'error', text: 'Asset Type is required for Intangible Assets.' });
+      return;
+    }
+    if (selectedCategoryGroup === 'Other' && !customCategoryInput.trim()) {
+      setAlertMsg({ type: 'error', text: 'Custom category is required for Other.' });
+      return;
+    }
+
     try {
       setLoading(true);
       const finalCategory = getFinalCategoryToSave();
@@ -585,7 +809,41 @@ const AssetManagement = () => {
         </motion.div>
       )}
 
-      {/* Asset Management Overview Card - Admin, Super Admin & Team Leader Only */}
+      {/* Navigation Tabs Bar */}
+      {isManagementRole && (
+        <motion.div variants={itemVariants} className="flex items-center gap-1.5 bg-muted/40 p-1.5 rounded-2xl border border-border/50 overflow-x-auto dash-scroll">
+          <button
+            type="button"
+            onClick={() => setActiveTab('inventory')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'inventory'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Laptop className="h-4 w-4" />
+            <span>Hardware Assets</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'history'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Estimate History</span>
+          </button>
+        </motion.div>
+      )}
+
+      {activeTab === 'history' && isManagementRole ? (
+        <EstimateHistorySection organizationId={targetOrg} />
+      ) : (
+        <>
+          {/* Asset Management Overview Card - Admin, Super Admin & Team Leader Only */}
       {['ADMIN', 'SUPER_ADMIN', 'TEAM_LEADER'].includes(user.role) && (
         <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border/60 p-6 shadow-md text-left space-y-4">
           <div className="flex items-center justify-between">
@@ -637,14 +895,47 @@ const AssetManagement = () => {
         <div className="flex flex-wrap items-center gap-2">
           {isManagementRole && (
             <>
+              {selectedAssetIds.length > 0 && (
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    {selectedAssetIds.length} selected
+                  </span>
+                  <button
+                    onClick={() => setEstimateModalOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 text-xs font-extrabold shadow-sm transition-all"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Generate Estimate</span>
+                  </button>
+                  <button
+                    onClick={clearSelectedAssets}
+                    className="text-xs text-muted-foreground hover:text-foreground font-semibold px-1"
+                    title="Clear selection"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-background text-xs px-3 py-2 rounded-xl border border-border/70">
                 <option value="">All Categories</option>
-                {DEFAULT_CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-                {customCategoriesList.map(cc => (
-                  <option key={cc} value={cc}>{cc}</option>
-                ))}
+                <optgroup label="Tangible Assets">
+                  {TANGIBLE_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Intangible Assets">
+                  {INTANGIBLE_TYPES.map((it) => (
+                    <option key={it} value={it}>{it}</option>
+                  ))}
+                </optgroup>
+                {customCategoriesList.length > 0 && (
+                  <optgroup label="Other / Existing">
+                    {customCategoriesList.map((cc) => (
+                      <option key={cc} value={cc}>{cc}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
 
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background text-xs px-3 py-2 rounded-xl border border-border/70">
@@ -676,6 +967,17 @@ const AssetManagement = () => {
         <table className="w-full min-w-[800px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border/40 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+              {isManagementRole && (
+                <th className="px-4 py-4 w-12 text-center whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={assets.length > 0 && selectedAssetIds.length === assets.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                    title="Select / Deselect all visible assets"
+                  />
+                </th>
+              )}
               <th className="px-6 py-4 whitespace-nowrap">Asset ID</th>
               <th className="px-6 py-4 whitespace-nowrap">Asset Name</th>
               <th className="px-6 py-4 whitespace-nowrap">Category</th>
@@ -688,7 +990,7 @@ const AssetManagement = () => {
           <tbody className="divide-y divide-border/30">
             {assets.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-16 text-center whitespace-nowrap">
+                <td colSpan={isManagementRole ? 8 : 7} className="px-6 py-16 text-center whitespace-nowrap">
                   <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 shadow-sm border border-primary/20">
                       <Laptop className="h-8 w-8" />
@@ -713,9 +1015,21 @@ const AssetManagement = () => {
               assets.map((item) => (
                 <tr
                   key={item.id}
-                  className="hover:bg-muted/40 cursor-pointer transition-all h-16 whitespace-nowrap"
+                  className={`hover:bg-muted/40 cursor-pointer transition-all h-16 whitespace-nowrap ${
+                    selectedAssetIds.includes(item.id) ? 'bg-primary/5 dark:bg-primary/10' : ''
+                  }`}
                   onClick={() => openDetailsModal(item)}
                 >
+                  {isManagementRole && (
+                    <td className="px-4 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedAssetIds.includes(item.id)}
+                        onChange={() => toggleSelectAsset(item.id)}
+                        className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                      />
+                    </td>
+                  )}
                   <td className="px-6 py-4 font-mono font-bold text-xs text-foreground whitespace-nowrap">
                     {item.assetId}
                   </td>
@@ -850,11 +1164,13 @@ const AssetManagement = () => {
           </div>
         </motion.div>
       )}
+        </>
+      )}
 
       {/* Create Asset Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-border/40 bg-card p-5 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-3xl rounded-2xl border border-border/40 bg-card p-5 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
               <h3 className="text-base font-bold text-foreground">Add New Hardware / System Asset</h3>
               <button className="rounded-lg p-1 hover:bg-muted" onClick={() => setCreateModalOpen(false)}>
@@ -863,7 +1179,17 @@ const AssetManagement = () => {
             </div>
 
             <form onSubmit={handleCreateSubmit} className="mt-3 space-y-3 text-left">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1 sm:col-span-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+                    <span>Asset ID</span>
+                    <span className="text-[9px] text-emerald-500 font-semibold lowercase">auto</span>
+                  </label>
+                  <div className="flex items-center h-[38px] px-3 bg-muted/40 rounded-xl border border-border/70 text-xs font-mono font-bold text-foreground select-none" title="Auto-generated by system">
+                    {previewAssetId || 'Auto-Generated'}
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-1 sm:col-span-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Asset Name *</label>
                   <input
@@ -877,52 +1203,63 @@ const AssetManagement = () => {
 
                 <div className="flex flex-col gap-1 sm:col-span-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Category *</label>
+                  <select
+                    required
+                    value={selectedCategoryGroup}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedCategoryGroup(val);
+                      setSelectedAssetType('');
+                      setCustomCategoryInput('');
+                    }}
+                  >
+                    <option value="">Select Category...</option>
+                    {CATEGORY_GROUPS.map((group) => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  {!isCustomCategoryMode ? (
+                <div className="flex flex-col gap-1 sm:col-span-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                    {selectedCategoryGroup === 'Other' ? 'Asset Type (Custom) *' : 'Asset Type *'}
+                  </label>
+                  {selectedCategoryGroup === 'Tangible Assets' ? (
                     <select
-                      value={assetForm.category}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === 'ADD_NEW' || val === 'OTHER') {
-                          setIsCustomCategoryMode(true);
-                          setCustomCategoryInput('');
-                          setAssetForm({ ...assetForm, category: 'OTHER' });
-                        } else {
-                          setAssetForm({ ...assetForm, category: val });
-                        }
-                      }}
+                      required
+                      value={selectedAssetType}
+                      onChange={(e) => setSelectedAssetType(e.target.value)}
                     >
-                      {DEFAULT_CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                      {customCategoriesList.map((cc) => (
-                        <option key={cc} value={cc}>{cc}</option>
+                      <option value="">Select Asset Type...</option>
+                      {TANGIBLE_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
+                  ) : selectedCategoryGroup === 'Intangible Assets' ? (
+                    <select
+                      required
+                      value={selectedAssetType}
+                      onChange={(e) => setSelectedAssetType(e.target.value)}
+                    >
+                      <option value="">Select Asset Type...</option>
+                      {INTANGIBLE_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  ) : selectedCategoryGroup === 'Other' ? (
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      placeholder="e.g. CCTV System"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      className="w-full text-xs font-semibold py-1.5 px-3 rounded-xl border border-emerald-500 bg-emerald-500/5 focus:bg-background focus:ring-2 focus:ring-emerald-500/20"
+                    />
                   ) : (
-                    <div className="relative flex items-center w-full">
-                      <input
-                        type="text"
-                        required
-                        autoFocus
-                        placeholder="e.g. Server, Camera, GPU..."
-                        value={customCategoryInput}
-                        onChange={(e) => setCustomCategoryInput(e.target.value)}
-                        className="w-full text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border border-emerald-500 bg-emerald-500/5 focus:bg-background focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomCategoryMode(false);
-                          setCustomCategoryInput('');
-                          setAssetForm({ ...assetForm, category: 'LAPTOP' });
-                        }}
-                        className="absolute right-2 text-muted-foreground hover:text-rose-500 rounded p-0.5"
-                        title="Cancel custom category"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
+                    <select disabled className="opacity-60 bg-muted/40 cursor-not-allowed">
+                      <option value="">Select Category first...</option>
+                    </select>
                   )}
                 </div>
 
@@ -936,7 +1273,7 @@ const AssetManagement = () => {
                     required
                     placeholder="1"
                     value={assetForm.quantity}
-                    onChange={(e) => setAssetForm({ ...assetForm, quantity: e.target.value })}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
                     className={`w-full ${
                       (parseInt(assetForm.quantity, 10) < 1 || parseInt(assetForm.quantity, 10) > 500)
                         ? 'border-rose-500 focus:ring-rose-500'
@@ -968,32 +1305,21 @@ const AssetManagement = () => {
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase">
-                    {parseInt(assetForm.quantity, 10) > 1 ? 'Serial Number (Auto-Generated)' : 'Serial Number (Unique)'}
-                  </label>
-                  {parseInt(assetForm.quantity, 10) > 1 ? (
-                    <div>
-                      <input
-                        type="text"
-                        disabled
-                        readOnly
-                        placeholder="Auto-generated e.g. AUTO-MBP-001"
-                        className="bg-muted/70 opacity-80 cursor-not-allowed text-xs"
-                      />
-                      <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5 block">
-                        Serial numbers will be auto-generated for bulk creation.
-                      </span>
-                    </div>
-                  ) : (
+                {parseInt(assetForm.quantity, 10) <= 1 && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Serial Number (Optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. C02G182PMD6T"
                       value={assetForm.serialNumber}
-                      onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAssetForm({ ...assetForm, serialNumber: val });
+                        setBulkSerialNumbers([val]);
+                      }}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Purchase Date</label>
@@ -1034,17 +1360,7 @@ const AssetManagement = () => {
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Storage / Office Location</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Store Room - Locker B"
-                    value={assetForm.location}
-                    onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1 sm:col-span-1">
+                <div className={`flex flex-col gap-1 ${parseInt(assetForm.quantity, 10) >= 2 ? 'sm:col-span-2' : 'sm:col-span-1'}`}>
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Bill Photo Copy / Invoice</label>
                   <div className="relative flex items-center w-full rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs focus-within:ring-2 focus-within:ring-emerald-500/30">
                     <label className="cursor-pointer px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] shrink-0 mr-2 border border-emerald-500/20 transition-all">
@@ -1073,7 +1389,7 @@ const AssetManagement = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1 sm:col-span-3">
+                <div className="flex flex-col gap-1 sm:col-span-4">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Asset Description / Technical Specs</label>
                   <textarea
                     rows={2}
@@ -1083,6 +1399,52 @@ const AssetManagement = () => {
                   />
                 </div>
               </div>
+
+              {/* Dynamic Serial Numbers Section for Bulk Creation (Quantity >= 2) */}
+              {parseInt(assetForm.quantity, 10) >= 2 && (
+                <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      Serial Numbers ({bulkSerialNumbers.length} Required)
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      Enter a unique serial number for each asset
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto pr-1 p-0.5">
+                    {bulkSerialNumbers.map((sn, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex flex-col gap-1 p-2.5 rounded-xl border transition-colors ${
+                          serialNumberErrors[idx]
+                            ? 'border-rose-500/80 bg-rose-500/5'
+                            : 'border-border/60 bg-muted/20 hover:border-emerald-500/40'
+                        }`}
+                      >
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+                          <span>Serial Number {idx + 1} *</span>
+                          {serialNumberErrors[idx] && (
+                            <span className="text-[9px] text-rose-500 font-semibold lowercase">
+                              {serialNumberErrors[idx]}
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder={`e.g. SN00${idx + 1}`}
+                          value={sn}
+                          onChange={(e) => handleBulkSerialChange(idx, e.target.value)}
+                          className={`w-full text-xs font-mono font-medium ${
+                            serialNumberErrors[idx] ? 'border-rose-500 focus:ring-rose-500/20' : ''
+                          }`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -1117,7 +1479,7 @@ const AssetManagement = () => {
             </div>
 
             <form onSubmit={handleEditSubmit} className="mt-3 space-y-3 text-left">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="flex flex-col gap-1 sm:col-span-2">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Asset Name *</label>
                   <input
@@ -1130,52 +1492,63 @@ const AssetManagement = () => {
 
                 <div className="flex flex-col gap-1 sm:col-span-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Category *</label>
+                  <select
+                    required
+                    value={selectedCategoryGroup}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedCategoryGroup(val);
+                      setSelectedAssetType('');
+                      setCustomCategoryInput('');
+                    }}
+                  >
+                    <option value="">Select Category...</option>
+                    {CATEGORY_GROUPS.map((group) => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  {!isCustomCategoryMode ? (
+                <div className="flex flex-col gap-1 sm:col-span-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                    {selectedCategoryGroup === 'Other' ? 'Asset Type (Custom) *' : 'Asset Type *'}
+                  </label>
+                  {selectedCategoryGroup === 'Tangible Assets' ? (
                     <select
-                      value={assetForm.category}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === 'ADD_NEW' || val === 'OTHER') {
-                          setIsCustomCategoryMode(true);
-                          setCustomCategoryInput('');
-                          setAssetForm({ ...assetForm, category: 'OTHER' });
-                        } else {
-                          setAssetForm({ ...assetForm, category: val });
-                        }
-                      }}
+                      required
+                      value={selectedAssetType}
+                      onChange={(e) => setSelectedAssetType(e.target.value)}
                     >
-                      {DEFAULT_CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                      {customCategoriesList.map((cc) => (
-                        <option key={cc} value={cc}>{cc}</option>
+                      <option value="">Select Asset Type...</option>
+                      {TANGIBLE_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
+                  ) : selectedCategoryGroup === 'Intangible Assets' ? (
+                    <select
+                      required
+                      value={selectedAssetType}
+                      onChange={(e) => setSelectedAssetType(e.target.value)}
+                    >
+                      <option value="">Select Asset Type...</option>
+                      {INTANGIBLE_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  ) : selectedCategoryGroup === 'Other' ? (
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      placeholder="e.g. CCTV System"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      className="w-full text-xs font-semibold py-1.5 px-3 rounded-xl border border-emerald-500 bg-emerald-500/5 focus:bg-background focus:ring-2 focus:ring-emerald-500/20"
+                    />
                   ) : (
-                    <div className="relative flex items-center w-full">
-                      <input
-                        type="text"
-                        required
-                        autoFocus
-                        placeholder="e.g. Server, Camera, GPU..."
-                        value={customCategoryInput}
-                        onChange={(e) => setCustomCategoryInput(e.target.value)}
-                        className="w-full text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border border-emerald-500 bg-emerald-500/5 focus:bg-background focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomCategoryMode(false);
-                          setCustomCategoryInput('');
-                          setAssetForm({ ...assetForm, category: 'LAPTOP' });
-                        }}
-                        className="absolute right-2 text-muted-foreground hover:text-rose-500 rounded p-0.5"
-                        title="Cancel custom category"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
+                    <select disabled className="opacity-60 bg-muted/40 cursor-not-allowed">
+                      <option value="">Select Category first...</option>
+                    </select>
                   )}
                 </div>
 
@@ -1719,6 +2092,47 @@ const AssetManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Floating Estimate Action Bar */}
+      {activeTab === 'inventory' && isManagementRole && selectedAssetIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-foreground">
+              {selectedAssetIds.length} {selectedAssetIds.length === 1 ? 'Asset' : 'Assets'} Selected
+            </span>
+          </div>
+          <div className="h-4 w-px bg-border" />
+          <button
+            onClick={() => setEstimateModalOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Generate Estimate</span>
+          </button>
+          <button
+            onClick={clearSelectedAssets}
+            className="text-xs text-muted-foreground hover:text-foreground font-semibold px-2 py-1 rounded-lg hover:bg-muted transition-all cursor-pointer"
+          >
+            Deselect All
+          </button>
+        </div>
+      )}
+
+      {/* Estimate Generation Modal */}
+      <CreateEstimateModal
+        isOpen={estimateModalOpen}
+        onClose={() => setEstimateModalOpen(false)}
+        selectedAssets={assets.filter((a) => selectedAssetIds.includes(a.id))}
+        organizationId={targetOrg}
+        onEstimateCreated={(savedEstimate) => {
+          setAlertMsg({
+            type: 'success',
+            text: `Estimate ${savedEstimate.estimateNumber} generated and saved successfully!`
+          });
+          setSelectedAssetIds([]);
+        }}
+      />
     </motion.div>
   );
 };

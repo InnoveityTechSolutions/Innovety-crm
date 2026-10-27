@@ -120,13 +120,15 @@ const ShiftAutomationSettingsModal = ({
 
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={checked}
                     onClick={() => setSettings({ ...settings, [tog.key]: !checked })}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      checked ? 'bg-primary' : 'bg-muted'
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 ${
+                      checked ? 'bg-primary border-primary shadow-xs' : 'bg-slate-300 border-slate-400 dark:bg-slate-700 dark:border-slate-500 shadow-inner'
                     }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md border border-black/10 dark:border-white/10 ring-0 transition duration-200 ease-in-out ${
                         checked ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />

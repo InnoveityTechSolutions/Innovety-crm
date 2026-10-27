@@ -250,6 +250,168 @@ const formatDistance = (meters) => {
   return `${km} km`;
 };
 
+const evaluateAttendanceGeofence = ({
+  userLat,
+  userLon,
+  assignedLocations = [],
+  hasOrgLocations = false,
+  settings = {}
+}) => {
+  const numLat = parseFloat(userLat);
+  const numLon = parseFloat(userLon);
+
+  if (isNaN(numLat) || isNaN(numLon) || numLat < -90 || numLat > 90 || numLon < -180 || numLon > 180) {
+    return {
+      isValid: false,
+      status: 'GPS_ERROR',
+      isInside: false,
+      message: 'Invalid GPS coordinates.'
+    };
+  }
+
+  // Active assigned locations take precedence
+  const activeAssignedLocations = assignedLocations.filter(loc => loc && (loc.isActive !== false));
+
+  if (activeAssignedLocations.length > 0) {
+    let nearestLocation = null;
+    let minDistance = Infinity;
+    let matchedLocation = null;
+    let matchedDistance = Infinity;
+
+    for (const loc of activeAssignedLocations) {
+      const dist = calculateHaversineDistance(numLat, numLon, loc.latitude, loc.longitude);
+      if (!isNaN(dist)) {
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestLocation = loc;
+        }
+        if (dist <= loc.radiusMeters && dist < matchedDistance) {
+          matchedDistance = dist;
+          matchedLocation = loc;
+        }
+      }
+    }
+
+    if (matchedLocation) {
+      return {
+        isValid: true,
+        isInside: true,
+        status: 'INSIDE',
+        matchedLocation: {
+          id: matchedLocation.id,
+          name: matchedLocation.name,
+          radiusMeters: matchedLocation.radiusMeters,
+          latitude: matchedLocation.latitude,
+          longitude: matchedLocation.longitude
+        },
+        nearestLocation: {
+          id: matchedLocation.id,
+          name: matchedLocation.name,
+          radiusMeters: matchedLocation.radiusMeters,
+          latitude: matchedLocation.latitude,
+          longitude: matchedLocation.longitude
+        },
+        locationName: matchedLocation.name,
+        distanceMeters: Math.round(matchedDistance),
+        allowedRadiusMeters: matchedLocation.radiusMeters,
+        formattedDistance: formatDistance(matchedDistance),
+        message: 'You are within the permitted location.'
+      };
+    } else {
+      return {
+        isValid: true,
+        isInside: false,
+        status: 'OUTSIDE',
+        matchedLocation: null,
+        nearestLocation: nearestLocation ? {
+          id: nearestLocation.id,
+          name: nearestLocation.name,
+          radiusMeters: nearestLocation.radiusMeters,
+          latitude: nearestLocation.latitude,
+          longitude: nearestLocation.longitude
+        } : null,
+        locationName: nearestLocation ? nearestLocation.name : 'Office',
+        distanceMeters: minDistance !== Infinity ? Math.round(minDistance) : null,
+        allowedRadiusMeters: nearestLocation ? nearestLocation.radiusMeters : null,
+        formattedDistance: minDistance !== Infinity ? formatDistance(minDistance) : null,
+        message: nearestLocation
+          ? `You are currently outside the permitted location "${nearestLocation.name}" (${formatDistance(minDistance)} away). Allowed radius is ${nearestLocation.radiusMeters}m.`
+          : 'You are outside your allowed attendance locations.'
+      };
+    }
+  }
+
+  // If user has no assigned locations, but organization has defined locations
+  if (hasOrgLocations) {
+    return {
+      isValid: true,
+      isInside: false,
+      status: 'NO_ASSIGNED_LOCATION',
+      matchedLocation: null,
+      nearestLocation: null,
+      locationName: null,
+      distanceMeters: null,
+      allowedRadiusMeters: null,
+      formattedDistance: null,
+      message: 'No attendance location has been assigned to your account. Please contact your administrator.'
+    };
+  }
+
+  // Fallback to legacy single office geofence for unmigrated organizations
+  const officeLat = settings?.officeLatitude ?? 12.971598;
+  const officeLon = settings?.officeLongitude ?? 77.594562;
+  const allowedRadius = settings?.allowedRadiusMeters ?? 200.0;
+  const officeName = settings?.officeLocationName || 'Innoveity Headquarters';
+  const dist = calculateHaversineDistance(numLat, numLon, officeLat, officeLon);
+  const isWithin = !isNaN(dist) && dist <= allowedRadius;
+
+  if (isWithin) {
+    return {
+      isValid: true,
+      isInside: true,
+      status: 'INSIDE',
+      matchedLocation: {
+        id: 'legacy-office',
+        name: officeName,
+        radiusMeters: allowedRadius,
+        latitude: officeLat,
+        longitude: officeLon
+      },
+      nearestLocation: {
+        id: 'legacy-office',
+        name: officeName,
+        radiusMeters: allowedRadius,
+        latitude: officeLat,
+        longitude: officeLon
+      },
+      locationName: officeName,
+      distanceMeters: Math.round(dist),
+      allowedRadiusMeters: allowedRadius,
+      formattedDistance: formatDistance(dist),
+      message: 'You are within the permitted location.'
+    };
+  } else {
+    return {
+      isValid: true,
+      isInside: false,
+      status: 'OUTSIDE',
+      matchedLocation: null,
+      nearestLocation: {
+        id: 'legacy-office',
+        name: officeName,
+        radiusMeters: allowedRadius,
+        latitude: officeLat,
+        longitude: officeLon
+      },
+      locationName: officeName,
+      distanceMeters: Math.round(dist),
+      allowedRadiusMeters: allowedRadius,
+      formattedDistance: formatDistance(dist),
+      message: `You are currently outside the permitted location (${formatDistance(dist)} away). Allowed radius is ${allowedRadius}m.`
+    };
+  }
+};
+
 module.exports = {
   format12Hour,
   getSystemTimeZone,
@@ -259,6 +421,7 @@ module.exports = {
   getShiftWindowDates,
   validateAttendanceWindow,
   calculateHaversineDistance,
-  formatDistance
+  formatDistance,
+  evaluateAttendanceGeofence
 };
 

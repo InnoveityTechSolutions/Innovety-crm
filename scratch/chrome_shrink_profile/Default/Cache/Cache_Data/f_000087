@@ -1,0 +1,584 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/organization/ShiftApprovalsModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion, AnimatePresence } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  X,
+  AlertCircle,
+  RefreshCw,
+  ArrowRightLeft,
+  Zap,
+  Calendar,
+  User,
+  Check
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const STATUS_CONFIG = {
+  PENDING_TL_APPROVAL: { label: "Pending TL", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  PENDING_ADMIN_APPROVAL: { label: "Pending Admin", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  APPROVED: { label: "Approved", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  REJECTED: { label: "Rejected", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" }
+};
+const ShiftApprovalsModal = ({
+  isOpen,
+  onClose,
+  organizationId,
+  onSuccess
+}) => {
+  _s();
+  const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [reviewModal, setReviewModal] = useState(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const fetchApprovals = async () => {
+    if (!isOpen || !organizationId) return;
+    try {
+      setLoading(true);
+      const res = await api.get("/workforce/approvals", {
+        params: {
+          organizationId,
+          status: statusFilter === "ALL" ? void 0 : statusFilter
+        }
+      });
+      if (res.data?.success) {
+        setApprovals(res.data.approvals || []);
+      }
+    } catch (err) {
+      console.error("[ShiftApprovalsModal] Error fetching approvals:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchApprovals();
+  }, [isOpen, organizationId, statusFilter]);
+  const handleReviewSubmit = async () => {
+    if (!reviewModal) return;
+    try {
+      setSubmitting(true);
+      await api.put(`/workforce/approvals/${reviewModal.approval.id}/review`, {
+        action: reviewModal.action,
+        note: reviewNote.trim() || void 0
+      });
+      setReviewModal(null);
+      setReviewNote("");
+      fetchApprovals();
+      if (onSuccess) {
+        onSuccess(`Shift request ${reviewModal.action.toLowerCase()}d successfully.`);
+      }
+    } catch (err) {
+      console.error("[ShiftApprovalsModal] Review error:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4", children: /* @__PURE__ */ jsxDEV(
+    motion.div,
+    {
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.95 },
+      className: "w-full max-w-3xl rounded-3xl border border-border/70 bg-card p-6 shadow-2xl space-y-5 text-left my-8",
+      children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/50 pb-3.5", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center justify-center shadow-inner", children: /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 107,
+              columnNumber: 15
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 106,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-extrabold text-foreground", children: "Shift Approvals Workflow" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 110,
+                columnNumber: 15
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Review and decide shift swap, temporary override, and holiday coverage requests." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 113,
+                columnNumber: 15
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 109,
+              columnNumber: 13
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 105,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: onClose,
+              className: "p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer",
+              children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 123,
+                columnNumber: 13
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 119,
+              columnNumber: 11
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 104,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-1.5 bg-muted/30 p-1.5 rounded-xl border border-border/50 text-xs font-bold w-fit", children: ["ALL", "PENDING_TL_APPROVAL", "PENDING_ADMIN_APPROVAL", "APPROVED", "REJECTED"].map(
+          (st) => /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: () => setStatusFilter(st),
+              className: `px-3 py-1 rounded-lg transition-all cursor-pointer ${statusFilter === st ? "bg-card text-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground"}`,
+              children: st === "ALL" ? "All" : st === "PENDING_TL_APPROVAL" ? "Pending TL" : st === "PENDING_ADMIN_APPROVAL" ? "Pending Admin" : st === "APPROVED" ? "Approved" : "Rejected"
+            },
+            st,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 130,
+              columnNumber: 11
+            },
+            this
+          )
+        ) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 128,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "rounded-2xl border border-border/70 bg-card overflow-hidden max-h-96 overflow-y-auto", children: loading ? /* @__PURE__ */ jsxDEV("div", { className: "p-12 text-center text-xs text-muted-foreground", children: [
+          /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-5 w-5 animate-spin mx-auto mb-2 text-blue-500" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 148,
+            columnNumber: 15
+          }, this),
+          "Loading requests..."
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 147,
+          columnNumber: 11
+        }, this) : approvals.length === 0 ? /* @__PURE__ */ jsxDEV("div", { className: "p-12 text-center text-xs text-muted-foreground", children: [
+          /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-80" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 153,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "font-bold text-foreground", children: "No pending requests" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 154,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "mt-0.5", children: "All scheduling approval workflows have been processed." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 155,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 152,
+          columnNumber: 11
+        }, this) : /* @__PURE__ */ jsxDEV("div", { className: "divide-y divide-border/40", children: approvals.map((appr) => {
+          const cfg = STATUS_CONFIG[appr.status] || { label: appr.status, color: "bg-muted text-muted-foreground" };
+          const isPending = ["PENDING_TL_APPROVAL", "PENDING_ADMIN_APPROVAL"].includes(appr.status);
+          return /* @__PURE__ */ jsxDEV("div", { className: "p-4 hover:bg-muted/10 transition-colors space-y-2.5", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-start justify-between gap-3", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                  /* @__PURE__ */ jsxDEV("span", { className: "font-extrabold text-sm text-foreground", children: appr.requester?.name }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 168,
+                    columnNumber: 27
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-mono", children: [
+                    "(",
+                    appr.requester?.employeeId,
+                    " • ",
+                    appr.requester?.department || "General",
+                    ")"
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 171,
+                    columnNumber: 27
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { className: `px-2 py-0.5 rounded-md text-[10px] font-black border uppercase ${cfg.color}`, children: cfg.label }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 174,
+                    columnNumber: 27
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 167,
+                  columnNumber: 25
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "text-xs font-bold text-foreground/90 flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxDEV("span", { className: "text-primary font-black uppercase text-[11px]", children: appr.requestType.replace(/_/g, " ") }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 180,
+                    columnNumber: 27
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: "•" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 183,
+                    columnNumber: 27
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { className: "text-muted-foreground font-medium", children: [
+                    '"',
+                    appr.reason || "No reason specified",
+                    '"'
+                  ] }, void 0, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 184,
+                    columnNumber: 27
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 179,
+                  columnNumber: 25
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 166,
+                columnNumber: 23
+              }, this),
+              isPending && /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 shrink-0", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    onClick: () => {
+                      setReviewModal({ approval: appr, action: "REJECT" });
+                      setReviewNote("");
+                    },
+                    className: "px-3 py-1.5 rounded-xl border border-rose-500/40 text-rose-600 hover:bg-rose-500/10 text-xs font-bold transition-all cursor-pointer",
+                    children: "Reject"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 192,
+                    columnNumber: 27
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    onClick: () => {
+                      setReviewModal({ approval: appr, action: "APPROVE" });
+                      setReviewNote("");
+                    },
+                    className: "px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer",
+                    children: "Approve"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 201,
+                    columnNumber: 27
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 191,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 165,
+              columnNumber: 21
+            }, this),
+            appr.details && /* @__PURE__ */ jsxDEV("div", { className: "p-2.5 rounded-xl bg-muted/20 border border-border/50 text-[11px] font-mono text-muted-foreground flex flex-wrap gap-x-4 gap-y-1", children: [
+              appr.details.targetDate && /* @__PURE__ */ jsxDEV("span", { children: [
+                "Target Date: ",
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: appr.details.targetDate }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 218,
+                  columnNumber: 40
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 218,
+                columnNumber: 21
+              }, this),
+              appr.details.startDate && /* @__PURE__ */ jsxDEV("span", { children: [
+                "From: ",
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: appr.details.startDate }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 221,
+                  columnNumber: 33
+                }, this),
+                " to ",
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: appr.details.endDate }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 221,
+                  columnNumber: 106
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 221,
+                columnNumber: 21
+              }, this),
+              appr.details.swapWithUserId && /* @__PURE__ */ jsxDEV("span", { children: [
+                "Swap Partner: ",
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: appr.details.swapWithUserId }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 224,
+                  columnNumber: 41
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 224,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 216,
+              columnNumber: 19
+            }, this),
+            (appr.tlNote || appr.adminNote) && /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] text-muted-foreground space-y-0.5 pt-1", children: [
+              appr.tlNote && /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: "TL Note:" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 232,
+                  columnNumber: 46
+                }, this),
+                " ",
+                appr.tlNote
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 232,
+                columnNumber: 41
+              }, this),
+              appr.adminNote && /* @__PURE__ */ jsxDEV("div", { children: [
+                /* @__PURE__ */ jsxDEV("strong", { className: "text-foreground", children: "Admin Note:" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 233,
+                  columnNumber: 49
+                }, this),
+                " ",
+                appr.adminNote
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 233,
+                columnNumber: 44
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+              lineNumber: 231,
+              columnNumber: 19
+            }, this)
+          ] }, appr.id, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 164,
+            columnNumber: 17
+          }, this);
+        }) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 158,
+          columnNumber: 11
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 145,
+          columnNumber: 9
+        }, this),
+        /* @__PURE__ */ jsxDEV(AnimatePresence, { children: reviewModal && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-60 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4", children: /* @__PURE__ */ jsxDEV(
+          motion.div,
+          {
+            initial: { opacity: 0, scale: 0.95 },
+            animate: { opacity: 1, scale: 1 },
+            exit: { opacity: 0, scale: 0.95 },
+            className: "w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4 text-left",
+            children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 text-center", children: [
+                /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-extrabold text-foreground", children: reviewModal.action === "APPROVE" ? "Confirm Approval" : "Decline Request" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 254,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: reviewModal.action === "APPROVE" ? "Approving this request will activate the schedule update in the system." : "Please provide a brief reason for rejecting this request." }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 257,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 253,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "space-y-1 text-xs", children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Review Note" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                  lineNumber: 265,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "textarea",
+                  {
+                    rows: 3,
+                    placeholder: "Optional note / rationale...",
+                    value: reviewNote,
+                    onChange: (e) => setReviewNote(e.target.value),
+                    className: "w-full p-2.5 rounded-xl border border-border bg-muted/20 font-medium focus:bg-background outline-none"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 266,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 264,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 pt-2", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: submitting,
+                    onClick: () => setReviewModal(null),
+                    className: "flex-1 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted border border-border cursor-pointer",
+                    children: "Cancel"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 276,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: submitting,
+                    onClick: handleReviewSubmit,
+                    className: `flex-1 py-2 rounded-xl text-xs font-extrabold text-white shadow-md cursor-pointer flex items-center justify-center gap-1.5 ${reviewModal.action === "APPROVE" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`,
+                    children: [
+                      submitting && /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3 w-3 animate-spin" }, void 0, false, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                        lineNumber: 292,
+                        columnNumber: 36
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("span", { children: [
+                        "Confirm ",
+                        reviewModal.action
+                      ] }, void 0, true, {
+                        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                        lineNumber: 293,
+                        columnNumber: 21
+                      }, this)
+                    ]
+                  },
+                  void 0,
+                  true,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                    lineNumber: 284,
+                    columnNumber: 19
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+                lineNumber: 275,
+                columnNumber: 17
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+            lineNumber: 247,
+            columnNumber: 15
+          },
+          this
+        ) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 246,
+          columnNumber: 11
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+          lineNumber: 244,
+          columnNumber: 9
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+      lineNumber: 97,
+      columnNumber: 7
+    },
+    this
+  ) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx",
+    lineNumber: 96,
+    columnNumber: 5
+  }, this);
+};
+_s(ShiftApprovalsModal, "cBRgDkvdw5jrdlBO0qSlvIsDJM4=");
+_c = ShiftApprovalsModal;
+export default ShiftApprovalsModal;
+var _c;
+$RefreshReg$(_c, "ShiftApprovalsModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftApprovalsModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBLG9CQUFtSDtBQUFBO0FBQUEsa0JBSi9IO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxnQkFPQTtBQUFBLGdCQUNBO0FBQUEsa0JBQUM7QUFBQTtBQUFBLG9CQUNDLE1BQUs7QUFBQSxvQkFDTCxVQUFVRztBQUFBQSxvQkFDVixTQUFTYTtBQUFBQSxvQkFDVCxXQUFXLDhIQUNUakIsWUFBWXFCLFdBQVcsWUFBWSx3Q0FBd0MsK0JBQStCO0FBQUEsb0JBRzNHakI7QUFBQUEsb0NBQWMsdUJBQUMsYUFBVSxXQUFVLDBCQUFyQjtBQUFBO0FBQUE7QUFBQTtBQUFBLDZCQUEyQztBQUFBLHNCQUMxRCx1QkFBQyxVQUFLO0FBQUE7QUFBQSx3QkFBU0osWUFBWXFCO0FBQUFBLDJCQUEzQjtBQUFBO0FBQUE7QUFBQTtBQUFBLDZCQUFrQztBQUFBO0FBQUE7QUFBQSxrQkFUcEM7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLGdCQVVBO0FBQUEsbUJBbkJGO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBb0JBO0FBQUE7QUFBQTtBQUFBLFVBaERGO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQWlEQSxLQWxERjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBbURBLEtBckRKO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUF1REE7QUFBQTtBQUFBO0FBQUEsSUExTUY7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLEVBMk1BLEtBNU1GO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0E2TUE7QUFFSjtBQUFFNUIsR0E1UUlMLHFCQUFtQjtBQUFBLEtBQW5CQTtBQThRTixlQUFlQTtBQUFvQixJQUFBK0Q7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsIm1vdGlvbiIsIkFuaW1hdGVQcmVzZW5jZSIsIkNoZWNrQ2lyY2xlMiIsIlhDaXJjbGUiLCJDbG9jayIsIlgiLCJBbGVydENpcmNsZSIsIlJlZnJlc2hDdyIsIkFycm93UmlnaHRMZWZ0IiwiWmFwIiwiQ2FsZW5kYXIiLCJVc2VyIiwiQ2hlY2siLCJhcGkiLCJTVEFUVVNfQ09ORklHIiwiUEVORElOR19UTF9BUFBST1ZBTCIsImxhYmVsIiwiY29sb3IiLCJQRU5ESU5HX0FETUlOX0FQUFJPVkFMIiwiQVBQUk9WRUQiLCJSRUpFQ1RFRCIsIlNoaWZ0QXBwcm92YWxzTW9kYWwiLCJpc09wZW4iLCJvbkNsb3NlIiwib3JnYW5pemF0aW9uSWQiLCJvblN1Y2Nlc3MiLCJfcyIsImFwcHJvdmFscyIsInNldEFwcHJvdmFscyIsImxvYWRpbmciLCJzZXRMb2FkaW5nIiwic3RhdHVzRmlsdGVyIiwic2V0U3RhdHVzRmlsdGVyIiwicmV2aWV3TW9kYWwiLCJzZXRSZXZpZXdNb2RhbCIsInJldmlld05vdGUiLCJzZXRSZXZpZXdOb3RlIiwic3VibWl0dGluZyIsInNldFN1Ym1pdHRpbmciLCJmZXRjaEFwcHJvdmFscyIsInJlcyIsImdldCIsInBhcmFtcyIsInN0YXR1cyIsInVuZGVmaW5lZCIsImRhdGEiLCJzdWNjZXNzIiwiZXJyIiwiY29uc29sZSIsImVycm9yIiwiaGFuZGxlUmV2aWV3U3VibWl0IiwicHV0IiwiYXBwcm92YWwiLCJpZCIsImFjdGlvbiIsIm5vdGUiLCJ0cmltIiwidG9Mb3dlckNhc2UiLCJvcGFjaXR5Iiwic2NhbGUiLCJtYXAiLCJzdCIsImxlbmd0aCIsImFwcHIiLCJjZmciLCJpc1BlbmRpbmciLCJpbmNsdWRlcyIsInJlcXVlc3RlciIsIm5hbWUiLCJlbXBsb3llZUlkIiwiZGVwYXJ0bWVudCIsInJlcXVlc3RUeXBlIiwicmVwbGFjZSIsInJlYXNvbiIsImRldGFpbHMiLCJ0YXJnZXREYXRlIiwic3RhcnREYXRlIiwiZW5kRGF0ZSIsInN3YXBXaXRoVXNlcklkIiwidGxOb3RlIiwiYWRtaW5Ob3RlIiwiZSIsInRhcmdldCIsInZhbHVlIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiU2hpZnRBcHByb3ZhbHNNb2RhbC5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VFZmZlY3QgfSBmcm9tICdyZWFjdCc7XG5pbXBvcnQgeyBtb3Rpb24sIEFuaW1hdGVQcmVzZW5jZSB9IGZyb20gJ2ZyYW1lci1tb3Rpb24nO1xuaW1wb3J0IHtcbiAgQ2hlY2tDaXJjbGUyLCBYQ2lyY2xlLCBDbG9jaywgWCwgQWxlcnRDaXJjbGUsIFJlZnJlc2hDdyxcbiAgQXJyb3dSaWdodExlZnQsIFphcCwgQ2FsZW5kYXIsIFVzZXIsIENoZWNrXG59IGZyb20gJ2x1Y2lkZS1yZWFjdCc7XG5pbXBvcnQgYXBpIGZyb20gJy4uLy4uL3NlcnZpY2VzL2FwaSc7XG5cbmNvbnN0IFNUQVRVU19DT05GSUcgPSB7XG4gIFBFTkRJTkdfVExfQVBQUk9WQUw6IHsgbGFiZWw6ICdQZW5kaW5nIFRMJywgY29sb3I6ICdiZy1hbWJlci01MDAvMTAgdGV4dC1hbWJlci02MDAgYm9yZGVyLWFtYmVyLTUwMC8yMCcgfSxcbiAgUEVORElOR19BRE1JTl9BUFBST1ZBTDogeyBsYWJlbDogJ1BlbmRpbmcgQWRtaW4nLCBjb2xvcjogJ2JnLWJsdWUtNTAwLzEwIHRleHQtYmx1ZS02MDAgYm9yZGVyLWJsdWUtNTAwLzIwJyB9LFxuICBBUFBST1ZFRDogeyBsYWJlbDogJ0FwcHJvdmVkJywgY29sb3I6ICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGJvcmRlci1lbWVyYWxkLTUwMC8yMCcgfSxcbiAgUkVKRUNURUQ6IHsgbGFiZWw6ICdSZWplY3RlZCcsIGNvbG9yOiAnYmctcm9zZS01MDAvMTAgdGV4dC1yb3NlLTYwMCBib3JkZXItcm9zZS01MDAvMjAnIH1cbn07XG5cbmNvbnN0IFNoaWZ0QXBwcm92YWxzTW9kYWwgPSAoe1xuICBpc09wZW4sXG4gIG9uQ2xvc2UsXG4gIG9yZ2FuaXphdGlvbklkLFxuICBvblN1Y2Nlc3Ncbn0pID0+IHtcbiAgY29uc3QgW2FwcHJvdmFscywgc2V0QXBwcm92YWxzXSA9IHVzZVN0YXRlKFtdKTtcbiAgY29uc3QgW2xvYWRpbmcsIHNldExvYWRpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbc3RhdHVzRmlsdGVyLCBzZXRTdGF0dXNGaWx0ZXJdID0gdXNlU3RhdGUoJ0FMTCcpO1xuICBjb25zdCBbcmV2aWV3TW9kYWwsIHNldFJldmlld01vZGFsXSA9IHVzZVN0YXRlKG51bGwpOyAvLyB7IGFwcHJvdmFsLCBhY3Rpb24gfVxuICBjb25zdCBbcmV2aWV3Tm90ZSwgc2V0UmV2aWV3Tm90ZV0gPSB1c2VTdGF0ZSgnJyk7XG4gIGNvbnN0IFtzdWJtaXR0aW5nLCBzZXRTdWJtaXR0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcblxuICBjb25zdCBmZXRjaEFwcHJvdmFscyA9IGFzeW5jICgpID0+IHtcbiAgICBpZiAoIWlzT3BlbiB8fCAhb3JnYW5pemF0aW9uSWQpIHJldHVybjtcbiAgICB0cnkge1xuICAgICAgc2V0TG9hZGluZyh0cnVlKTtcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5nZXQoJy93b3JrZm9yY2UvYXBwcm92YWxzJywge1xuICAgICAgICBwYXJhbXM6IHtcbiAgICAgICAgICBvcmdhbml6YXRpb25JZCxcbiAgICAgICAgICBzdGF0dXM6IHN0YXR1c0ZpbHRlciA9PT0gJ0FMTCcgPyB1bmRlZmluZWQgOiBzdGF0dXNGaWx0ZXJcbiAgICAgICAgfVxuICAgICAgfSk7XG4gICAgICBpZiAocmVzLmRhdGE/LnN1Y2Nlc3MpIHtcbiAgICAgICAgc2V0QXBwcm92YWxzKHJlcy5kYXRhLmFwcHJvdmFscyB8fCBbXSk7XG4gICAgICB9XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBjb25zb2xlLmVycm9yKCdbU2hpZnRBcHByb3ZhbHNNb2RhbF0gRXJyb3IgZmV0Y2hpbmcgYXBwcm92YWxzOicsIGVycik7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfTtcblxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGZldGNoQXBwcm92YWxzKCk7XG4gIH0sIFtpc09wZW4sIG9yZ2FuaXphdGlvbklkLCBzdGF0dXNGaWx0ZXJdKTtcblxuICBjb25zdCBoYW5kbGVSZXZpZXdTdWJtaXQgPSBhc3luYyAoKSA9PiB7XG4gICAgaWYgKCFyZXZpZXdNb2RhbCkgcmV0dXJuO1xuICAgIHRyeSB7XG4gICAgICBzZXRTdWJtaXR0aW5nKHRydWUpO1xuICAgICAgYXdhaXQgYXBpLnB1dChgL3dvcmtmb3JjZS9hcHByb3ZhbHMvJHtyZXZpZXdNb2RhbC5hcHByb3ZhbC5pZH0vcmV2aWV3YCwge1xuICAgICAgICBhY3Rpb246IHJldmlld01vZGFsLmFjdGlvbixcbiAgICAgICAgbm90ZTogcmV2aWV3Tm90ZS50cmltKCkgfHwgdW5kZWZpbmVkXG4gICAgICB9KTtcbiAgICAgIHNldFJldmlld01vZGFsKG51bGwpO1xuICAgICAgc2V0UmV2aWV3Tm90ZSgnJyk7XG4gICAgICBmZXRjaEFwcHJvdmFscygpO1xuICAgICAgaWYgKG9uU3VjY2Vzcykge1xuICAgICAgICBvblN1Y2Nlc3MoYFNoaWZ0IHJlcXVlc3QgJHtyZXZpZXdNb2RhbC5hY3Rpb24udG9Mb3dlckNhc2UoKX1kIHN1Y2Nlc3NmdWxseS5gKTtcbiAgICAgIH1cbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ1tTaGlmdEFwcHJvdmFsc01vZGFsXSBSZXZpZXcgZXJyb3I6JywgZXJyKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0U3VibWl0dGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGlmICghaXNPcGVuKSByZXR1cm4gbnVsbDtcblxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPVwiZml4ZWQgaW5zZXQtMCB6LTUwIG92ZXJmbG93LXktYXV0byBiZy1ibGFjay82MCBiYWNrZHJvcC1ibHVyLXhzIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHAtNFwiPlxuICAgICAgPG1vdGlvbi5kaXZcbiAgICAgICAgaW5pdGlhbD17eyBvcGFjaXR5OiAwLCBzY2FsZTogMC45NSB9fVxuICAgICAgICBhbmltYXRlPXt7IG9wYWNpdHk6IDEsIHNjYWxlOiAxIH19XG4gICAgICAgIGV4aXQ9e3sgb3BhY2l0eTogMCwgc2NhbGU6IDAuOTUgfX1cbiAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIG1heC13LTN4bCByb3VuZGVkLTN4bCBib3JkZXIgYm9yZGVyLWJvcmRlci83MCBiZy1jYXJkIHAtNiBzaGFkb3ctMnhsIHNwYWNlLXktNSB0ZXh0LWxlZnQgbXktOFwiXG4gICAgICA+XG4gICAgICAgIHsvKiBIZWFkZXIgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGJvcmRlci1iIGJvcmRlci1ib3JkZXIvNTAgcGItMy41XCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtM1wiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTEwIHctMTAgcm91bmRlZC0yeGwgYmctYmx1ZS01MDAvMTAgdGV4dC1ibHVlLTYwMCBib3JkZXIgYm9yZGVyLWJsdWUtNTAwLzIwIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHNoYWRvdy1pbm5lclwiPlxuICAgICAgICAgICAgICA8Q2hlY2tDaXJjbGUyIGNsYXNzTmFtZT1cImgtNSB3LTVcIiAvPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtZXh0cmFib2xkIHRleHQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgIFNoaWZ0IEFwcHJvdmFscyBXb3JrZmxvd1xuICAgICAgICAgICAgICA8L2gzPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LW1lZGl1bVwiPlxuICAgICAgICAgICAgICAgIFJldmlldyBhbmQgZGVjaWRlIHNoaWZ0IHN3YXAsIHRlbXBvcmFyeSBvdmVycmlkZSwgYW5kIGhvbGlkYXkgY292ZXJhZ2UgcmVxdWVzdHMuXG4gICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgb25DbGljaz17b25DbG9zZX1cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInAtMS41IHJvdW5kZWQteGwgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGhvdmVyOnRleHQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZCB0cmFuc2l0aW9uLWNvbG9ycyBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgPlxuICAgICAgICAgICAgPFggY2xhc3NOYW1lPVwiaC01IHctNVwiIC8+XG4gICAgICAgICAgPC9idXR0b24+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBGaWx0ZXIgUGlsbHMgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBiZy1tdXRlZC8zMCBwLTEuNSByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyLzUwIHRleHQteHMgZm9udC1ib2xkIHctZml0XCI+XG4gICAgICAgICAge1snQUxMJywgJ1BFTkRJTkdfVExfQVBQUk9WQUwnLCAnUEVORElOR19BRE1JTl9BUFBST1ZBTCcsICdBUFBST1ZFRCcsICdSRUpFQ1RFRCddLm1hcChzdCA9PiAoXG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIGtleT17c3R9XG4gICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldFN0YXR1c0ZpbHRlcihzdCl9XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT17YHB4LTMgcHktMSByb3VuZGVkLWxnIHRyYW5zaXRpb24tYWxsIGN1cnNvci1wb2ludGVyICR7XG4gICAgICAgICAgICAgICAgc3RhdHVzRmlsdGVyID09PSBzdFxuICAgICAgICAgICAgICAgICAgPyAnYmctY2FyZCB0ZXh0LWZvcmVncm91bmQgc2hhZG93LXhzIGZvbnQtYmxhY2snXG4gICAgICAgICAgICAgICAgICA6ICd0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kJ1xuICAgICAgICAgICAgICB9YH1cbiAgICAgICAgICAgID5cbiAgICAgICAgICAgICAge3N0ID09PSAnQUxMJyA/ICdBbGwnIDogc3QgPT09ICdQRU5ESU5HX1RMX0FQUFJPVkFMJyA/ICdQZW5kaW5nIFRMJyA6IHN0ID09PSAnUEVORElOR19BRE1JTl9BUFBST1ZBTCcgPyAnUGVuZGluZyBBZG1pbicgOiBzdCA9PT0gJ0FQUFJPVkVEJyA/ICdBcHByb3ZlZCcgOiAnUmVqZWN0ZWQnfVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgKSl9XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBMaXN0ICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyLzcwIGJnLWNhcmQgb3ZlcmZsb3ctaGlkZGVuIG1heC1oLTk2IG92ZXJmbG93LXktYXV0b1wiPlxuICAgICAgICAgIHtsb2FkaW5nID8gKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTEyIHRleHQtY2VudGVyIHRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+XG4gICAgICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPVwiaC01IHctNSBhbmltYXRlLXNwaW4gbXgtYXV0byBtYi0yIHRleHQtYmx1ZS01MDBcIiAvPlxuICAgICAgICAgICAgICBMb2FkaW5nIHJlcXVlc3RzLi4uXG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApIDogYXBwcm92YWxzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0xMiB0ZXh0LWNlbnRlciB0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICA8Q2hlY2tDaXJjbGUyIGNsYXNzTmFtZT1cImgtOCB3LTggdGV4dC1lbWVyYWxkLTUwMCBteC1hdXRvIG1iLTIgb3BhY2l0eS04MFwiIC8+XG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5ObyBwZW5kaW5nIHJlcXVlc3RzPC9wPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJtdC0wLjVcIj5BbGwgc2NoZWR1bGluZyBhcHByb3ZhbCB3b3JrZmxvd3MgaGF2ZSBiZWVuIHByb2Nlc3NlZC48L3A+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApIDogKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJkaXZpZGUteSBkaXZpZGUtYm9yZGVyLzQwXCI+XG4gICAgICAgICAgICAgIHthcHByb3ZhbHMubWFwKGFwcHIgPT4ge1xuICAgICAgICAgICAgICAgIGNvbnN0IGNmZyA9IFNUQVRVU19DT05GSUdbYXBwci5zdGF0dXNdIHx8IHsgbGFiZWw6IGFwcHIuc3RhdHVzLCBjb2xvcjogJ2JnLW11dGVkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCcgfTtcbiAgICAgICAgICAgICAgICBjb25zdCBpc1BlbmRpbmcgPSBbJ1BFTkRJTkdfVExfQVBQUk9WQUwnLCAnUEVORElOR19BRE1JTl9BUFBST1ZBTCddLmluY2x1ZGVzKGFwcHIuc3RhdHVzKTtcblxuICAgICAgICAgICAgICAgIHJldHVybiAoXG4gICAgICAgICAgICAgICAgICA8ZGl2IGtleT17YXBwci5pZH0gY2xhc3NOYW1lPVwicC00IGhvdmVyOmJnLW11dGVkLzEwIHRyYW5zaXRpb24tY29sb3JzIHNwYWNlLXktMi41XCI+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1zdGFydCBqdXN0aWZ5LWJldHdlZW4gZ2FwLTNcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiBmbGV4LXdyYXBcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1leHRyYWJvbGQgdGV4dC1zbSB0ZXh0LWZvcmVncm91bmRcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB7YXBwci5yZXF1ZXN0ZXI/Lm5hbWV9XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICh7YXBwci5yZXF1ZXN0ZXI/LmVtcGxveWVlSWR9IOKAoiB7YXBwci5yZXF1ZXN0ZXI/LmRlcGFydG1lbnQgfHwgJ0dlbmVyYWwnfSlcbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9e2BweC0yIHB5LTAuNSByb3VuZGVkLW1kIHRleHQtWzEwcHhdIGZvbnQtYmxhY2sgYm9yZGVyIHVwcGVyY2FzZSAke2NmZy5jb2xvcn1gfT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB7Y2ZnLmxhYmVsfVxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQvOTAgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1wcmltYXJ5IGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRleHQtWzExcHhdXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAge2FwcHIucmVxdWVzdFR5cGUucmVwbGFjZSgvXy9nLCAnICcpfVxuICAgICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuPuKAojwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgXCJ7YXBwci5yZWFzb24gfHwgJ05vIHJlYXNvbiBzcGVjaWZpZWQnfVwiXG4gICAgICAgICAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgICAgICAge2lzUGVuZGluZyAmJiAoXG4gICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHNocmluay0wXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZXRSZXZpZXdNb2RhbCh7IGFwcHJvdmFsOiBhcHByLCBhY3Rpb246ICdSRUpFQ1QnIH0pO1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2V0UmV2aWV3Tm90ZSgnJyk7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC0zIHB5LTEuNSByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItcm9zZS01MDAvNDAgdGV4dC1yb3NlLTYwMCBob3ZlcjpiZy1yb3NlLTUwMC8xMCB0ZXh0LXhzIGZvbnQtYm9sZCB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBSZWplY3RcbiAgICAgICAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZXRSZXZpZXdNb2RhbCh7IGFwcHJvdmFsOiBhcHByLCBhY3Rpb246ICdBUFBST1ZFJyB9KTtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNldFJldmlld05vdGUoJycpO1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtMy41IHB5LTEuNSByb3VuZGVkLXhsIGJnLWVtZXJhbGQtNjAwIGhvdmVyOmJnLWVtZXJhbGQtNzAwIHRleHQtd2hpdGUgdGV4dC14cyBmb250LWJsYWNrIHNoYWRvdy14cyB0cmFuc2l0aW9uLWFsbCBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBBcHByb3ZlXG4gICAgICAgICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgICAgICAgey8qIERldGFpbHMgUGF5bG9hZCAqL31cbiAgICAgICAgICAgICAgICAgICAge2FwcHIuZGV0YWlscyAmJiAoXG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTIuNSByb3VuZGVkLXhsIGJnLW11dGVkLzIwIGJvcmRlciBib3JkZXItYm9yZGVyLzUwIHRleHQtWzExcHhdIGZvbnQtbW9ubyB0ZXh0LW11dGVkLWZvcmVncm91bmQgZmxleCBmbGV4LXdyYXAgZ2FwLXgtNCBnYXAteS0xXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICB7YXBwci5kZXRhaWxzLnRhcmdldERhdGUgJiYgKFxuICAgICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj5UYXJnZXQgRGF0ZTogPHN0cm9uZyBjbGFzc05hbWU9XCJ0ZXh0LWZvcmVncm91bmRcIj57YXBwci5kZXRhaWxzLnRhcmdldERhdGV9PC9zdHJvbmc+PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgICAgICAgIHthcHByLmRldGFpbHMuc3RhcnREYXRlICYmIChcbiAgICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4+RnJvbTogPHN0cm9uZyBjbGFzc05hbWU9XCJ0ZXh0LWZvcmVncm91bmRcIj57YXBwci5kZXRhaWxzLnN0YXJ0RGF0ZX08L3N0cm9uZz4gdG8gPHN0cm9uZyBjbGFzc05hbWU9XCJ0ZXh0LWZvcmVncm91bmRcIj57YXBwci5kZXRhaWxzLmVuZERhdGV9PC9zdHJvbmc+PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgICAgICAgIHthcHByLmRldGFpbHMuc3dhcFdpdGhVc2VySWQgJiYgKFxuICAgICAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj5Td2FwIFBhcnRuZXI6IDxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1mb3JlZ3JvdW5kXCI+e2FwcHIuZGV0YWlscy5zd2FwV2l0aFVzZXJJZH08L3N0cm9uZz48L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICApfVxuXG4gICAgICAgICAgICAgICAgICAgIHsvKiBUaW1lbGluZSBOb3RlcyAqL31cbiAgICAgICAgICAgICAgICAgICAgeyhhcHByLnRsTm90ZSB8fCBhcHByLmFkbWluTm90ZSkgJiYgKFxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIHNwYWNlLXktMC41IHB0LTFcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIHthcHByLnRsTm90ZSAmJiA8ZGl2PjxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1mb3JlZ3JvdW5kXCI+VEwgTm90ZTo8L3N0cm9uZz4ge2FwcHIudGxOb3RlfTwvZGl2Pn1cbiAgICAgICAgICAgICAgICAgICAgICAgIHthcHByLmFkbWluTm90ZSAmJiA8ZGl2PjxzdHJvbmcgY2xhc3NOYW1lPVwidGV4dC1mb3JlZ3JvdW5kXCI+QWRtaW4gTm90ZTo8L3N0cm9uZz4ge2FwcHIuYWRtaW5Ob3RlfTwvZGl2Pn1cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICk7XG4gICAgICAgICAgICAgIH0pfVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIFJldmlldyBBY3Rpb24gRGlhbG9nICovfVxuICAgICAgICA8QW5pbWF0ZVByZXNlbmNlPlxuICAgICAgICAgIHtyZXZpZXdNb2RhbCAmJiAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei02MCBvdmVyZmxvdy15LWF1dG8gYmctYmxhY2svNjAgYmFja2Ryb3AtYmx1ci14cyBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTRcIj5cbiAgICAgICAgICAgICAgPG1vdGlvbi5kaXZcbiAgICAgICAgICAgICAgICBpbml0aWFsPXt7IG9wYWNpdHk6IDAsIHNjYWxlOiAwLjk1IH19XG4gICAgICAgICAgICAgICAgYW5pbWF0ZT17eyBvcGFjaXR5OiAxLCBzY2FsZTogMSB9fVxuICAgICAgICAgICAgICAgIGV4aXQ9e3sgb3BhY2l0eTogMCwgc2NhbGU6IDAuOTUgfX1cbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgbWF4LXctc20gcm91bmRlZC0zeGwgYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctY2FyZCBwLTYgc2hhZG93LTJ4bCBzcGFjZS15LTQgdGV4dC1sZWZ0XCJcbiAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xIHRleHQtY2VudGVyXCI+XG4gICAgICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtZXh0cmFib2xkIHRleHQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAgICB7cmV2aWV3TW9kYWwuYWN0aW9uID09PSAnQVBQUk9WRScgPyAnQ29uZmlybSBBcHByb3ZhbCcgOiAnRGVjbGluZSBSZXF1ZXN0J31cbiAgICAgICAgICAgICAgICAgIDwvaDM+XG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAgICB7cmV2aWV3TW9kYWwuYWN0aW9uID09PSAnQVBQUk9WRSdcbiAgICAgICAgICAgICAgICAgICAgICA/ICdBcHByb3ZpbmcgdGhpcyByZXF1ZXN0IHdpbGwgYWN0aXZhdGUgdGhlIHNjaGVkdWxlIHVwZGF0ZSBpbiB0aGUgc3lzdGVtLidcbiAgICAgICAgICAgICAgICAgICAgICA6ICdQbGVhc2UgcHJvdmlkZSBhIGJyaWVmIHJlYXNvbiBmb3IgcmVqZWN0aW5nIHRoaXMgcmVxdWVzdC4nfVxuICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTEgdGV4dC14c1wiPlxuICAgICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5SZXZpZXcgTm90ZTwvbGFiZWw+XG4gICAgICAgICAgICAgICAgICA8dGV4dGFyZWFcbiAgICAgICAgICAgICAgICAgICAgcm93cz17M31cbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJPcHRpb25hbCBub3RlIC8gcmF0aW9uYWxlLi4uXCJcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e3Jldmlld05vdGV9XG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0UmV2aWV3Tm90ZShlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBwLTIuNSByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLW11dGVkLzIwIGZvbnQtbWVkaXVtIGZvY3VzOmJnLWJhY2tncm91bmQgb3V0bGluZS1ub25lXCJcbiAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHB0LTJcIj5cbiAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICAgIGRpc2FibGVkPXtzdWJtaXR0aW5nfVxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRSZXZpZXdNb2RhbChudWxsKX1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZmxleC0xIHB5LTIgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgYm9yZGVyIGJvcmRlci1ib3JkZXIgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICBDYW5jZWxcbiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9XG4gICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZVJldmlld1N1Ym1pdH1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgZmxleC0xIHB5LTIgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtZXh0cmFib2xkIHRleHQtd2hpdGUgc2hhZG93LW1kIGN1cnNvci1wb2ludGVyIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0xLjUgJHtcbiAgICAgICAgICAgICAgICAgICAgICByZXZpZXdNb2RhbC5hY3Rpb24gPT09ICdBUFBST1ZFJyA/ICdiZy1lbWVyYWxkLTYwMCBob3ZlcjpiZy1lbWVyYWxkLTcwMCcgOiAnYmctcm9zZS02MDAgaG92ZXI6Ymctcm9zZS03MDAnXG4gICAgICAgICAgICAgICAgICAgIH1gfVxuICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICB7c3VibWl0dGluZyAmJiA8UmVmcmVzaEN3IGNsYXNzTmFtZT1cImgtMyB3LTMgYW5pbWF0ZS1zcGluXCIgLz59XG4gICAgICAgICAgICAgICAgICAgIDxzcGFuPkNvbmZpcm0ge3Jldmlld01vZGFsLmFjdGlvbn08L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPC9tb3Rpb24uZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cbiAgICAgICAgPC9BbmltYXRlUHJlc2VuY2U+XG4gICAgICA8L21vdGlvbi5kaXY+XG4gICAgPC9kaXY+XG4gICk7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBTaGlmdEFwcHJvdmFsc01vZGFsO1xuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvb3JnYW5pemF0aW9uL1NoaWZ0QXBwcm92YWxzTW9kYWwuanN4In0=

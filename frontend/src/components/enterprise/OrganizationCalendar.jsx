@@ -13,7 +13,8 @@ const EVENT_TYPE_BADGES = {
   SHIFT_OVERRIDE: { label: 'Shift Override', bg: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
   BIRTHDAY: { label: 'Birthday', bg: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300' },
   WORK_ANNIVERSARY: { label: 'Work Anniversary', bg: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300' },
-  COMPANY_EVENT: { label: 'Company Event', bg: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' }
+  COMPANY_EVENT: { label: 'Company Event', bg: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
+  COMP_OFF: { label: 'Comp-Off Work', bg: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' }
 };
 
 const OrganizationCalendar = () => {

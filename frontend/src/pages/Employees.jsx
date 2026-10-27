@@ -33,6 +33,8 @@ import {
 import UserWizardModal from '../components/common/UserWizardModal';
 import PromoteUserModal from '../components/common/PromoteUserModal';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { CRM_MODULE_KEYS } from '../config/crmModules';
 import CompanyScopeSelector from '../components/common/CompanyScopeSelector';
 import { useCompanyScope } from '../context/CompanyScopeContext';
 
@@ -40,6 +42,8 @@ const Employees = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user: currentUser } = useAuth();
+  const { canEdit: canEditModule } = usePermissions();
+  const canEditEmployees = canEditModule(CRM_MODULE_KEYS.REGISTRY_EMPLOYEES);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const { selectedOrgId, effectiveOrgId } = useCompanyScope();
   const targetOrg = isSuperAdmin ? selectedOrgId : (effectiveOrgId || currentUser?.organizationId);
@@ -52,6 +56,7 @@ const Employees = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [autoClockOutFilter, setAutoClockOutFilter] = useState('');
 
   const [availableDepartments, setAvailableDepartments] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -84,6 +89,8 @@ const Employees = () => {
     isOpen: false,
     title: '',
     message: '',
+    confirmText: 'Delete',
+    variant: 'danger',
     onConfirm: null
   });
 
@@ -117,6 +124,7 @@ const Employees = () => {
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const deleteTriggerRef = useRef(null);
 
 
@@ -166,6 +174,8 @@ const Employees = () => {
   const displayUsers = React.useMemo(() => {
     return users.filter((u) => {
       if (statusFilter && u.status !== statusFilter) return false;
+      if (autoClockOutFilter === 'ENABLED' && u.autoClockOutEnabled === false) return false;
+      if (autoClockOutFilter === 'DISABLED' && u.autoClockOutEnabled !== false) return false;
       if (departmentFilter) {
         const userDept = u.department || u.departmentRef?.name || '';
         if (userDept.toLowerCase() !== departmentFilter.toLowerCase() && u.departmentId !== departmentFilter) {
@@ -188,13 +198,14 @@ const Employees = () => {
       }
       return true;
     });
-  }, [users, statusFilter, departmentFilter, roleFilter, search]);
+  }, [users, statusFilter, autoClockOutFilter, departmentFilter, roleFilter, search]);
 
   const handleClearFilters = () => {
     setSearch('');
     setStatusFilter('');
     setRoleFilter('');
     setDepartmentFilter('');
+    setAutoClockOutFilter('');
     setPage(1);
   };
 
@@ -338,15 +349,79 @@ const Employees = () => {
     setConfirmModal({
       isOpen: true,
       title: 'Bulk Delete Selected Employees',
-      message: `Are you sure you want to delete ${selectedIds.length} selected employee accounts?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected employee account${selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.`,
+      confirmText: 'Delete Selected',
+      variant: 'danger',
       onConfirm: async () => {
         try {
+          setDeleteLoading(true);
           await api.post('/users/bulk-delete', { userIds: selectedIds });
           setSelectedIds([]);
           setAlertMsg({ type: 'success', text: 'Selected employee accounts deleted.' });
-          fetchUsers();
+          await fetchUsers();
         } catch (err) {
           setAlertMsg({ type: 'error', text: 'Bulk delete operations failed.' });
+        } finally {
+          setDeleteLoading(false);
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleBulkAutoClockOut = (enable) => {
+    if (selectedIds.length === 0) return;
+    const actionText = enable ? 'Enable' : 'Disable';
+    const actionState = enable ? 'ON' : 'OFF';
+
+    setConfirmModal({
+      isOpen: true,
+      title: `${actionText} Auto Clock-Out`,
+      message: `Are you sure you want to turn Auto Clock-Out ${actionState} for ${selectedIds.length} selected employee${selectedIds.length > 1 ? 's' : ''}?`,
+      confirmText: `${actionText} Auto Clock-Out`,
+      variant: enable ? 'success' : 'primary',
+      onConfirm: async () => {
+        try {
+          setBulkLoading(true);
+          const res = await api.post('/users/bulk-auto-clock-out', {
+            userIds: selectedIds,
+            enabled: enable
+          });
+
+          const { updatedCount = 0, failedCount = 0, message } = res.data || {};
+
+          if (failedCount === 0) {
+            setSelectedIds([]);
+            setAlertMsg({
+              type: 'success',
+              text: message || `Auto Clock-Out successfully ${enable ? 'enabled' : 'disabled'} for ${updatedCount} employee(s).`
+            });
+          } else if (updatedCount > 0) {
+            if (res.data?.failedItems?.length > 0) {
+              const failedIdSet = new Set(res.data.failedItems.map(f => f.id));
+              setSelectedIds(selectedIds.filter(id => failedIdSet.has(id)));
+            }
+            setAlertMsg({
+              type: 'error',
+              text: message || `Updated ${updatedCount} employees, but ${failedCount} employee(s) failed.`
+            });
+          } else {
+            setAlertMsg({
+              type: 'error',
+              text: message || `Failed to update Auto Clock-Out for selected employees.`
+            });
+          }
+
+          await fetchUsers();
+        } catch (err) {
+          console.error('Bulk auto clock out error:', err);
+          setAlertMsg({
+            type: 'error',
+            text: err.response?.data?.message || 'Failed to update Auto Clock-Out for selected employees.'
+          });
+        } finally {
+          setBulkLoading(false);
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
         }
       }
     });
@@ -489,6 +564,20 @@ const Employees = () => {
             ))}
           </select>
 
+          {/* Auto Clock-Out Filter */}
+          <select
+            value={autoClockOutFilter}
+            onChange={(e) => {
+              setAutoClockOutFilter(e.target.value);
+              setPage(1);
+            }}
+            className="h-11 px-3.5 py-2 bg-white/80 dark:bg-slate-800/80 text-xs font-semibold rounded-xl border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-xs"
+          >
+            <option value="">All Auto Clock-Out</option>
+            <option value="ENABLED">Auto Clock-Out ON</option>
+            <option value="DISABLED">Auto Clock-Out OFF</option>
+          </select>
+
           {/* Search Input */}
           <div className="relative flex-1 min-w-[220px] max-w-xs sm:max-w-sm">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -505,7 +594,7 @@ const Employees = () => {
           </div>
 
           {/* Clear Filters Button */}
-          {(search || statusFilter || roleFilter || departmentFilter) && (
+          {(search || statusFilter || roleFilter || departmentFilter || autoClockOutFilter) && (
             <button
               type="button"
               onClick={handleClearFilters}
@@ -525,16 +614,51 @@ const Employees = () => {
             <span>Export CSV</span>
           </button>
 
-          <button onClick={() => setCreateModalOpen(true)} className="h-11 px-4 flex items-center gap-1.5 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary-hover transition-all">
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Employee</span>
-          </button>
-
-          {selectedIds.length > 0 && (
-            <button onClick={handleBulkDelete} className="h-11 px-3.5 flex items-center gap-1.5 rounded-xl bg-danger text-xs font-semibold text-white shadow-md hover:bg-danger-hover transition-all">
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete Selected ({selectedIds.length})</span>
+          {canEditEmployees && (
+            <button onClick={() => setCreateModalOpen(true)} className="h-11 px-4 flex items-center gap-1.5 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary-hover transition-all">
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Employee</span>
             </button>
+          )}
+
+          {canEditEmployees && selectedIds.length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold shadow-xs">
+                <span>{selectedIds.length} Selected</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleBulkAutoClockOut(true)}
+                disabled={bulkLoading}
+                className="h-11 px-3.5 flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold text-white shadow-md transition-all cursor-pointer disabled:opacity-50"
+                title="Enable Auto Clock-Out for selected employees"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                <span>Enable Auto Clock-Out</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleBulkAutoClockOut(false)}
+                disabled={bulkLoading}
+                className="h-11 px-3.5 flex items-center gap-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-xs font-semibold text-white shadow-md transition-all cursor-pointer disabled:opacity-50"
+                title="Disable Auto Clock-Out for selected employees"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                <span>Disable Auto Clock-Out</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkLoading || deleteLoading}
+                className="h-11 px-3.5 flex items-center gap-1.5 rounded-xl bg-danger text-xs font-semibold text-white shadow-md hover:bg-danger-hover transition-all disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Selected</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -547,15 +671,23 @@ const Employees = () => {
               <th className="w-12 px-4 py-4 whitespace-nowrap">
                 <input
                   type="checkbox"
-                  checked={displayUsers.length > 0 && selectedIds.length === displayUsers.length}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(displayUsers.map(u => u.id));
-                    } else {
-                      setSelectedIds([]);
+                  checked={displayUsers.length > 0 && displayUsers.every(u => selectedIds.includes(u.id))}
+                  ref={(el) => {
+                    if (el) {
+                      const someSelected = displayUsers.some(u => selectedIds.includes(u.id));
+                      const allSelected = displayUsers.length > 0 && displayUsers.every(u => selectedIds.includes(u.id));
+                      el.indeterminate = someSelected && !allSelected;
                     }
                   }}
-                  className="rounded border-border text-primary focus:ring-primary"
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(Array.from(new Set([...selectedIds, ...displayUsers.map(u => u.id)])));
+                    } else {
+                      const filteredIdSet = new Set(displayUsers.map(u => u.id));
+                      setSelectedIds(selectedIds.filter(id => !filteredIdSet.has(id)));
+                    }
+                  }}
+                  className="rounded border-border text-primary focus:ring-primary cursor-pointer"
                 />
               </th>
               <th className="w-[120px] px-4 py-4 whitespace-nowrap">ID</th>
@@ -564,13 +696,14 @@ const Employees = () => {
               <th className="w-[140px] px-4 py-4 whitespace-nowrap">Role</th>
               <th className="w-[200px] px-4 py-4 whitespace-nowrap">Department</th>
               <th className="w-[120px] px-4 py-4 whitespace-nowrap">Status</th>
+              <th className="w-[160px] px-4 py-4 whitespace-nowrap">Auto Clock-Out</th>
               <th className="w-[200px] min-w-[200px] px-4 py-4 text-right whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/30">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center whitespace-nowrap">
+                <td colSpan={9} className="px-6 py-16 text-center whitespace-nowrap">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     <span className="text-xs font-semibold text-muted-foreground">Loading employee registry...</span>
@@ -579,7 +712,7 @@ const Employees = () => {
               </tr>
             ) : alertMsg.type === 'error' && displayUsers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center whitespace-nowrap">
+                <td colSpan={9} className="px-6 py-16 text-center whitespace-nowrap">
                   <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 mb-4 shadow-sm">
                       <AlertCircle className="h-8 w-8" />
@@ -600,7 +733,7 @@ const Employees = () => {
               </tr>
             ) : displayUsers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center whitespace-nowrap">
+                <td colSpan={9} className="px-6 py-16 text-center whitespace-nowrap">
                   <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 shadow-sm">
                       <Briefcase className="h-8 w-8" />
@@ -689,9 +822,22 @@ const Employees = () => {
                       <span>{item.status}</span>
                     </button>
                   </td>
+                  <td className="w-[160px] px-4 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    {item.autoClockOutEnabled !== false ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        <span>ON</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                        <span>OFF</span>
+                      </span>
+                    )}
+                  </td>
                   <td className="w-[200px] min-w-[200px] px-4 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-                      {['ADMIN', 'SUPER_ADMIN'].includes(currentUser?.role) && (
+                      {canEditEmployees && ['ADMIN', 'SUPER_ADMIN'].includes(currentUser?.role) && (
                         <button
                           onClick={() => setPromoteModalUser(item)}
                           className="rounded-lg p-1.5 text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors"
@@ -722,15 +868,19 @@ const Employees = () => {
                       <button onClick={() => setDetailsModalUser(item)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="View Details Card">
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button onClick={() => handleResetPassword(item.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Reset password">
-                        <Lock className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => openEditModal(item)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit Record">
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button onClick={(e) => handleDeleteUser(item.id, e)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-danger focus:ring-2 focus:ring-danger focus:outline-none" title="Delete Record">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEditEmployees && (
+                        <>
+                          <button onClick={() => handleResetPassword(item.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Reset password">
+                            <Lock className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => openEditModal(item)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit Record">
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button onClick={(e) => handleDeleteUser(item.id, e)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-danger focus:ring-2 focus:ring-danger focus:outline-none" title="Delete Record">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -845,9 +995,11 @@ const Employees = () => {
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant || 'danger'}
         onConfirm={confirmModal.onConfirm}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-        loading={deleteLoading}
+        loading={deleteLoading || bulkLoading}
         triggerElement={deleteTriggerRef.current}
       />
 
@@ -942,6 +1094,56 @@ const Employees = () => {
                     <span className="font-semibold text-foreground text-xs">
                       {detailsModalUser.joiningDate ? new Date(detailsModalUser.joiningDate).toLocaleDateString() : 'N/A'}
                     </span>
+                  </div>
+
+                  <div className="bg-muted/20 border border-border/20 p-2.5 rounded-xl col-span-2 sm:col-span-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-lg ${detailsModalUser.autoClockOutEnabled !== false ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                        <Clock className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase block">
+                          Auto Clock-Out Status
+                        </span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {detailsModalUser.autoClockOutEnabled !== false
+                            ? 'Automatic at scheduled shift end'
+                            : 'Manual clock-out required with device GPS'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        detailsModalUser.autoClockOutEnabled !== false
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {detailsModalUser.autoClockOutEnabled !== false ? 'Enabled' : 'Disabled'}
+                      </span>
+                      {['ADMIN', 'SUPER_ADMIN'].includes(currentUser?.role) && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const newSetting = detailsModalUser.autoClockOutEnabled === false;
+                              await api.put(`/users/${detailsModalUser.id}`, { autoClockOutEnabled: newSetting });
+                              setDetailsModalUser(prev => ({ ...prev, autoClockOutEnabled: newSetting }));
+                              setUsers(prev => prev.map(u => u.id === detailsModalUser.id ? { ...u, autoClockOutEnabled: newSetting } : u));
+                              setAlertMsg({ type: 'success', text: `Auto Clock-Out ${newSetting ? 'Enabled' : 'Disabled'} for ${detailsModalUser.name}.` });
+                            } catch (err) {
+                              setAlertMsg({ type: 'error', text: err.response?.data?.message || 'Failed to update setting.' });
+                            }
+                          }}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                            detailsModalUser.autoClockOutEnabled !== false
+                              ? 'border-amber-500/30 text-amber-600 hover:bg-amber-500/10'
+                              : 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10'
+                          }`}
+                        >
+                          {detailsModalUser.autoClockOutEnabled !== false ? 'Disable' : 'Enable'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

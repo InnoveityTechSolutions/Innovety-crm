@@ -1,0 +1,788 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/finance/PayslipsPage.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useRef = __vite__cjsImport3_react["useRef"];
+import api from "/src/services/api.js";
+import { FileCode, Search, Eye, Download, Printer, ShieldCheck, X, QrCode } from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import CompanyScopeSelector from "/src/components/common/CompanyScopeSelector.jsx";
+import { useCompanyScope } from "/src/context/CompanyScopeContext.jsx";
+import { useAuth } from "/src/context/AuthContext.jsx";
+export default function PayslipsPage() {
+  _s();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const { selectedOrgId, effectiveOrgId, loading: orgsLoading, selectedCompany } = useCompanyScope();
+  const targetOrg = isSuperAdmin ? selectedOrgId : effectiveOrgId || user?.organizationId;
+  const selectedOrgIdRef = useRef(targetOrg);
+  const [payslips, setPayslips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPayslip, setSelectedPayslip] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const fetchPayslips = async () => {
+    try {
+      setLoading(true);
+      const activeOrg = selectedOrgIdRef.current || targetOrg;
+      const params = activeOrg ? { organizationId: activeOrg } : {};
+      const res = await api.get("/payroll/payslips", { params });
+      setPayslips(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch payslips:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    selectedOrgIdRef.current = targetOrg;
+    setPayslips([]);
+    if (orgsLoading) return;
+    fetchPayslips();
+  }, [user, targetOrg, user?.organizationId, orgsLoading]);
+  const handleViewPayslip = async (id) => {
+    try {
+      const targetOrg2 = selectedOrgIdRef.current || selectedOrgId;
+      const params = targetOrg2 ? { organizationId: targetOrg2 } : {};
+      const res = await api.get(`/payroll/payslips/${id}`, { params });
+      setSelectedPayslip(res.data.payslip);
+      setSettings(res.data.settings);
+      setShowModal(true);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to view payslip.");
+    }
+  };
+  const formatINR = (val) => `₹${Number(val || 0).toLocaleString("en-IN")}`;
+  const filteredPayslips = payslips.filter(
+    (ps) => ps.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || ps.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) || ps.user?.department?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-6 text-left font-sans w-full max-w-7xl mx-auto", children: [
+    /* @__PURE__ */ jsxDEV(CompanyScopeSelector, {}, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 87,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border p-6 rounded-2xl shadow-sm", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("h1", { className: "text-2xl font-black text-foreground flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(FileCode, { className: "w-6 h-6 text-primary" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 92,
+            columnNumber: 13
+          }, this),
+          " Payslips Management Desk"
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 91,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-sm text-muted-foreground mt-1", children: "View, search, print, and audit generated employee payslips across published batches." }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 94,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 90,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "relative w-full sm:w-72", children: [
+        /* @__PURE__ */ jsxDEV(Search, { className: "w-4 h-4 absolute left-3 top-3 text-muted-foreground" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 100,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            type: "text",
+            placeholder: "Search by employee name...",
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value),
+            className: "w-full bg-muted/50 border border-border rounded-xl pl-9 pr-4 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 101,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 99,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 89,
+      columnNumber: 7
+    }, this),
+    loading ? /* @__PURE__ */ jsxDEV("p", { className: "text-sm text-muted-foreground py-8 text-center", children: "Loading payslips..." }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 112,
+      columnNumber: 7
+    }, this) : /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border rounded-2xl overflow-hidden shadow-sm", children: /* @__PURE__ */ jsxDEV("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxDEV("table", { className: "w-full text-left text-xs", children: [
+      /* @__PURE__ */ jsxDEV("thead", { className: "bg-muted/50 border-b border-border text-muted-foreground font-bold uppercase", children: /* @__PURE__ */ jsxDEV("tr", { children: [
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Employee" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 119,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Pay Period" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 120,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Basic Salary" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 121,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Gross Earnings" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 122,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Total Net Payout" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 123,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "Status" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 124,
+          columnNumber: 19
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4 text-right", children: "Actions" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 125,
+          columnNumber: 19
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 118,
+        columnNumber: 17
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 117,
+        columnNumber: 15
+      }, this),
+      /* @__PURE__ */ jsxDEV("tbody", { className: "divide-y divide-border/60", children: filteredPayslips.length === 0 ? /* @__PURE__ */ jsxDEV("tr", { children: /* @__PURE__ */ jsxDEV("td", { colSpan: "7", className: "p-8 text-center text-muted-foreground font-semibold", children: [
+        "No published payslips found for ",
+        selectedCompany?.name || "this company",
+        "."
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 131,
+        columnNumber: 21
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 130,
+        columnNumber: 15
+      }, this) : filteredPayslips.map(
+        (ps) => /* @__PURE__ */ jsxDEV("tr", { className: "hover:bg-muted/30", children: [
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4", children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "font-bold text-foreground", children: ps.user?.name }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 139,
+              columnNumber: 25
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-[11px] text-muted-foreground", children: [
+              ps.user?.email,
+              " • ",
+              ps.user?.department || "Engineering"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 140,
+              columnNumber: 25
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 138,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 font-semibold text-foreground", children: [
+            "Month ",
+            ps.month,
+            " / ",
+            ps.year
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 142,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 text-muted-foreground", children: formatINR(ps.basicSalary) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 145,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 font-semibold text-foreground", children: formatINR(ps.grossSalary) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 146,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 font-extrabold text-primary text-sm", children: formatINR(ps.netSalary) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 147,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4", children: /* @__PURE__ */ jsxDEV("span", { className: `px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${ps.status === "PUBLISHED" ? "bg-success/10 text-success" : "bg-primary/10 text-primary"}`, children: ps.status }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 151,
+            columnNumber: 25
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 150,
+            columnNumber: 23
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 text-right", children: /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: () => handleViewPayslip(ps.id),
+              className: "px-3 py-1.5 btn-primary rounded-lg font-bold transition-all text-xs flex items-center gap-1 ml-auto",
+              children: [
+                /* @__PURE__ */ jsxDEV(Eye, { className: "w-3.5 h-3.5" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                  lineNumber: 160,
+                  columnNumber: 27
+                }, this),
+                " View / Print"
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 156,
+              columnNumber: 25
+            },
+            this
+          ) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 155,
+            columnNumber: 23
+          }, this)
+        ] }, ps.id, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 137,
+          columnNumber: 15
+        }, this)
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 128,
+        columnNumber: 15
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 116,
+      columnNumber: 13
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 115,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 114,
+      columnNumber: 7
+    }, this),
+    showModal && selectedPayslip && /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl print:p-0 print:border-none print:shadow-none", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between pb-3 border-b border-border print:hidden", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(ShieldCheck, { className: "w-5 h-5 text-primary" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 178,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("h3", { className: "font-extrabold text-foreground text-base", children: "Official Employee Payslip" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 179,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 177,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV("button", { onClick: () => window.print(), className: "px-3 py-1.5 border border-border hover:bg-muted rounded-lg font-bold text-xs flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxDEV(Printer, { className: "w-4 h-4" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 183,
+              columnNumber: 19
+            }, this),
+            " Print / Save PDF"
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 182,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("button", { onClick: () => setShowModal(false), className: "p-1 hover:bg-muted rounded-lg text-muted-foreground", children: /* @__PURE__ */ jsxDEV(X, { className: "w-5 h-5" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 185,
+            columnNumber: 125
+          }, this) }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 185,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 181,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 176,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "bg-white text-slate-900 p-8 rounded-xl border border-slate-200 space-y-6 text-xs", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-start border-b border-slate-300 pb-4", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("h2", { className: "text-xl font-black text-slate-900 tracking-tight", children: settings?.companyName || "Innoveity" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 193,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 text-[11px] mt-0.5", children: settings?.companyAddress || "100 Innovation Towers, Cyber City, Bangalore - 560001" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 194,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 192,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "text-right", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "px-2.5 py-1 bg-slate-100 text-slate-800 font-black rounded text-[10px] uppercase", children: "CONFIDENTIAL PAYSLIP" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 197,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-600 font-bold mt-1 text-sm", children: [
+              "Month ",
+              selectedPayslip.month,
+              " / ",
+              selectedPayslip.year
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 198,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 196,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 191,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Employee Name: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: selectedPayslip.user?.name }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 204,
+                columnNumber: 78
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 204,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Employee ID: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: selectedPayslip.user?.employeeId || "EMP-" + selectedPayslip.user?.id?.substring(0, 6) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 205,
+                columnNumber: 76
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 205,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Role / Designation: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: selectedPayslip.user?.role }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 206,
+                columnNumber: 83
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 206,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 203,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Department: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: selectedPayslip.user?.department || "General" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 209,
+                columnNumber: 75
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 209,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Payment Method: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: "Direct Bank Transfer" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 210,
+                columnNumber: 79
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 210,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { className: "text-slate-500 font-semibold", children: [
+              "Pay Date: ",
+              /* @__PURE__ */ jsxDEV("span", { className: "text-slate-900 font-bold", children: settings?.payDay ? `${settings.payDay}th of Month` : "30th of Month" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 211,
+                columnNumber: 73
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 211,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 208,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 202,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 gap-6", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: [
+            /* @__PURE__ */ jsxDEV("h4", { className: "font-bold text-slate-800 border-b border-slate-300 pb-1 text-xs", children: "GROSS EARNINGS" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 217,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "Basic Salary" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 218,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.basicSalary) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 218,
+                columnNumber: 97
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 218,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "HRA" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 219,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.hra) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 219,
+                columnNumber: 88
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 219,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "DA" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 220,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.da) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 220,
+                columnNumber: 87
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 220,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "Allowances & Bonus" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 221,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR((selectedPayslip.allowancesJson?.specialAllowance || 0) + (selectedPayslip.allowancesJson?.travelAllowance || 0)) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 221,
+                columnNumber: 103
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 221,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: [
+                "Overtime Pay (",
+                selectedPayslip.overtimeHours,
+                "h)"
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 222,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.overtimePay) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 222,
+                columnNumber: 132
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 222,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: [
+                "Holiday Work Pay (",
+                selectedPayslip.holidayDaysWorked,
+                "d)"
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 223,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.holidayPay) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 223,
+                columnNumber: 140
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 223,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 216,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: [
+            /* @__PURE__ */ jsxDEV("h4", { className: "font-bold text-slate-800 border-b border-slate-300 pb-1 text-xs", children: "DEDUCTIONS" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 227,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "PF Contribution" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 228,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.deductionsJson?.pfDeduction) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 228,
+                columnNumber: 100
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 228,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "Professional Tax" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 229,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.deductionsJson?.profTax) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 229,
+                columnNumber: 101
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 229,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between text-slate-600", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "Income Tax (TDS)" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 230,
+                columnNumber: 72
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-slate-900", children: formatINR(selectedPayslip.deductionsJson?.incomeTax) }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 230,
+                columnNumber: 101
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 230,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 226,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 215,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "bg-slate-50 border border-slate-300 p-4 rounded-lg flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-bold text-slate-800 uppercase block", children: "NET DISBURSEMENT AMOUNT" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 236,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-2xl font-black text-slate-900", children: formatINR(selectedPayslip.netSalary) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 237,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 235,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "text-right flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV(QrCode, { className: "w-10 h-10 text-slate-800" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 240,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "text-[9px] font-mono text-slate-700 block", children: [
+                "QR HASH: ",
+                selectedPayslip.qrCodeHash
+              ] }, void 0, true, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 242,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-bold text-slate-800", children: "Digitally Verified" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+                lineNumber: 243,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 241,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 239,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 234,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "pt-6 border-t border-slate-300 flex justify-between items-end text-[10px] text-slate-500", children: [
+          /* @__PURE__ */ jsxDEV("p", { children: "This is a computer-generated document and requires no physical signature." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 249,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "text-right", children: [
+            /* @__PURE__ */ jsxDEV("p", { className: "font-bold text-slate-800 text-xs", children: settings?.authorizedSignature || "Authorized HR Signatory" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 251,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("p", { children: "Innoveity Payroll Desk" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+              lineNumber: 252,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+            lineNumber: 250,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+          lineNumber: 248,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+        lineNumber: 190,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 175,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+      lineNumber: 174,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx",
+    lineNumber: 85,
+    columnNumber: 5
+  }, this);
+}
+_s(PayslipsPage, "L8W1v4oXFSV61hAHz83+SYjl89c=", false, function() {
+  return [useAuth, useCompanyScope];
+});
+_c = PayslipsPage;
+var _c;
+$RefreshReg$(_c, "PayslipsPage");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/finance/PayslipsPage.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBbUVNOzs7Ozs7Ozs7Ozs7Ozs7OztBQW5FTixPQUFPQSxTQUFTQyxVQUFVQyxXQUFXQyxjQUFjO0FBQ25ELE9BQU9DLFNBQVM7QUFDaEIsU0FBU0MsVUFBVUMsUUFBUUMsS0FBS0MsVUFBVUMsU0FBU0MsYUFBYUMsR0FBR0MsY0FBYztBQUNqRixPQUFPQywwQkFBMEI7QUFDakMsU0FBU0MsdUJBQXVCO0FBRWhDLFNBQVNDLGVBQWU7QUFFeEIsd0JBQXdCQyxlQUFlO0FBQUFDLEtBQUE7QUFDckMsUUFBTSxFQUFFQyxLQUFLLElBQUlILFFBQVE7QUFDekIsUUFBTUksZUFBZUQsTUFBTUUsU0FBUztBQUNwQyxRQUFNLEVBQUVDLGVBQWVDLGdCQUFnQkMsU0FBU0MsYUFBYUMsZ0JBQWdCLElBQUlYLGdCQUFnQjtBQUNqRyxRQUFNWSxZQUFZUCxlQUFlRSxnQkFBaUJDLGtCQUFrQkosTUFBTVM7QUFDMUUsUUFBTUMsbUJBQW1CekIsT0FBT3VCLFNBQVM7QUFFekMsUUFBTSxDQUFDRyxVQUFVQyxXQUFXLElBQUk3QixTQUFTLEVBQUU7QUFDM0MsUUFBTSxDQUFDc0IsU0FBU1EsVUFBVSxJQUFJOUIsU0FBUyxJQUFJO0FBQzNDLFFBQU0sQ0FBQytCLGFBQWFDLGNBQWMsSUFBSWhDLFNBQVMsRUFBRTtBQUNqRCxRQUFNLENBQUNpQyxpQkFBaUJDLGtCQUFrQixJQUFJbEMsU0FBUyxJQUFJO0FBQzNELFFBQU0sQ0FBQ21DLFVBQVVDLFdBQVcsSUFBSXBDLFNBQVMsSUFBSTtBQUM3QyxRQUFNLENBQUNxQyxXQUFXQyxZQUFZLElBQUl0QyxTQUFTLEtBQUs7QUFFaEQsUUFBTXVDLGdCQUFnQixZQUFZO0FBQ2hDLFFBQUk7QUFDRlQsaUJBQVcsSUFBSTtBQUNmLFlBQU1VLFlBQVliLGlCQUFpQmMsV0FBV2hCO0FBQzlDLFlBQU1pQixTQUFTRixZQUFZLEVBQUVkLGdCQUFnQmMsVUFBVSxJQUFJLENBQUM7QUFDNUQsWUFBTUcsTUFBTSxNQUFNeEMsSUFBSXlDLElBQUkscUJBQXFCLEVBQUVGLE9BQU8sQ0FBQztBQUN6RGIsa0JBQVlnQixNQUFNQyxRQUFRSCxJQUFJSSxJQUFJLElBQUlKLElBQUlJLE9BQU8sRUFBRTtBQUFBLElBQ3JELFNBQVNDLEtBQUs7QUFDWkMsY0FBUUMsTUFBTSw2QkFBNkJGLEdBQUc7QUFBQSxJQUNoRCxVQUFDO0FBQ0NsQixpQkFBVyxLQUFLO0FBQUEsSUFDbEI7QUFBQSxFQUNGO0FBRUE3QixZQUFVLE1BQU07QUFDZDBCLHFCQUFpQmMsVUFBVWhCO0FBQzNCSSxnQkFBWSxFQUFFO0FBQ2QsUUFBSU4sWUFBYTtBQUNqQmdCLGtCQUFjO0FBQUEsRUFDaEIsR0FBRyxDQUFDdEIsTUFBTVEsV0FBV1IsTUFBTVMsZ0JBQWdCSCxXQUFXLENBQUM7QUFFdkQsUUFBTTRCLG9CQUFvQixPQUFPQyxPQUFPO0FBQ3RDLFFBQUk7QUFDRixZQUFNM0IsYUFBWUUsaUJBQWlCYyxXQUFXckI7QUFDOUMsWUFBTXNCLFNBQVNqQixhQUFZLEVBQUVDLGdCQUFnQkQsV0FBVSxJQUFJLENBQUM7QUFDNUQsWUFBTWtCLE1BQU0sTUFBTXhDLElBQUl5QyxJQUFJLHFCQUFxQlEsRUFBRSxJQUFJLEVBQUVWLE9BQU8sQ0FBQztBQUMvRFIseUJBQW1CUyxJQUFJSSxLQUFLTSxPQUFPO0FBQ25DakIsa0JBQVlPLElBQUlJLEtBQUtaLFFBQVE7QUFDN0JHLG1CQUFhLElBQUk7QUFBQSxJQUNuQixTQUFTVSxLQUFLO0FBQ1pNLFlBQU1OLElBQUlPLFVBQVVSLE1BQU1TLFdBQVcseUJBQXlCO0FBQUEsSUFDaEU7QUFBQSxFQUNGO0FBRUEsUUFBTUMsWUFBWUEsQ0FBQ0MsUUFBUSxJQUFJQyxPQUFPRCxPQUFPLENBQUMsRUFBRUUsZUFBZSxPQUFPLENBQUM7QUFFdkUsUUFBTUMsbUJBQW1CakMsU0FBU2tDO0FBQUFBLElBQU8sQ0FBQUMsT0FDdkNBLEdBQUc5QyxNQUFNK0MsTUFBTUMsWUFBWSxFQUFFQyxTQUFTbkMsWUFBWWtDLFlBQVksQ0FBQyxLQUMvREYsR0FBRzlDLE1BQU1rRCxPQUFPRixZQUFZLEVBQUVDLFNBQVNuQyxZQUFZa0MsWUFBWSxDQUFDLEtBQ2hFRixHQUFHOUMsTUFBTW1ELFlBQVlILFlBQVksRUFBRUMsU0FBU25DLFlBQVlrQyxZQUFZLENBQUM7QUFBQSxFQUN2RTtBQUVBLFNBQ0UsdUJBQUMsU0FBSSxXQUFVLDBEQUViO0FBQUEsMkJBQUMsMEJBQUQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUFxQjtBQUFBLElBRXJCLHVCQUFDLFNBQUksV0FBVSxzSUFDYjtBQUFBLDZCQUFDLFNBQ0M7QUFBQSwrQkFBQyxRQUFHLFdBQVUsK0RBQ1o7QUFBQSxpQ0FBQyxZQUFTLFdBQVUsMEJBQXBCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBQTBDO0FBQUEsVUFBRztBQUFBLGFBRC9DO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFFQTtBQUFBLFFBQ0EsdUJBQUMsT0FBRSxXQUFVLHNDQUFxQyxvR0FBbEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUVBO0FBQUEsV0FORjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBT0E7QUFBQSxNQUVBLHVCQUFDLFNBQUksV0FBVSwyQkFDYjtBQUFBLCtCQUFDLFVBQU8sV0FBVSx5REFBbEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUF1RTtBQUFBLFFBQ3ZFO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDQyxNQUFLO0FBQUEsWUFDTCxhQUFZO0FBQUEsWUFDWixPQUFPbEM7QUFBQUEsWUFDUCxVQUFVLENBQUFzQyxNQUFLckMsZUFBZXFDLEVBQUVDLE9BQU9DLEtBQUs7QUFBQSxZQUM1QyxXQUFVO0FBQUE7QUFBQSxVQUxaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQUs2SjtBQUFBLFdBUC9KO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFTQTtBQUFBLFNBbkJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FvQkE7QUFBQSxJQUVDakQsVUFDQyx1QkFBQyxPQUFFLFdBQVUsa0RBQWlELG1DQUE5RDtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBQWlGLElBRWpGLHVCQUFDLFNBQUksV0FBVSxzRUFDYixpQ0FBQyxTQUFJLFdBQVUsbUJBQ2IsaUNBQUMsV0FBTSxXQUFVLDRCQUNmO0FBQUEsNkJBQUMsV0FBTSxXQUFVLGdGQUNmLGlDQUFDLFFBQ0M7QUFBQSwrQkFBQyxRQUFHLFdBQVUsT0FBTSx3QkFBcEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUE0QjtBQUFBLFFBQzVCLHVCQUFDLFFBQUcsV0FBVSxPQUFNLDBCQUFwQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQThCO0FBQUEsUUFDOUIsdUJBQUMsUUFBRyxXQUFVLE9BQU0sNEJBQXBCO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFBZ0M7QUFBQSxRQUNoQyx1QkFBQyxRQUFHLFdBQVUsT0FBTSw4QkFBcEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUFrQztBQUFBLFFBQ2xDLHVCQUFDLFFBQUcsV0FBVSxPQUFNLGdDQUFwQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQW9DO0FBQUEsUUFDcEMsdUJBQUMsUUFBRyxXQUFVLE9BQU0sc0JBQXBCO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFBMEI7QUFBQSxRQUMxQix1QkFBQyxRQUFHLFdBQVUsa0JBQWlCLHVCQUEvQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQXNDO0FBQUEsV0FQeEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVFBLEtBVEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVVBO0FBQUEsTUFDQSx1QkFBQyxXQUFNLFdBQVUsNkJBQ2R1QywyQkFBaUJXLFdBQVcsSUFDM0IsdUJBQUMsUUFDQyxpQ0FBQyxRQUFHLFNBQVEsS0FBSSxXQUFVLHVEQUFzRDtBQUFBO0FBQUEsUUFDN0NoRCxpQkFBaUJ3QyxRQUFRO0FBQUEsUUFBZTtBQUFBLFdBRDNFO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFFQSxLQUhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFJQSxJQUVBSCxpQkFBaUJZO0FBQUFBLFFBQUksQ0FBQVYsT0FDbkIsdUJBQUMsUUFBZSxXQUFVLHFCQUN4QjtBQUFBLGlDQUFDLFFBQUcsV0FBVSxPQUNaO0FBQUEsbUNBQUMsT0FBRSxXQUFVLDZCQUE2QkEsYUFBRzlDLE1BQU0rQyxRQUFuRDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUF3RDtBQUFBLFlBQ3hELHVCQUFDLE9BQUUsV0FBVSxxQ0FBcUNEO0FBQUFBLGlCQUFHOUMsTUFBTWtEO0FBQUFBLGNBQU07QUFBQSxjQUFJSixHQUFHOUMsTUFBTW1ELGNBQWM7QUFBQSxpQkFBNUY7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBMEc7QUFBQSxlQUY1RztBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUdBO0FBQUEsVUFDQSx1QkFBQyxRQUFHLFdBQVUscUNBQW9DO0FBQUE7QUFBQSxZQUN6Q0wsR0FBR1c7QUFBQUEsWUFBTTtBQUFBLFlBQUlYLEdBQUdZO0FBQUFBLGVBRHpCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBRUE7QUFBQSxVQUNBLHVCQUFDLFFBQUcsV0FBVSw2QkFBNkJsQixvQkFBVU0sR0FBR2EsV0FBVyxLQUFuRTtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFxRTtBQUFBLFVBQ3JFLHVCQUFDLFFBQUcsV0FBVSxxQ0FBcUNuQixvQkFBVU0sR0FBR2MsV0FBVyxLQUEzRTtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUE2RTtBQUFBLFVBQzdFLHVCQUFDLFFBQUcsV0FBVSwyQ0FDWHBCLG9CQUFVTSxHQUFHZSxTQUFTLEtBRHpCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBRUE7QUFBQSxVQUNBLHVCQUFDLFFBQUcsV0FBVSxPQUNaLGlDQUFDLFVBQUssV0FBVywrREFBK0RmLEdBQUdnQixXQUFXLGNBQWMsK0JBQStCLDRCQUE0QixJQUNwS2hCLGFBQUdnQixVQUROO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBRUEsS0FIRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUlBO0FBQUEsVUFDQSx1QkFBQyxRQUFHLFdBQVUsa0JBQ1o7QUFBQSxZQUFDO0FBQUE7QUFBQSxjQUNDLFNBQVMsTUFBTTVCLGtCQUFrQlksR0FBR1gsRUFBRTtBQUFBLGNBQ3RDLFdBQVU7QUFBQSxjQUVWO0FBQUEsdUNBQUMsT0FBSSxXQUFVLGlCQUFmO0FBQUE7QUFBQTtBQUFBO0FBQUEsdUJBQTRCO0FBQUEsZ0JBQUc7QUFBQTtBQUFBO0FBQUEsWUFKakM7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBS0EsS0FORjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQU9BO0FBQUEsYUF6Qk9XLEdBQUdYLElBQVo7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQTBCQTtBQUFBLE1BQ0QsS0FwQ0w7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQXNDQTtBQUFBLFNBbERGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FtREEsS0FwREY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQXFEQSxLQXRERjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBdURBO0FBQUEsSUFJRGYsYUFBYUosbUJBQ1osdUJBQUMsU0FBSSxXQUFVLHdGQUNiLGlDQUFDLFNBQUksV0FBVSxpS0FDYjtBQUFBLDZCQUFDLFNBQUksV0FBVSw4RUFDYjtBQUFBLCtCQUFDLFNBQUksV0FBVSwyQkFDYjtBQUFBLGlDQUFDLGVBQVksV0FBVSwwQkFBdkI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBNkM7QUFBQSxVQUM3Qyx1QkFBQyxRQUFHLFdBQVUsNENBQTJDLHlDQUF6RDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFrRjtBQUFBLGFBRnBGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFHQTtBQUFBLFFBQ0EsdUJBQUMsU0FBSSxXQUFVLDJCQUNiO0FBQUEsaUNBQUMsWUFBTyxTQUFTLE1BQU0rQyxPQUFPQyxNQUFNLEdBQUcsV0FBVSwwR0FDL0M7QUFBQSxtQ0FBQyxXQUFRLFdBQVUsYUFBbkI7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBNEI7QUFBQSxZQUFHO0FBQUEsZUFEakM7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFFQTtBQUFBLFVBQ0EsdUJBQUMsWUFBTyxTQUFTLE1BQU0zQyxhQUFhLEtBQUssR0FBRyxXQUFVLHVEQUFzRCxpQ0FBQyxLQUFFLFdBQVUsYUFBYjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFzQixLQUFsSTtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFxSTtBQUFBLGFBSnZJO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFLQTtBQUFBLFdBVkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVdBO0FBQUEsTUFHQSx1QkFBQyxTQUFJLFdBQVUsb0ZBQ2I7QUFBQSwrQkFBQyxTQUFJLFdBQVUsbUVBQ2I7QUFBQSxpQ0FBQyxTQUNDO0FBQUEsbUNBQUMsUUFBRyxXQUFVLG9EQUFvREgsb0JBQVUrQyxlQUFlLGVBQTNGO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXVHO0FBQUEsWUFDdkcsdUJBQUMsT0FBRSxXQUFVLHFDQUFxQy9DLG9CQUFVZ0Qsa0JBQWtCLDJEQUE5RTtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFzSTtBQUFBLGVBRnhJO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBR0E7QUFBQSxVQUNBLHVCQUFDLFNBQUksV0FBVSxjQUNiO0FBQUEsbUNBQUMsVUFBSyxXQUFVLG9GQUFtRixvQ0FBbkc7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBdUg7QUFBQSxZQUN2SCx1QkFBQyxPQUFFLFdBQVUseUNBQXdDO0FBQUE7QUFBQSxjQUFPbEQsZ0JBQWdCeUM7QUFBQUEsY0FBTTtBQUFBLGNBQUl6QyxnQkFBZ0IwQztBQUFBQSxpQkFBdEc7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBMkc7QUFBQSxlQUY3RztBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUdBO0FBQUEsYUFSRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBU0E7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSw2RUFDYjtBQUFBLGlDQUFDLFNBQ0M7QUFBQSxtQ0FBQyxPQUFFLFdBQVUsZ0NBQStCO0FBQUE7QUFBQSxjQUFlLHVCQUFDLFVBQUssV0FBVSw0QkFBNEIxQywwQkFBZ0JoQixNQUFNK0MsUUFBbEU7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBdUU7QUFBQSxpQkFBbEk7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBeUk7QUFBQSxZQUN6SSx1QkFBQyxPQUFFLFdBQVUsZ0NBQStCO0FBQUE7QUFBQSxjQUFhLHVCQUFDLFVBQUssV0FBVSw0QkFBNEIvQiwwQkFBZ0JoQixNQUFNbUUsY0FBYyxTQUFTbkQsZ0JBQWdCaEIsTUFBTW1DLElBQUlpQyxVQUFVLEdBQUcsQ0FBQyxLQUFqSTtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFtSTtBQUFBLGlCQUE1TDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFtTTtBQUFBLFlBQ25NLHVCQUFDLE9BQUUsV0FBVSxnQ0FBK0I7QUFBQTtBQUFBLGNBQW9CLHVCQUFDLFVBQUssV0FBVSw0QkFBNEJwRCwwQkFBZ0JoQixNQUFNRSxRQUFsRTtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUF1RTtBQUFBLGlCQUF2STtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE4STtBQUFBLGVBSGhKO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBSUE7QUFBQSxVQUNBLHVCQUFDLFNBQ0M7QUFBQSxtQ0FBQyxPQUFFLFdBQVUsZ0NBQStCO0FBQUE7QUFBQSxjQUFZLHVCQUFDLFVBQUssV0FBVSw0QkFBNEJjLDBCQUFnQmhCLE1BQU1tRCxjQUFjLGFBQWhGO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQTBGO0FBQUEsaUJBQWxKO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXlKO0FBQUEsWUFDekosdUJBQUMsT0FBRSxXQUFVLGdDQUErQjtBQUFBO0FBQUEsY0FBZ0IsdUJBQUMsVUFBSyxXQUFVLDRCQUEyQixvQ0FBM0M7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBK0Q7QUFBQSxpQkFBM0g7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBa0k7QUFBQSxZQUNsSSx1QkFBQyxPQUFFLFdBQVUsZ0NBQStCO0FBQUE7QUFBQSxjQUFVLHVCQUFDLFVBQUssV0FBVSw0QkFBNEJqQyxvQkFBVW1ELFNBQVMsR0FBR25ELFNBQVNtRCxNQUFNLGdCQUFnQixtQkFBakc7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBaUg7QUFBQSxpQkFBdks7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBOEs7QUFBQSxlQUhoTDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUlBO0FBQUEsYUFWRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBV0E7QUFBQSxRQUVBLHVCQUFDLFNBQUksV0FBVSwwQkFDYjtBQUFBLGlDQUFDLFNBQUksV0FBVSxhQUNiO0FBQUEsbUNBQUMsUUFBRyxXQUFVLG1FQUFrRSw4QkFBaEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBOEY7QUFBQSxZQUM5Rix1QkFBQyxTQUFJLFdBQVUsdUNBQXNDO0FBQUEscUNBQUMsVUFBSyw0QkFBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFrQjtBQUFBLGNBQU8sdUJBQUMsVUFBSyxXQUFVLGdDQUFnQzdCLG9CQUFVeEIsZ0JBQWdCMkMsV0FBVyxLQUFyRjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUF1RjtBQUFBLGlCQUFySztBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE0SztBQUFBLFlBQzVLLHVCQUFDLFNBQUksV0FBVSx1Q0FBc0M7QUFBQSxxQ0FBQyxVQUFLLG1CQUFOO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQVM7QUFBQSxjQUFPLHVCQUFDLFVBQUssV0FBVSxnQ0FBZ0NuQixvQkFBVXhCLGdCQUFnQnNELEdBQUcsS0FBN0U7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBK0U7QUFBQSxpQkFBcEo7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBMko7QUFBQSxZQUMzSix1QkFBQyxTQUFJLFdBQVUsdUNBQXNDO0FBQUEscUNBQUMsVUFBSyxrQkFBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFRO0FBQUEsY0FBTyx1QkFBQyxVQUFLLFdBQVUsZ0NBQWdDOUIsb0JBQVV4QixnQkFBZ0J1RCxFQUFFLEtBQTVFO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQThFO0FBQUEsaUJBQWxKO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXlKO0FBQUEsWUFDekosdUJBQUMsU0FBSSxXQUFVLHVDQUFzQztBQUFBLHFDQUFDLFVBQUssa0NBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBd0I7QUFBQSxjQUFPLHVCQUFDLFVBQUssV0FBVSxnQ0FBZ0MvQixxQkFBV3hCLGdCQUFnQndELGdCQUFnQkMsb0JBQW9CLE1BQU16RCxnQkFBZ0J3RCxnQkFBZ0JFLG1CQUFtQixFQUFFLEtBQTFLO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQTRLO0FBQUEsaUJBQWhRO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXVRO0FBQUEsWUFDdlEsdUJBQUMsU0FBSSxXQUFVLHVDQUFzQztBQUFBLHFDQUFDLFVBQUs7QUFBQTtBQUFBLGdCQUFlMUQsZ0JBQWdCMkQ7QUFBQUEsZ0JBQWM7QUFBQSxtQkFBbkQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBcUQ7QUFBQSxjQUFPLHVCQUFDLFVBQUssV0FBVSxnQ0FBZ0NuQyxvQkFBVXhCLGdCQUFnQjRELFdBQVcsS0FBckY7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBdUY7QUFBQSxpQkFBeE07QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBK007QUFBQSxZQUMvTSx1QkFBQyxTQUFJLFdBQVUsdUNBQXNDO0FBQUEscUNBQUMsVUFBSztBQUFBO0FBQUEsZ0JBQW1CNUQsZ0JBQWdCNkQ7QUFBQUEsZ0JBQWtCO0FBQUEsbUJBQTNEO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQTZEO0FBQUEsY0FBTyx1QkFBQyxVQUFLLFdBQVUsZ0NBQWdDckMsb0JBQVV4QixnQkFBZ0I4RCxVQUFVLEtBQXBGO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQXNGO0FBQUEsaUJBQS9NO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQXNOO0FBQUEsZUFQeE47QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFRQTtBQUFBLFVBRUEsdUJBQUMsU0FBSSxXQUFVLGFBQ2I7QUFBQSxtQ0FBQyxRQUFHLFdBQVUsbUVBQWtFLDBCQUFoRjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUEwRjtBQUFBLFlBQzFGLHVCQUFDLFNBQUksV0FBVSx1Q0FBc0M7QUFBQSxxQ0FBQyxVQUFLLCtCQUFOO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQXFCO0FBQUEsY0FBTyx1QkFBQyxVQUFLLFdBQVUsZ0NBQWdDdEMsb0JBQVV4QixnQkFBZ0IrRCxnQkFBZ0JDLFdBQVcsS0FBckc7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBdUc7QUFBQSxpQkFBeEw7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBK0w7QUFBQSxZQUMvTCx1QkFBQyxTQUFJLFdBQVUsdUNBQXNDO0FBQUEscUNBQUMsVUFBSyxnQ0FBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFzQjtBQUFBLGNBQU8sdUJBQUMsVUFBSyxXQUFVLGdDQUFnQ3hDLG9CQUFVeEIsZ0JBQWdCK0QsZ0JBQWdCRSxPQUFPLEtBQWpHO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQW1HO0FBQUEsaUJBQXJMO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQTRMO0FBQUEsWUFDNUwsdUJBQUMsU0FBSSxXQUFVLHVDQUFzQztBQUFBLHFDQUFDLFVBQUssZ0NBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBc0I7QUFBQSxjQUFPLHVCQUFDLFVBQUssV0FBVSxnQ0FBZ0N6QyxvQkFBVXhCLGdCQUFnQitELGdCQUFnQkcsU0FBUyxLQUFuRztBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFxRztBQUFBLGlCQUF2TDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE4TDtBQUFBLGVBSmhNO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBS0E7QUFBQSxhQWhCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBaUJBO0FBQUEsUUFFQSx1QkFBQyxTQUFJLFdBQVUsd0ZBQ2I7QUFBQSxpQ0FBQyxTQUNDO0FBQUEsbUNBQUMsVUFBSyxXQUFVLHdEQUF1RCx1Q0FBdkU7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBOEY7QUFBQSxZQUM5Rix1QkFBQyxVQUFLLFdBQVUsc0NBQXNDMUMsb0JBQVV4QixnQkFBZ0I2QyxTQUFTLEtBQXpGO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQTJGO0FBQUEsZUFGN0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFHQTtBQUFBLFVBQ0EsdUJBQUMsU0FBSSxXQUFVLHNDQUNiO0FBQUEsbUNBQUMsVUFBTyxXQUFVLDhCQUFsQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE0QztBQUFBLFlBQzVDLHVCQUFDLFNBQ0M7QUFBQSxxQ0FBQyxVQUFLLFdBQVUsNkNBQTRDO0FBQUE7QUFBQSxnQkFBVTdDLGdCQUFnQm1FO0FBQUFBLG1CQUF0RjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFpRztBQUFBLGNBQ2pHLHVCQUFDLFVBQUssV0FBVSx3Q0FBdUMsa0NBQXZEO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQXlFO0FBQUEsaUJBRjNFO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBR0E7QUFBQSxlQUxGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBTUE7QUFBQSxhQVhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFZQTtBQUFBLFFBRUEsdUJBQUMsU0FBSSxXQUFVLDRGQUNiO0FBQUEsaUNBQUMsT0FBRSx5RkFBSDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUE0RTtBQUFBLFVBQzVFLHVCQUFDLFNBQUksV0FBVSxjQUNiO0FBQUEsbUNBQUMsT0FBRSxXQUFVLG9DQUFvQ2pFLG9CQUFVa0UsdUJBQXVCLDZCQUFsRjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUE0RztBQUFBLFlBQzVHLHVCQUFDLE9BQUUsc0NBQUg7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBeUI7QUFBQSxlQUYzQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUdBO0FBQUEsYUFMRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBTUE7QUFBQSxXQWhFRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBaUVBO0FBQUEsU0FoRkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQWlGQSxLQWxGRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBbUZBO0FBQUEsT0E1S0o7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQThLQTtBQUVKO0FBQUNyRixHQXpPdUJELGNBQVk7QUFBQSxVQUNqQkQsU0FFZ0VELGVBQWU7QUFBQTtBQUFBLEtBSDFFRTtBQUFZLElBQUF1RjtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsInVzZVN0YXRlIiwidXNlRWZmZWN0IiwidXNlUmVmIiwiYXBpIiwiRmlsZUNvZGUiLCJTZWFyY2giLCJFeWUiLCJEb3dubG9hZCIsIlByaW50ZXIiLCJTaGllbGRDaGVjayIsIlgiLCJRckNvZGUiLCJDb21wYW55U2NvcGVTZWxlY3RvciIsInVzZUNvbXBhbnlTY29wZSIsInVzZUF1dGgiLCJQYXlzbGlwc1BhZ2UiLCJfcyIsInVzZXIiLCJpc1N1cGVyQWRtaW4iLCJyb2xlIiwic2VsZWN0ZWRPcmdJZCIsImVmZmVjdGl2ZU9yZ0lkIiwibG9hZGluZyIsIm9yZ3NMb2FkaW5nIiwic2VsZWN0ZWRDb21wYW55IiwidGFyZ2V0T3JnIiwib3JnYW5pemF0aW9uSWQiLCJzZWxlY3RlZE9yZ0lkUmVmIiwicGF5c2xpcHMiLCJzZXRQYXlzbGlwcyIsInNldExvYWRpbmciLCJzZWFyY2hRdWVyeSIsInNldFNlYXJjaFF1ZXJ5Iiwic2VsZWN0ZWRQYXlzbGlwIiwic2V0U2VsZWN0ZWRQYXlzbGlwIiwic2V0dGluZ3MiLCJzZXRTZXR0aW5ncyIsInNob3dNb2RhbCIsInNldFNob3dNb2RhbCIsImZldGNoUGF5c2xpcHMiLCJhY3RpdmVPcmciLCJjdXJyZW50IiwicGFyYW1zIiwicmVzIiwiZ2V0IiwiQXJyYXkiLCJpc0FycmF5IiwiZGF0YSIsImVyciIsImNvbnNvbGUiLCJlcnJvciIsImhhbmRsZVZpZXdQYXlzbGlwIiwiaWQiLCJwYXlzbGlwIiwiYWxlcnQiLCJyZXNwb25zZSIsIm1lc3NhZ2UiLCJmb3JtYXRJTlIiLCJ2YWwiLCJOdW1iZXIiLCJ0b0xvY2FsZVN0cmluZyIsImZpbHRlcmVkUGF5c2xpcHMiLCJmaWx0ZXIiLCJwcyIsIm5hbWUiLCJ0b0xvd2VyQ2FzZSIsImluY2x1ZGVzIiwiZW1haWwiLCJkZXBhcnRtZW50IiwiZSIsInRhcmdldCIsInZhbHVlIiwibGVuZ3RoIiwibWFwIiwibW9udGgiLCJ5ZWFyIiwiYmFzaWNTYWxhcnkiLCJncm9zc1NhbGFyeSIsIm5ldFNhbGFyeSIsInN0YXR1cyIsIndpbmRvdyIsInByaW50IiwiY29tcGFueU5hbWUiLCJjb21wYW55QWRkcmVzcyIsImVtcGxveWVlSWQiLCJzdWJzdHJpbmciLCJwYXlEYXkiLCJocmEiLCJkYSIsImFsbG93YW5jZXNKc29uIiwic3BlY2lhbEFsbG93YW5jZSIsInRyYXZlbEFsbG93YW5jZSIsIm92ZXJ0aW1lSG91cnMiLCJvdmVydGltZVBheSIsImhvbGlkYXlEYXlzV29ya2VkIiwiaG9saWRheVBheSIsImRlZHVjdGlvbnNKc29uIiwicGZEZWR1Y3Rpb24iLCJwcm9mVGF4IiwiaW5jb21lVGF4IiwicXJDb2RlSGFzaCIsImF1dGhvcml6ZWRTaWduYXR1cmUiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJQYXlzbGlwc1BhZ2UuanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCwgeyB1c2VTdGF0ZSwgdXNlRWZmZWN0LCB1c2VSZWYgfSBmcm9tICdyZWFjdCc7XHJcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcclxuaW1wb3J0IHsgRmlsZUNvZGUsIFNlYXJjaCwgRXllLCBEb3dubG9hZCwgUHJpbnRlciwgU2hpZWxkQ2hlY2ssIFgsIFFyQ29kZSB9IGZyb20gJ2x1Y2lkZS1yZWFjdCc7XHJcbmltcG9ydCBDb21wYW55U2NvcGVTZWxlY3RvciBmcm9tICcuLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Db21wYW55U2NvcGVTZWxlY3Rvcic7XHJcbmltcG9ydCB7IHVzZUNvbXBhbnlTY29wZSB9IGZyb20gJy4uLy4uL2NvbnRleHQvQ29tcGFueVNjb3BlQ29udGV4dCc7XHJcblxyXG5pbXBvcnQgeyB1c2VBdXRoIH0gZnJvbSAnLi4vLi4vY29udGV4dC9BdXRoQ29udGV4dCc7XHJcblxyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBQYXlzbGlwc1BhZ2UoKSB7XHJcbiAgY29uc3QgeyB1c2VyIH0gPSB1c2VBdXRoKCk7XHJcbiAgY29uc3QgaXNTdXBlckFkbWluID0gdXNlcj8ucm9sZSA9PT0gJ1NVUEVSX0FETUlOJztcclxuICBjb25zdCB7IHNlbGVjdGVkT3JnSWQsIGVmZmVjdGl2ZU9yZ0lkLCBsb2FkaW5nOiBvcmdzTG9hZGluZywgc2VsZWN0ZWRDb21wYW55IH0gPSB1c2VDb21wYW55U2NvcGUoKTtcclxuICBjb25zdCB0YXJnZXRPcmcgPSBpc1N1cGVyQWRtaW4gPyBzZWxlY3RlZE9yZ0lkIDogKGVmZmVjdGl2ZU9yZ0lkIHx8IHVzZXI/Lm9yZ2FuaXphdGlvbklkKTtcclxuICBjb25zdCBzZWxlY3RlZE9yZ0lkUmVmID0gdXNlUmVmKHRhcmdldE9yZyk7XHJcblxyXG4gIGNvbnN0IFtwYXlzbGlwcywgc2V0UGF5c2xpcHNdID0gdXNlU3RhdGUoW10pO1xyXG4gIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKHRydWUpO1xyXG4gIGNvbnN0IFtzZWFyY2hRdWVyeSwgc2V0U2VhcmNoUXVlcnldID0gdXNlU3RhdGUoJycpO1xyXG4gIGNvbnN0IFtzZWxlY3RlZFBheXNsaXAsIHNldFNlbGVjdGVkUGF5c2xpcF0gPSB1c2VTdGF0ZShudWxsKTtcclxuICBjb25zdCBbc2V0dGluZ3MsIHNldFNldHRpbmdzXSA9IHVzZVN0YXRlKG51bGwpO1xyXG4gIGNvbnN0IFtzaG93TW9kYWwsIHNldFNob3dNb2RhbF0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcblxyXG4gIGNvbnN0IGZldGNoUGF5c2xpcHMgPSBhc3luYyAoKSA9PiB7XHJcbiAgICB0cnkge1xyXG4gICAgICBzZXRMb2FkaW5nKHRydWUpO1xyXG4gICAgICBjb25zdCBhY3RpdmVPcmcgPSBzZWxlY3RlZE9yZ0lkUmVmLmN1cnJlbnQgfHwgdGFyZ2V0T3JnO1xyXG4gICAgICBjb25zdCBwYXJhbXMgPSBhY3RpdmVPcmcgPyB7IG9yZ2FuaXphdGlvbklkOiBhY3RpdmVPcmcgfSA6IHt9O1xyXG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBhcGkuZ2V0KCcvcGF5cm9sbC9wYXlzbGlwcycsIHsgcGFyYW1zIH0pO1xyXG4gICAgICBzZXRQYXlzbGlwcyhBcnJheS5pc0FycmF5KHJlcy5kYXRhKSA/IHJlcy5kYXRhIDogW10pO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0ZhaWxlZCB0byBmZXRjaCBwYXlzbGlwczonLCBlcnIpO1xyXG4gICAgfSBmaW5hbGx5IHtcclxuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgdXNlRWZmZWN0KCgpID0+IHtcclxuICAgIHNlbGVjdGVkT3JnSWRSZWYuY3VycmVudCA9IHRhcmdldE9yZztcclxuICAgIHNldFBheXNsaXBzKFtdKTtcclxuICAgIGlmIChvcmdzTG9hZGluZykgcmV0dXJuO1xyXG4gICAgZmV0Y2hQYXlzbGlwcygpO1xyXG4gIH0sIFt1c2VyLCB0YXJnZXRPcmcsIHVzZXI/Lm9yZ2FuaXphdGlvbklkLCBvcmdzTG9hZGluZ10pO1xyXG5cclxuICBjb25zdCBoYW5kbGVWaWV3UGF5c2xpcCA9IGFzeW5jIChpZCkgPT4ge1xyXG4gICAgdHJ5IHtcclxuICAgICAgY29uc3QgdGFyZ2V0T3JnID0gc2VsZWN0ZWRPcmdJZFJlZi5jdXJyZW50IHx8IHNlbGVjdGVkT3JnSWQ7XHJcbiAgICAgIGNvbnN0IHBhcmFtcyA9IHRhcmdldE9yZyA/IHsgb3JnYW5pemF0aW9uSWQ6IHRhcmdldE9yZyB9IDoge307XHJcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5nZXQoYC9wYXlyb2xsL3BheXNsaXBzLyR7aWR9YCwgeyBwYXJhbXMgfSk7XHJcbiAgICAgIHNldFNlbGVjdGVkUGF5c2xpcChyZXMuZGF0YS5wYXlzbGlwKTtcclxuICAgICAgc2V0U2V0dGluZ3MocmVzLmRhdGEuc2V0dGluZ3MpO1xyXG4gICAgICBzZXRTaG93TW9kYWwodHJ1ZSk7XHJcbiAgICB9IGNhdGNoIChlcnIpIHtcclxuICAgICAgYWxlcnQoZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gdmlldyBwYXlzbGlwLicpO1xyXG4gICAgfVxyXG4gIH07XHJcblxyXG4gIGNvbnN0IGZvcm1hdElOUiA9ICh2YWwpID0+IGDigrkke051bWJlcih2YWwgfHwgMCkudG9Mb2NhbGVTdHJpbmcoJ2VuLUlOJyl9YDtcclxuXHJcbiAgY29uc3QgZmlsdGVyZWRQYXlzbGlwcyA9IHBheXNsaXBzLmZpbHRlcihwcyA9PlxyXG4gICAgcHMudXNlcj8ubmFtZT8udG9Mb3dlckNhc2UoKS5pbmNsdWRlcyhzZWFyY2hRdWVyeS50b0xvd2VyQ2FzZSgpKSB8fFxyXG4gICAgcHMudXNlcj8uZW1haWw/LnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoc2VhcmNoUXVlcnkudG9Mb3dlckNhc2UoKSkgfHxcclxuICAgIHBzLnVzZXI/LmRlcGFydG1lbnQ/LnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoc2VhcmNoUXVlcnkudG9Mb3dlckNhc2UoKSlcclxuICApO1xyXG5cclxuICByZXR1cm4gKFxyXG4gICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTYgdGV4dC1sZWZ0IGZvbnQtc2FucyB3LWZ1bGwgbWF4LXctN3hsIG14LWF1dG9cIj5cclxuICAgICAgey8qIENvbXBhbnkgU2NvcGUgU2VsZWN0b3IgKi99XHJcbiAgICAgIDxDb21wYW55U2NvcGVTZWxlY3RvciAvPlxyXG5cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIHNtOmZsZXgtcm93IGl0ZW1zLXN0YXJ0IHNtOml0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gZ2FwLTQgYmctY2FyZCBib3JkZXIgYm9yZGVyLWJvcmRlciBwLTYgcm91bmRlZC0yeGwgc2hhZG93LXNtXCI+XHJcbiAgICAgICAgPGRpdj5cclxuICAgICAgICAgIDxoMSBjbGFzc05hbWU9XCJ0ZXh0LTJ4bCBmb250LWJsYWNrIHRleHQtZm9yZWdyb3VuZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxyXG4gICAgICAgICAgICA8RmlsZUNvZGUgY2xhc3NOYW1lPVwidy02IGgtNiB0ZXh0LXByaW1hcnlcIiAvPiBQYXlzbGlwcyBNYW5hZ2VtZW50IERlc2tcclxuICAgICAgICAgIDwvaDE+XHJcbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXNtIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0xXCI+XHJcbiAgICAgICAgICAgIFZpZXcsIHNlYXJjaCwgcHJpbnQsIGFuZCBhdWRpdCBnZW5lcmF0ZWQgZW1wbG95ZWUgcGF5c2xpcHMgYWNyb3NzIHB1Ymxpc2hlZCBiYXRjaGVzLlxyXG4gICAgICAgICAgPC9wPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIHctZnVsbCBzbTp3LTcyXCI+XHJcbiAgICAgICAgICA8U2VhcmNoIGNsYXNzTmFtZT1cInctNCBoLTQgYWJzb2x1dGUgbGVmdC0zIHRvcC0zIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiIC8+XHJcbiAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICBwbGFjZWhvbGRlcj1cIlNlYXJjaCBieSBlbXBsb3llZSBuYW1lLi4uXCJcclxuICAgICAgICAgICAgdmFsdWU9e3NlYXJjaFF1ZXJ5fVxyXG4gICAgICAgICAgICBvbkNoYW5nZT17ZSA9PiBzZXRTZWFyY2hRdWVyeShlLnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBiZy1tdXRlZC81MCBib3JkZXIgYm9yZGVyLWJvcmRlciByb3VuZGVkLXhsIHBsLTkgcHItNCBweS0yIHRleHQteHMgdGV4dC1mb3JlZ3JvdW5kIGZvY3VzOm91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1wcmltYXJ5LzIwXCJcclxuICAgICAgICAgIC8+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAge2xvYWRpbmcgPyAoXHJcbiAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1zbSB0ZXh0LW11dGVkLWZvcmVncm91bmQgcHktOCB0ZXh0LWNlbnRlclwiPkxvYWRpbmcgcGF5c2xpcHMuLi48L3A+XHJcbiAgICAgICkgOiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyIHJvdW5kZWQtMnhsIG92ZXJmbG93LWhpZGRlbiBzaGFkb3ctc21cIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwib3ZlcmZsb3cteC1hdXRvXCI+XHJcbiAgICAgICAgICAgIDx0YWJsZSBjbGFzc05hbWU9XCJ3LWZ1bGwgdGV4dC1sZWZ0IHRleHQteHNcIj5cclxuICAgICAgICAgICAgICA8dGhlYWQgY2xhc3NOYW1lPVwiYmctbXV0ZWQvNTAgYm9yZGVyLWIgYm9yZGVyLWJvcmRlciB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1ib2xkIHVwcGVyY2FzZVwiPlxyXG4gICAgICAgICAgICAgICAgPHRyPlxyXG4gICAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+RW1wbG95ZWU8L3RoPlxyXG4gICAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+UGF5IFBlcmlvZDwvdGg+XHJcbiAgICAgICAgICAgICAgICAgIDx0aCBjbGFzc05hbWU9XCJwLTRcIj5CYXNpYyBTYWxhcnk8L3RoPlxyXG4gICAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+R3Jvc3MgRWFybmluZ3M8L3RoPlxyXG4gICAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+VG90YWwgTmV0IFBheW91dDwvdGg+XHJcbiAgICAgICAgICAgICAgICAgIDx0aCBjbGFzc05hbWU9XCJwLTRcIj5TdGF0dXM8L3RoPlxyXG4gICAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00IHRleHQtcmlnaHRcIj5BY3Rpb25zPC90aD5cclxuICAgICAgICAgICAgICAgIDwvdHI+XHJcbiAgICAgICAgICAgICAgPC90aGVhZD5cclxuICAgICAgICAgICAgICA8dGJvZHkgY2xhc3NOYW1lPVwiZGl2aWRlLXkgZGl2aWRlLWJvcmRlci82MFwiPlxyXG4gICAgICAgICAgICAgICAge2ZpbHRlcmVkUGF5c2xpcHMubGVuZ3RoID09PSAwID8gKFxyXG4gICAgICAgICAgICAgICAgICA8dHI+XHJcbiAgICAgICAgICAgICAgICAgICAgPHRkIGNvbFNwYW49XCI3XCIgY2xhc3NOYW1lPVwicC04IHRleHQtY2VudGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LXNlbWlib2xkXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICBObyBwdWJsaXNoZWQgcGF5c2xpcHMgZm91bmQgZm9yIHtzZWxlY3RlZENvbXBhbnk/Lm5hbWUgfHwgJ3RoaXMgY29tcGFueSd9LlxyXG4gICAgICAgICAgICAgICAgICAgIDwvdGQ+XHJcbiAgICAgICAgICAgICAgICAgIDwvdHI+XHJcbiAgICAgICAgICAgICAgICApIDogKFxyXG4gICAgICAgICAgICAgICAgICBmaWx0ZXJlZFBheXNsaXBzLm1hcChwcyA9PiAoXHJcbiAgICAgICAgICAgICAgICAgICAgPHRyIGtleT17cHMuaWR9IGNsYXNzTmFtZT1cImhvdmVyOmJnLW11dGVkLzMwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwicC00XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj57cHMudXNlcj8ubmFtZX08L3A+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPntwcy51c2VyPy5lbWFpbH0g4oCiIHtwcy51c2VyPy5kZXBhcnRtZW50IHx8ICdFbmdpbmVlcmluZyd9PC9wPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPC90ZD5cclxuICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgZm9udC1zZW1pYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgTW9udGgge3BzLm1vbnRofSAvIHtwcy55ZWFyfVxyXG4gICAgICAgICAgICAgICAgICAgICAgPC90ZD5cclxuICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kXCI+e2Zvcm1hdElOUihwcy5iYXNpY1NhbGFyeSl9PC90ZD5cclxuICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgZm9udC1zZW1pYm9sZCB0ZXh0LWZvcmVncm91bmRcIj57Zm9ybWF0SU5SKHBzLmdyb3NzU2FsYXJ5KX08L3RkPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cInAtNCBmb250LWV4dHJhYm9sZCB0ZXh0LXByaW1hcnkgdGV4dC1zbVwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICB7Zm9ybWF0SU5SKHBzLm5ldFNhbGFyeSl9XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L3RkPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cInAtNFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9e2BweC0yLjUgcHktMC41IHJvdW5kZWQtZnVsbCB0ZXh0LVsxMHB4XSBmb250LWJsYWNrIHVwcGVyY2FzZSAke3BzLnN0YXR1cyA9PT0gJ1BVQkxJU0hFRCcgPyAnYmctc3VjY2Vzcy8xMCB0ZXh0LXN1Y2Nlc3MnIDogJ2JnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5J31gfT5cclxuICAgICAgICAgICAgICAgICAgICAgICAgICB7cHMuc3RhdHVzfVxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L3RkPlxyXG4gICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzTmFtZT1cInAtNCB0ZXh0LXJpZ2h0XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVWaWV3UGF5c2xpcChwcy5pZCl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicHgtMyBweS0xLjUgYnRuLXByaW1hcnkgcm91bmRlZC1sZyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgdGV4dC14cyBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSBtbC1hdXRvXCJcclxuICAgICAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgIDxFeWUgY2xhc3NOYW1lPVwidy0zLjUgaC0zLjVcIiAvPiBWaWV3IC8gUHJpbnRcclxuICAgICAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICAgICAgICA8L3RkPlxyXG4gICAgICAgICAgICAgICAgICAgIDwvdHI+XHJcbiAgICAgICAgICAgICAgICAgICkpXHJcbiAgICAgICAgICAgICAgICApfVxyXG4gICAgICAgICAgICAgIDwvdGJvZHk+XHJcbiAgICAgICAgICAgIDwvdGFibGU+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgKX1cclxuXHJcbiAgICAgIHsvKiBNb2RhbCBQYXlzbGlwIFZpZXdlciAqL31cclxuICAgICAge3Nob3dNb2RhbCAmJiBzZWxlY3RlZFBheXNsaXAgJiYgKFxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZml4ZWQgaW5zZXQtMCB6LTUwIGJnLWJsYWNrLzYwIGJhY2tkcm9wLWJsdXItc20gZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcC00XCI+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLWNhcmQgYm9yZGVyIGJvcmRlci1ib3JkZXIgcm91bmRlZC0yeGwgcC02IHctZnVsbCBtYXgtdy0zeGwgbWF4LWgtWzkwdmhdIG92ZXJmbG93LXktYXV0byBzcGFjZS15LTYgc2hhZG93LTJ4bCBwcmludDpwLTAgcHJpbnQ6Ym9yZGVyLW5vbmUgcHJpbnQ6c2hhZG93LW5vbmVcIj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gcGItMyBib3JkZXItYiBib3JkZXItYm9yZGVyIHByaW50OmhpZGRlblwiPlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cclxuICAgICAgICAgICAgICAgIDxTaGllbGRDaGVjayBjbGFzc05hbWU9XCJ3LTUgaC01IHRleHQtcHJpbWFyeVwiIC8+XHJcbiAgICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwiZm9udC1leHRyYWJvbGQgdGV4dC1mb3JlZ3JvdW5kIHRleHQtYmFzZVwiPk9mZmljaWFsIEVtcGxveWVlIFBheXNsaXA8L2gzPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cclxuICAgICAgICAgICAgICAgIDxidXR0b24gb25DbGljaz17KCkgPT4gd2luZG93LnByaW50KCl9IGNsYXNzTmFtZT1cInB4LTMgcHktMS41IGJvcmRlciBib3JkZXItYm9yZGVyIGhvdmVyOmJnLW11dGVkIHJvdW5kZWQtbGcgZm9udC1ib2xkIHRleHQteHMgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNVwiPlxyXG4gICAgICAgICAgICAgICAgICA8UHJpbnRlciBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz4gUHJpbnQgLyBTYXZlIFBERlxyXG4gICAgICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9eygpID0+IHNldFNob3dNb2RhbChmYWxzZSl9IGNsYXNzTmFtZT1cInAtMSBob3ZlcjpiZy1tdXRlZCByb3VuZGVkLWxnIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPjxYIGNsYXNzTmFtZT1cInctNSBoLTVcIiAvPjwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgIHsvKiBQcmludGFibGUgQm9keSAqL31cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy13aGl0ZSB0ZXh0LXNsYXRlLTkwMCBwLTggcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLXNsYXRlLTIwMCBzcGFjZS15LTYgdGV4dC14c1wiPlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gaXRlbXMtc3RhcnQgYm9yZGVyLWIgYm9yZGVyLXNsYXRlLTMwMCBwYi00XCI+XHJcbiAgICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC14bCBmb250LWJsYWNrIHRleHQtc2xhdGUtOTAwIHRyYWNraW5nLXRpZ2h0XCI+e3NldHRpbmdzPy5jb21wYW55TmFtZSB8fCAnSW5ub3ZlaXR5J308L2gyPlxyXG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXNsYXRlLTUwMCB0ZXh0LVsxMXB4XSBtdC0wLjVcIj57c2V0dGluZ3M/LmNvbXBhbnlBZGRyZXNzIHx8ICcxMDAgSW5ub3ZhdGlvbiBUb3dlcnMsIEN5YmVyIENpdHksIEJhbmdhbG9yZSAtIDU2MDAwMSd9PC9wPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtcmlnaHRcIj5cclxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwicHgtMi41IHB5LTEgYmctc2xhdGUtMTAwIHRleHQtc2xhdGUtODAwIGZvbnQtYmxhY2sgcm91bmRlZCB0ZXh0LVsxMHB4XSB1cHBlcmNhc2VcIj5DT05GSURFTlRJQUwgUEFZU0xJUDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1zbGF0ZS02MDAgZm9udC1ib2xkIG10LTEgdGV4dC1zbVwiPk1vbnRoIHtzZWxlY3RlZFBheXNsaXAubW9udGh9IC8ge3NlbGVjdGVkUGF5c2xpcC55ZWFyfTwvcD5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTIgZ2FwLTQgYmctc2xhdGUtNTAgcC00IHJvdW5kZWQtbGcgYm9yZGVyIGJvcmRlci1zbGF0ZS0yMDBcIj5cclxuICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc2xhdGUtNTAwIGZvbnQtc2VtaWJvbGRcIj5FbXBsb3llZSBOYW1lOiA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXNsYXRlLTkwMCBmb250LWJvbGRcIj57c2VsZWN0ZWRQYXlzbGlwLnVzZXI/Lm5hbWV9PC9zcGFuPjwvcD5cclxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1zbGF0ZS01MDAgZm9udC1zZW1pYm9sZFwiPkVtcGxveWVlIElEOiA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXNsYXRlLTkwMCBmb250LWJvbGRcIj57c2VsZWN0ZWRQYXlzbGlwLnVzZXI/LmVtcGxveWVlSWQgfHwgJ0VNUC0nICsgc2VsZWN0ZWRQYXlzbGlwLnVzZXI/LmlkPy5zdWJzdHJpbmcoMCwgNil9PC9zcGFuPjwvcD5cclxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1zbGF0ZS01MDAgZm9udC1zZW1pYm9sZFwiPlJvbGUgLyBEZXNpZ25hdGlvbjogPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1zbGF0ZS05MDAgZm9udC1ib2xkXCI+e3NlbGVjdGVkUGF5c2xpcC51c2VyPy5yb2xlfTwvc3Bhbj48L3A+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc2xhdGUtNTAwIGZvbnQtc2VtaWJvbGRcIj5EZXBhcnRtZW50OiA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXNsYXRlLTkwMCBmb250LWJvbGRcIj57c2VsZWN0ZWRQYXlzbGlwLnVzZXI/LmRlcGFydG1lbnQgfHwgJ0dlbmVyYWwnfTwvc3Bhbj48L3A+XHJcbiAgICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQtc2xhdGUtNTAwIGZvbnQtc2VtaWJvbGRcIj5QYXltZW50IE1ldGhvZDogPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1zbGF0ZS05MDAgZm9udC1ib2xkXCI+RGlyZWN0IEJhbmsgVHJhbnNmZXI8L3NwYW4+PC9wPlxyXG4gICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXNsYXRlLTUwMCBmb250LXNlbWlib2xkXCI+UGF5IERhdGU6IDxzcGFuIGNsYXNzTmFtZT1cInRleHQtc2xhdGUtOTAwIGZvbnQtYm9sZFwiPntzZXR0aW5ncz8ucGF5RGF5ID8gYCR7c2V0dGluZ3MucGF5RGF5fXRoIG9mIE1vbnRoYCA6ICczMHRoIG9mIE1vbnRoJ308L3NwYW4+PC9wPlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMiBnYXAtNlwiPlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTJcIj5cclxuICAgICAgICAgICAgICAgICAgPGg0IGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LXNsYXRlLTgwMCBib3JkZXItYiBib3JkZXItc2xhdGUtMzAwIHBiLTEgdGV4dC14c1wiPkdST1NTIEVBUk5JTkdTPC9oND5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktYmV0d2VlbiB0ZXh0LXNsYXRlLTYwMFwiPjxzcGFuPkJhc2ljIFNhbGFyeTwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAuYmFzaWNTYWxhcnkpfTwvc3Bhbj48L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktYmV0d2VlbiB0ZXh0LXNsYXRlLTYwMFwiPjxzcGFuPkhSQTwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAuaHJhKX08L3NwYW4+PC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gdGV4dC1zbGF0ZS02MDBcIj48c3Bhbj5EQTwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAuZGEpfTwvc3Bhbj48L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktYmV0d2VlbiB0ZXh0LXNsYXRlLTYwMFwiPjxzcGFuPkFsbG93YW5jZXMgJiBCb251czwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUigoc2VsZWN0ZWRQYXlzbGlwLmFsbG93YW5jZXNKc29uPy5zcGVjaWFsQWxsb3dhbmNlIHx8IDApICsgKHNlbGVjdGVkUGF5c2xpcC5hbGxvd2FuY2VzSnNvbj8udHJhdmVsQWxsb3dhbmNlIHx8IDApKX08L3NwYW4+PC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gdGV4dC1zbGF0ZS02MDBcIj48c3Bhbj5PdmVydGltZSBQYXkgKHtzZWxlY3RlZFBheXNsaXAub3ZlcnRpbWVIb3Vyc31oKTwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAub3ZlcnRpbWVQYXkpfTwvc3Bhbj48L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktYmV0d2VlbiB0ZXh0LXNsYXRlLTYwMFwiPjxzcGFuPkhvbGlkYXkgV29yayBQYXkgKHtzZWxlY3RlZFBheXNsaXAuaG9saWRheURheXNXb3JrZWR9ZCk8L3NwYW4+PHNwYW4gY2xhc3NOYW1lPVwiZm9udC1zZW1pYm9sZCB0ZXh0LXNsYXRlLTkwMFwiPntmb3JtYXRJTlIoc2VsZWN0ZWRQYXlzbGlwLmhvbGlkYXlQYXkpfTwvc3Bhbj48L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0yXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxoNCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1zbGF0ZS04MDAgYm9yZGVyLWIgYm9yZGVyLXNsYXRlLTMwMCBwYi0xIHRleHQteHNcIj5ERURVQ1RJT05TPC9oND5cclxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktYmV0d2VlbiB0ZXh0LXNsYXRlLTYwMFwiPjxzcGFuPlBGIENvbnRyaWJ1dGlvbjwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAuZGVkdWN0aW9uc0pzb24/LnBmRGVkdWN0aW9uKX08L3NwYW4+PC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gdGV4dC1zbGF0ZS02MDBcIj48c3Bhbj5Qcm9mZXNzaW9uYWwgVGF4PC9zcGFuPjxzcGFuIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1zbGF0ZS05MDBcIj57Zm9ybWF0SU5SKHNlbGVjdGVkUGF5c2xpcC5kZWR1Y3Rpb25zSnNvbj8ucHJvZlRheCl9PC9zcGFuPjwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1iZXR3ZWVuIHRleHQtc2xhdGUtNjAwXCI+PHNwYW4+SW5jb21lIFRheCAoVERTKTwvc3Bhbj48c3BhbiBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkIHRleHQtc2xhdGUtOTAwXCI+e2Zvcm1hdElOUihzZWxlY3RlZFBheXNsaXAuZGVkdWN0aW9uc0pzb24/LmluY29tZVRheCl9PC9zcGFuPjwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYmctc2xhdGUtNTAgYm9yZGVyIGJvcmRlci1zbGF0ZS0zMDAgcC00IHJvdW5kZWQtbGcgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuXCI+XHJcbiAgICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LWJvbGQgdGV4dC1zbGF0ZS04MDAgdXBwZXJjYXNlIGJsb2NrXCI+TkVUIERJU0JVUlNFTUVOVCBBTU9VTlQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtMnhsIGZvbnQtYmxhY2sgdGV4dC1zbGF0ZS05MDBcIj57Zm9ybWF0SU5SKHNlbGVjdGVkUGF5c2xpcC5uZXRTYWxhcnkpfTwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LXJpZ2h0IGZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxRckNvZGUgY2xhc3NOYW1lPVwidy0xMCBoLTEwIHRleHQtc2xhdGUtODAwXCIgLz5cclxuICAgICAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVs5cHhdIGZvbnQtbW9ubyB0ZXh0LXNsYXRlLTcwMCBibG9ja1wiPlFSIEhBU0g6IHtzZWxlY3RlZFBheXNsaXAucXJDb2RlSGFzaH08L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1ib2xkIHRleHQtc2xhdGUtODAwXCI+RGlnaXRhbGx5IFZlcmlmaWVkPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInB0LTYgYm9yZGVyLXQgYm9yZGVyLXNsYXRlLTMwMCBmbGV4IGp1c3RpZnktYmV0d2VlbiBpdGVtcy1lbmQgdGV4dC1bMTBweF0gdGV4dC1zbGF0ZS01MDBcIj5cclxuICAgICAgICAgICAgICAgIDxwPlRoaXMgaXMgYSBjb21wdXRlci1nZW5lcmF0ZWQgZG9jdW1lbnQgYW5kIHJlcXVpcmVzIG5vIHBoeXNpY2FsIHNpZ25hdHVyZS48L3A+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtcmlnaHRcIj5cclxuICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtc2xhdGUtODAwIHRleHQteHNcIj57c2V0dGluZ3M/LmF1dGhvcml6ZWRTaWduYXR1cmUgfHwgJ0F1dGhvcml6ZWQgSFIgU2lnbmF0b3J5J308L3A+XHJcbiAgICAgICAgICAgICAgICAgIDxwPklubm92ZWl0eSBQYXlyb2xsIERlc2s8L3A+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgKX1cclxuICAgIDwvZGl2PlxyXG4gICk7XHJcbn1cclxuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL3BhZ2VzL2ZpbmFuY2UvUGF5c2xpcHNQYWdlLmpzeCJ9

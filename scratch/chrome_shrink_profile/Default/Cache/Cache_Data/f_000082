@@ -1,0 +1,507 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/organization/ShiftPlannerModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion, AnimatePresence } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import {
+  X,
+  Calendar,
+  Clock,
+  Sparkles,
+  User,
+  AlertCircle,
+  CheckCircle2,
+  RefreshCw,
+  Info,
+  ShieldCheck
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const ShiftPlannerModal = ({
+  isOpen,
+  onClose,
+  organizationId,
+  shifts = [],
+  onSuccess
+}) => {
+  _s();
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [conflictWarning, setConflictWarning] = useState(null);
+  const [formData, setFormData] = useState({
+    userId: "",
+    shiftId: "",
+    startDate: "",
+    endDate: "",
+    reason: ""
+  });
+  useEffect(() => {
+    if (isOpen && organizationId) {
+      setLoadingEmployees(true);
+      api.get("/users", {
+        params: { organizationId, limit: 1e3 }
+      }).then((res) => {
+        if (res.data?.users) {
+          setEmployees(res.data.users.filter((u) => u.status === "ACTIVE"));
+        }
+      }).catch((err) => console.warn("Error fetching employees:", err)).finally(() => setLoadingEmployees(false));
+    }
+  }, [isOpen, organizationId]);
+  useEffect(() => {
+    if (isOpen) {
+      const today = /* @__PURE__ */ new Date();
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1e3);
+      const twoWeeks = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1e3);
+      setFormData({
+        userId: "",
+        shiftId: shifts[0]?.id || "",
+        startDate: nextWeek.toISOString().split("T")[0],
+        endDate: twoWeeks.toISOString().split("T")[0],
+        reason: ""
+      });
+      setConflictWarning(null);
+    }
+  }, [isOpen, shifts]);
+  useEffect(() => {
+    if (formData.userId && formData.startDate && formData.endDate) {
+      api.post("/schedules/check-conflict", {
+        organizationId,
+        userId: formData.userId,
+        startDate: formData.startDate,
+        endDate: formData.endDate
+      }).then((res) => {
+        if (res.data?.hasConflict) {
+          setConflictWarning(res.data.message);
+        } else {
+          setConflictWarning(null);
+        }
+      }).catch(() => {
+      });
+    }
+  }, [formData.userId, formData.startDate, formData.endDate, organizationId]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.userId || !formData.shiftId || !formData.startDate || !formData.endDate) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api.post("/schedules/plan", {
+        organizationId,
+        ...formData
+      });
+      if (res.data?.success) {
+        onSuccess(res.data.message || "Shift planned successfully.");
+        onClose();
+      }
+    } catch (err) {
+      setConflictWarning(err.response?.data?.message || "Failed to plan shift.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxDEV(AnimatePresence, { children: /* @__PURE__ */ jsxDEV("div", { className: "fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4", children: /* @__PURE__ */ jsxDEV(
+    motion.div,
+    {
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.95 },
+      className: "w-full max-w-lg rounded-3xl border border-border/70 bg-card p-6 sm:p-7 shadow-2xl space-y-5 text-left my-6",
+      children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/50 pb-3.5", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center", children: /* @__PURE__ */ jsxDEV(Sparkles, { className: "h-5 w-5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 141,
+              columnNumber: 17
+            }, this) }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 140,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-black text-foreground", children: "Future Shift Planner" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 144,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Plan shifts for future date ranges. Automatically reverts after the end date." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 145,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 143,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 139,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: onClose,
+              className: "p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer",
+              children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 154,
+                columnNumber: 15
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 150,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+          lineNumber: 138,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Select Employee *" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 161,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "select",
+              {
+                required: true,
+                value: formData.userId,
+                onChange: (e) => setFormData({ ...formData, userId: e.target.value }),
+                className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 font-semibold text-foreground focus:bg-background focus:ring-2 focus:ring-emerald-500/20 outline-none cursor-pointer",
+                children: [
+                  /* @__PURE__ */ jsxDEV("option", { value: "", children: "-- Choose Employee --" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                    lineNumber: 168,
+                    columnNumber: 17
+                  }, this),
+                  employees.map(
+                    (emp) => /* @__PURE__ */ jsxDEV("option", { value: emp.id, children: [
+                      emp.name,
+                      " (",
+                      emp.departmentRef?.name || emp.department || "General",
+                      " - ",
+                      emp.employeeId || emp.email,
+                      ")"
+                    ] }, emp.id, true, {
+                      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                      lineNumber: 170,
+                      columnNumber: 17
+                    }, this)
+                  )
+                ]
+              },
+              void 0,
+              true,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 162,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 160,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Planned Future Shift *" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 179,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "select",
+              {
+                required: true,
+                value: formData.shiftId,
+                onChange: (e) => setFormData({ ...formData, shiftId: e.target.value }),
+                className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 font-semibold text-foreground focus:bg-background focus:ring-2 focus:ring-emerald-500/20 outline-none cursor-pointer",
+                children: shifts.map(
+                  (s) => /* @__PURE__ */ jsxDEV("option", { value: s.id, children: [
+                    s.name,
+                    " (",
+                    s.startTime,
+                    " – ",
+                    s.endTime,
+                    ")"
+                  ] }, s.id, true, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                    lineNumber: 187,
+                    columnNumber: 17
+                  }, this)
+                )
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 180,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 178,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Start Date *" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 197,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "input",
+                {
+                  type: "date",
+                  required: true,
+                  value: formData.startDate,
+                  onChange: (e) => setFormData({ ...formData, startDate: e.target.value }),
+                  className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2 font-bold text-foreground focus:bg-background outline-none cursor-pointer"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                  lineNumber: 198,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 196,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "End Date *" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 208,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "input",
+                {
+                  type: "date",
+                  required: true,
+                  value: formData.endDate,
+                  onChange: (e) => setFormData({ ...formData, endDate: e.target.value }),
+                  className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2 font-bold text-foreground focus:bg-background outline-none cursor-pointer"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                  lineNumber: 209,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 207,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 195,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "font-bold text-foreground block", children: "Planning Reason / Sprint *" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 221,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "text",
+                placeholder: "e.g. Q4 Night Sprint, Go-Live Release, Weekend Rollout",
+                value: formData.reason,
+                onChange: (e) => setFormData({ ...formData, reason: e.target.value }),
+                className: "w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 font-semibold text-foreground focus:bg-background outline-none"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 222,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 220,
+            columnNumber: 13
+          }, this),
+          conflictWarning && /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-4 w-4 shrink-0 text-rose-500" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 234,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: conflictWarning }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 235,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 233,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2.5", children: [
+            /* @__PURE__ */ jsxDEV(Info, { className: "h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 241,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "font-black", children: "Automatic Revert Guaranteed:" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 243,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "ml-1 opacity-90", children: "On the day after the end date, the employee automatically returns to their permanent shift assignment. No manual rollback required." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 244,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+              lineNumber: 242,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 240,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-end gap-2.5 border-t border-border/50 pt-4", children: [
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "button",
+                onClick: onClose,
+                className: "px-4 py-2 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-all cursor-pointer",
+                children: "Cancel"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 252,
+                columnNumber: 15
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "submit",
+                disabled: submitting || Boolean(conflictWarning),
+                className: "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                children: [
+                  submitting && /* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5 animate-spin" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                    lineNumber: 264,
+                    columnNumber: 32
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Plan Shift" }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                    lineNumber: 265,
+                    columnNumber: 17
+                  }, this)
+                ]
+              },
+              void 0,
+              true,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+                lineNumber: 259,
+                columnNumber: 15
+              },
+              this
+            )
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+            lineNumber: 251,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+          lineNumber: 158,
+          columnNumber: 11
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+      lineNumber: 131,
+      columnNumber: 9
+    },
+    this
+  ) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+    lineNumber: 130,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx",
+    lineNumber: 129,
+    columnNumber: 5
+  }, this);
+};
+_s(ShiftPlannerModal, "XPhQXKpsCMwrze5UkHBxWDa47iY=");
+_c = ShiftPlannerModal;
+export default ShiftPlannerModal;
+var _c;
+$RefreshReg$(_c, "ShiftPlannerModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/organization/ShiftPlannerModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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aUJBSkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFLQTtBQUFBLGVBUEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFRQTtBQUFBLFVBR0EsdUJBQUMsU0FBSSxXQUFVLDJEQUNiO0FBQUE7QUFBQSxjQUFDO0FBQUE7QUFBQSxnQkFDQyxNQUFLO0FBQUEsZ0JBQ0wsU0FBU1g7QUFBQUEsZ0JBQ1QsV0FBVTtBQUFBLGdCQUFtRztBQUFBO0FBQUEsY0FIL0c7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFlBTUE7QUFBQSxZQUNBO0FBQUEsY0FBQztBQUFBO0FBQUEsZ0JBQ0MsTUFBSztBQUFBLGdCQUNMLFVBQVVTLGNBQWN3RCxRQUFRdEQsZUFBZTtBQUFBLGdCQUMvQyxXQUFVO0FBQUEsZ0JBRVRGO0FBQUFBLGdDQUFjLHVCQUFDLGFBQVUsV0FBVSw4QkFBckI7QUFBQTtBQUFBO0FBQUE7QUFBQSx5QkFBK0M7QUFBQSxrQkFDOUQsdUJBQUMsVUFBSywwQkFBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHlCQUFnQjtBQUFBO0FBQUE7QUFBQSxjQU5sQjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsWUFPQTtBQUFBLGVBZkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFnQkE7QUFBQSxhQTdHRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBOEdBO0FBQUE7QUFBQTtBQUFBLElBeklGO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxFQTBJQSxLQTNJRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBNElBLEtBN0lGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0E4SUE7QUFFSjtBQUFFTCxHQXJQSU4sbUJBQWlCO0FBQUEsS0FBakJBO0FBdVBOLGVBQWVBO0FBQWtCLElBQUFvRTtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsInVzZVN0YXRlIiwidXNlRWZmZWN0IiwibW90aW9uIiwiQW5pbWF0ZVByZXNlbmNlIiwiWCIsIkNhbGVuZGFyIiwiQ2xvY2siLCJTcGFya2xlcyIsIlVzZXIiLCJBbGVydENpcmNsZSIsIkNoZWNrQ2lyY2xlMiIsIlJlZnJlc2hDdyIsIkluZm8iLCJTaGllbGRDaGVjayIsImFwaSIsIlNoaWZ0UGxhbm5lck1vZGFsIiwiaXNPcGVuIiwib25DbG9zZSIsIm9yZ2FuaXphdGlvbklkIiwic2hpZnRzIiwib25TdWNjZXNzIiwiX3MiLCJlbXBsb3llZXMiLCJzZXRFbXBsb3llZXMiLCJsb2FkaW5nRW1wbG95ZWVzIiwic2V0TG9hZGluZ0VtcGxveWVlcyIsInN1Ym1pdHRpbmciLCJzZXRTdWJtaXR0aW5nIiwiY29uZmxpY3RXYXJuaW5nIiwic2V0Q29uZmxpY3RXYXJuaW5nIiwiZm9ybURhdGEiLCJzZXRGb3JtRGF0YSIsInVzZXJJZCIsInNoaWZ0SWQiLCJzdGFydERhdGUiLCJlbmREYXRlIiwicmVhc29uIiwiZ2V0IiwicGFyYW1zIiwibGltaXQiLCJ0aGVuIiwicmVzIiwiZGF0YSIsInVzZXJzIiwiZmlsdGVyIiwidSIsInN0YXR1cyIsImNhdGNoIiwiZXJyIiwiY29uc29sZSIsIndhcm4iLCJmaW5hbGx5IiwidG9kYXkiLCJEYXRlIiwibmV4dFdlZWsiLCJnZXRUaW1lIiwidHdvV2Vla3MiLCJpZCIsInRvSVNPU3RyaW5nIiwic3BsaXQiLCJwb3N0IiwiaGFzQ29uZmxpY3QiLCJtZXNzYWdlIiwiaGFuZGxlU3VibWl0IiwiZSIsInByZXZlbnREZWZhdWx0Iiwic3VjY2VzcyIsInJlc3BvbnNlIiwib3BhY2l0eSIsInNjYWxlIiwidGFyZ2V0IiwidmFsdWUiLCJtYXAiLCJlbXAiLCJuYW1lIiwiZGVwYXJ0bWVudFJlZiIsImRlcGFydG1lbnQiLCJlbXBsb3llZUlkIiwiZW1haWwiLCJzIiwic3RhcnRUaW1lIiwiZW5kVGltZSIsIkJvb2xlYW4iLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJTaGlmdFBsYW5uZXJNb2RhbC5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VFZmZlY3QgfSBmcm9tICdyZWFjdCc7XG5pbXBvcnQgeyBtb3Rpb24sIEFuaW1hdGVQcmVzZW5jZSB9IGZyb20gJ2ZyYW1lci1tb3Rpb24nO1xuaW1wb3J0IHtcbiAgWCwgQ2FsZW5kYXIsIENsb2NrLCBTcGFya2xlcywgVXNlciwgQWxlcnRDaXJjbGUsXG4gIENoZWNrQ2lyY2xlMiwgUmVmcmVzaEN3LCBJbmZvLCBTaGllbGRDaGVja1xufSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IGFwaSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9hcGknO1xuXG5jb25zdCBTaGlmdFBsYW5uZXJNb2RhbCA9ICh7XG4gIGlzT3BlbixcbiAgb25DbG9zZSxcbiAgb3JnYW5pemF0aW9uSWQsXG4gIHNoaWZ0cyA9IFtdLFxuICBvblN1Y2Nlc3Ncbn0pID0+IHtcbiAgY29uc3QgW2VtcGxveWVlcywgc2V0RW1wbG95ZWVzXSA9IHVzZVN0YXRlKFtdKTtcbiAgY29uc3QgW2xvYWRpbmdFbXBsb3llZXMsIHNldExvYWRpbmdFbXBsb3llZXNdID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbc3VibWl0dGluZywgc2V0U3VibWl0dGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFtjb25mbGljdFdhcm5pbmcsIHNldENvbmZsaWN0V2FybmluZ10gPSB1c2VTdGF0ZShudWxsKTtcblxuICBjb25zdCBbZm9ybURhdGEsIHNldEZvcm1EYXRhXSA9IHVzZVN0YXRlKHtcbiAgICB1c2VySWQ6ICcnLFxuICAgIHNoaWZ0SWQ6ICcnLFxuICAgIHN0YXJ0RGF0ZTogJycsXG4gICAgZW5kRGF0ZTogJycsXG4gICAgcmVhc29uOiAnJ1xuICB9KTtcblxuICAvLyBGZXRjaCBjb21wYW55IGVtcGxveWVlc1xuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGlmIChpc09wZW4gJiYgb3JnYW5pemF0aW9uSWQpIHtcbiAgICAgIHNldExvYWRpbmdFbXBsb3llZXModHJ1ZSk7XG4gICAgICBhcGkuZ2V0KCcvdXNlcnMnLCB7XG4gICAgICAgIHBhcmFtczogeyBvcmdhbml6YXRpb25JZCwgbGltaXQ6IDEwMDAgfVxuICAgICAgfSlcbiAgICAgICAgLnRoZW4oKHJlcykgPT4ge1xuICAgICAgICAgIGlmIChyZXMuZGF0YT8udXNlcnMpIHtcbiAgICAgICAgICAgIHNldEVtcGxveWVlcyhyZXMuZGF0YS51c2Vycy5maWx0ZXIodSA9PiB1LnN0YXR1cyA9PT0gJ0FDVElWRScpKTtcbiAgICAgICAgICB9XG4gICAgICAgIH0pXG4gICAgICAgIC5jYXRjaCgoZXJyKSA9PiBjb25zb2xlLndhcm4oJ0Vycm9yIGZldGNoaW5nIGVtcGxveWVlczonLCBlcnIpKVxuICAgICAgICAuZmluYWxseSgoKSA9PiBzZXRMb2FkaW5nRW1wbG95ZWVzKGZhbHNlKSk7XG4gICAgfVxuICB9LCBbaXNPcGVuLCBvcmdhbml6YXRpb25JZF0pO1xuXG4gIC8vIFJlc2V0IGZvcm1cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBpZiAoaXNPcGVuKSB7XG4gICAgICBjb25zdCB0b2RheSA9IG5ldyBEYXRlKCk7XG4gICAgICBjb25zdCBuZXh0V2VlayA9IG5ldyBEYXRlKHRvZGF5LmdldFRpbWUoKSArIDcgKiAyNCAqIDYwICogNjAgKiAxMDAwKTtcbiAgICAgIGNvbnN0IHR3b1dlZWtzID0gbmV3IERhdGUodG9kYXkuZ2V0VGltZSgpICsgMTQgKiAyNCAqIDYwICogNjAgKiAxMDAwKTtcblxuICAgICAgc2V0Rm9ybURhdGEoe1xuICAgICAgICB1c2VySWQ6ICcnLFxuICAgICAgICBzaGlmdElkOiBzaGlmdHNbMF0/LmlkIHx8ICcnLFxuICAgICAgICBzdGFydERhdGU6IG5leHRXZWVrLnRvSVNPU3RyaW5nKCkuc3BsaXQoJ1QnKVswXSxcbiAgICAgICAgZW5kRGF0ZTogdHdvV2Vla3MudG9JU09TdHJpbmcoKS5zcGxpdCgnVCcpWzBdLFxuICAgICAgICByZWFzb246ICcnXG4gICAgICB9KTtcbiAgICAgIHNldENvbmZsaWN0V2FybmluZyhudWxsKTtcbiAgICB9XG4gIH0sIFtpc09wZW4sIHNoaWZ0c10pO1xuXG4gIC8vIENvbmZsaWN0IGNoZWNraW5nXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgaWYgKGZvcm1EYXRhLnVzZXJJZCAmJiBmb3JtRGF0YS5zdGFydERhdGUgJiYgZm9ybURhdGEuZW5kRGF0ZSkge1xuICAgICAgYXBpLnBvc3QoJy9zY2hlZHVsZXMvY2hlY2stY29uZmxpY3QnLCB7XG4gICAgICAgIG9yZ2FuaXphdGlvbklkLFxuICAgICAgICB1c2VySWQ6IGZvcm1EYXRhLnVzZXJJZCxcbiAgICAgICAgc3RhcnREYXRlOiBmb3JtRGF0YS5zdGFydERhdGUsXG4gICAgICAgIGVuZERhdGU6IGZvcm1EYXRhLmVuZERhdGVcbiAgICAgIH0pXG4gICAgICAgIC50aGVuKChyZXMpID0+IHtcbiAgICAgICAgICBpZiAocmVzLmRhdGE/Lmhhc0NvbmZsaWN0KSB7XG4gICAgICAgICAgICBzZXRDb25mbGljdFdhcm5pbmcocmVzLmRhdGEubWVzc2FnZSk7XG4gICAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgIHNldENvbmZsaWN0V2FybmluZyhudWxsKTtcbiAgICAgICAgICB9XG4gICAgICAgIH0pXG4gICAgICAgIC5jYXRjaCgoKSA9PiB7fSk7XG4gICAgfVxuICB9LCBbZm9ybURhdGEudXNlcklkLCBmb3JtRGF0YS5zdGFydERhdGUsIGZvcm1EYXRhLmVuZERhdGUsIG9yZ2FuaXphdGlvbklkXSk7XG5cbiAgY29uc3QgaGFuZGxlU3VibWl0ID0gYXN5bmMgKGUpID0+IHtcbiAgICBlLnByZXZlbnREZWZhdWx0KCk7XG4gICAgaWYgKCFmb3JtRGF0YS51c2VySWQgfHwgIWZvcm1EYXRhLnNoaWZ0SWQgfHwgIWZvcm1EYXRhLnN0YXJ0RGF0ZSB8fCAhZm9ybURhdGEuZW5kRGF0ZSkge1xuICAgICAgcmV0dXJuO1xuICAgIH1cblxuICAgIHNldFN1Ym1pdHRpbmcodHJ1ZSk7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5wb3N0KCcvc2NoZWR1bGVzL3BsYW4nLCB7XG4gICAgICAgIG9yZ2FuaXphdGlvbklkLFxuICAgICAgICAuLi5mb3JtRGF0YVxuICAgICAgfSk7XG4gICAgICBpZiAocmVzLmRhdGE/LnN1Y2Nlc3MpIHtcbiAgICAgICAgb25TdWNjZXNzKHJlcy5kYXRhLm1lc3NhZ2UgfHwgJ1NoaWZ0IHBsYW5uZWQgc3VjY2Vzc2Z1bGx5LicpO1xuICAgICAgICBvbkNsb3NlKCk7XG4gICAgICB9XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBzZXRDb25mbGljdFdhcm5pbmcoZXJyLnJlc3BvbnNlPy5kYXRhPy5tZXNzYWdlIHx8ICdGYWlsZWQgdG8gcGxhbiBzaGlmdC4nKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0U3VibWl0dGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGlmICghaXNPcGVuKSByZXR1cm4gbnVsbDtcblxuICByZXR1cm4gKFxuICAgIDxBbmltYXRlUHJlc2VuY2U+XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cImZpeGVkIGluc2V0LTAgei01MCBvdmVyZmxvdy15LWF1dG8gYmctYmxhY2svNjAgYmFja2Ryb3AtYmx1ci14cyBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTRcIj5cbiAgICAgICAgPG1vdGlvbi5kaXZcbiAgICAgICAgICBpbml0aWFsPXt7IG9wYWNpdHk6IDAsIHNjYWxlOiAwLjk1IH19XG4gICAgICAgICAgYW5pbWF0ZT17eyBvcGFjaXR5OiAxLCBzY2FsZTogMSB9fVxuICAgICAgICAgIGV4aXQ9e3sgb3BhY2l0eTogMCwgc2NhbGU6IDAuOTUgfX1cbiAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgbWF4LXctbGcgcm91bmRlZC0zeGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNzAgYmctY2FyZCBwLTYgc206cC03IHNoYWRvdy0yeGwgc3BhY2UteS01IHRleHQtbGVmdCBteS02XCJcbiAgICAgICAgPlxuICAgICAgICAgIHsvKiBIZWFkZXIgKi99XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlci81MCBwYi0zLjVcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTNcIj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTEwIHctMTAgcm91bmRlZC0yeGwgYmctZW1lcmFsZC01MDAvMTAgdGV4dC1lbWVyYWxkLTYwMCBib3JkZXIgYm9yZGVyLWVtZXJhbGQtNTAwLzIwIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyXCI+XG4gICAgICAgICAgICAgICAgPFNwYXJrbGVzIGNsYXNzTmFtZT1cImgtNSB3LTVcIiAvPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYmxhY2sgdGV4dC1mb3JlZ3JvdW5kXCI+RnV0dXJlIFNoaWZ0IFBsYW5uZXI8L2gzPlxuICAgICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInRleHQteHMgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbWVkaXVtXCI+XG4gICAgICAgICAgICAgICAgICBQbGFuIHNoaWZ0cyBmb3IgZnV0dXJlIGRhdGUgcmFuZ2VzLiBBdXRvbWF0aWNhbGx5IHJldmVydHMgYWZ0ZXIgdGhlIGVuZCBkYXRlLlxuICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgb25DbGljaz17b25DbG9zZX1cbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicC0xLjUgcm91bmRlZC14bCBob3ZlcjpiZy1tdXRlZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kIGN1cnNvci1wb2ludGVyXCJcbiAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgPFggY2xhc3NOYW1lPVwiaC01IHctNVwiIC8+XG4gICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxmb3JtIG9uU3VibWl0PXtoYW5kbGVTdWJtaXR9IGNsYXNzTmFtZT1cInNwYWNlLXktNCB0ZXh0LXhzXCI+XG4gICAgICAgICAgICB7LyogRW1wbG95ZWUgU2VsZWN0b3IgKi99XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlNlbGVjdCBFbXBsb3llZSAqPC9sYWJlbD5cbiAgICAgICAgICAgICAgPHNlbGVjdFxuICAgICAgICAgICAgICAgIHJlcXVpcmVkXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnVzZXJJZH1cbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIHVzZXJJZDogZS50YXJnZXQudmFsdWUgfSl9XG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctbXV0ZWQvMjAgcHgtMy41IHB5LTIgZm9udC1zZW1pYm9sZCB0ZXh0LWZvcmVncm91bmQgZm9jdXM6YmctYmFja2dyb3VuZCBmb2N1czpyaW5nLTIgZm9jdXM6cmluZy1lbWVyYWxkLTUwMC8yMCBvdXRsaW5lLW5vbmUgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlwiPi0tIENob29zZSBFbXBsb3llZSAtLTwvb3B0aW9uPlxuICAgICAgICAgICAgICAgIHtlbXBsb3llZXMubWFwKGVtcCA9PiAoXG4gICAgICAgICAgICAgICAgICA8b3B0aW9uIGtleT17ZW1wLmlkfSB2YWx1ZT17ZW1wLmlkfT5cbiAgICAgICAgICAgICAgICAgICAge2VtcC5uYW1lfSAoe2VtcC5kZXBhcnRtZW50UmVmPy5uYW1lIHx8IGVtcC5kZXBhcnRtZW50IHx8ICdHZW5lcmFsJ30gLSB7ZW1wLmVtcGxveWVlSWQgfHwgZW1wLmVtYWlsfSlcbiAgICAgICAgICAgICAgICAgIDwvb3B0aW9uPlxuICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogVGFyZ2V0IFNoaWZ0IFNlbGVjdG9yICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5QbGFubmVkIEZ1dHVyZSBTaGlmdCAqPC9sYWJlbD5cbiAgICAgICAgICAgICAgPHNlbGVjdFxuICAgICAgICAgICAgICAgIHJlcXVpcmVkXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnNoaWZ0SWR9XG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBzaGlmdElkOiBlLnRhcmdldC52YWx1ZSB9KX1cbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBiZy1tdXRlZC8yMCBweC0zLjUgcHktMiBmb250LXNlbWlib2xkIHRleHQtZm9yZWdyb3VuZCBmb2N1czpiZy1iYWNrZ3JvdW5kIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLWVtZXJhbGQtNTAwLzIwIG91dGxpbmUtbm9uZSBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICB7c2hpZnRzLm1hcChzID0+IChcbiAgICAgICAgICAgICAgICAgIDxvcHRpb24ga2V5PXtzLmlkfSB2YWx1ZT17cy5pZH0+XG4gICAgICAgICAgICAgICAgICAgIHtzLm5hbWV9ICh7cy5zdGFydFRpbWV9IOKAkyB7cy5lbmRUaW1lfSlcbiAgICAgICAgICAgICAgICAgIDwvb3B0aW9uPlxuICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogRGF0ZSBSYW5nZSAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtM1wiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+U3RhcnQgRGF0ZSAqPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJkYXRlXCJcbiAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEuc3RhcnREYXRlfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtRGF0YSh7IC4uLmZvcm1EYXRhLCBzdGFydERhdGU6IGUudGFyZ2V0LnZhbHVlIH0pfVxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctbXV0ZWQvMjAgcHgtMyBweS0yIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZm9jdXM6YmctYmFja2dyb3VuZCBvdXRsaW5lLW5vbmUgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xXCI+XG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5FbmQgRGF0ZSAqPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJkYXRlXCJcbiAgICAgICAgICAgICAgICAgIHJlcXVpcmVkXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEuZW5kRGF0ZX1cbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybURhdGEoeyAuLi5mb3JtRGF0YSwgZW5kRGF0ZTogZS50YXJnZXQudmFsdWUgfSl9XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCBiZy1tdXRlZC8yMCBweC0zIHB5LTIgZm9udC1ib2xkIHRleHQtZm9yZWdyb3VuZCBmb2N1czpiZy1iYWNrZ3JvdW5kIG91dGxpbmUtbm9uZSBjdXJzb3ItcG9pbnRlclwiXG4gICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgey8qIFJlYXNvbiAvIE5vdGVzICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTFcIj5cbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgYmxvY2tcIj5QbGFubmluZyBSZWFzb24gLyBTcHJpbnQgKjwvbGFiZWw+XG4gICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cImUuZy4gUTQgTmlnaHQgU3ByaW50LCBHby1MaXZlIFJlbGVhc2UsIFdlZWtlbmQgUm9sbG91dFwiXG4gICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnJlYXNvbn1cbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEZvcm1EYXRhKHsgLi4uZm9ybURhdGEsIHJlYXNvbjogZS50YXJnZXQudmFsdWUgfSl9XG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgYmctbXV0ZWQvMjAgcHgtMy41IHB5LTIgZm9udC1zZW1pYm9sZCB0ZXh0LWZvcmVncm91bmQgZm9jdXM6YmctYmFja2dyb3VuZCBvdXRsaW5lLW5vbmVcIlxuICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgIHsvKiBDb25mbGljdCBBbGVydCAqL31cbiAgICAgICAgICAgIHtjb25mbGljdFdhcm5pbmcgJiYgKFxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMyByb3VuZGVkLTJ4bCBiZy1yb3NlLTUwMC8xMCBib3JkZXIgYm9yZGVyLXJvc2UtNTAwLzIwIHRleHQtcm9zZS03MDAgZGFyazp0ZXh0LXJvc2UtMzAwIHRleHQteHMgZm9udC1zZW1pYm9sZCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICAgIDxBbGVydENpcmNsZSBjbGFzc05hbWU9XCJoLTQgdy00IHNocmluay0wIHRleHQtcm9zZS01MDBcIiAvPlxuICAgICAgICAgICAgICAgIDxzcGFuPntjb25mbGljdFdhcm5pbmd9PC9zcGFuPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICl9XG5cbiAgICAgICAgICAgIHsvKiBBdXRvIFJldmVydCBFeHBsYWluZXIgKi99XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMyByb3VuZGVkLTJ4bCBiZy1lbWVyYWxkLTUwMC8xMCBib3JkZXIgYm9yZGVyLWVtZXJhbGQtNTAwLzIwIHRleHQtZW1lcmFsZC04MDAgZGFyazp0ZXh0LWVtZXJhbGQtMzAwIHRleHQteHMgZmxleCBpdGVtcy1zdGFydCBnYXAtMi41XCI+XG4gICAgICAgICAgICAgIDxJbmZvIGNsYXNzTmFtZT1cImgtNCB3LTQgc2hyaW5rLTAgbXQtMC41IHRleHQtZW1lcmFsZC02MDAgZGFyazp0ZXh0LWVtZXJhbGQtNDAwXCIgLz5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJsYWNrXCI+QXV0b21hdGljIFJldmVydCBHdWFyYW50ZWVkOjwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtbC0xIG9wYWNpdHktOTBcIj5cbiAgICAgICAgICAgICAgICAgIE9uIHRoZSBkYXkgYWZ0ZXIgdGhlIGVuZCBkYXRlLCB0aGUgZW1wbG95ZWUgYXV0b21hdGljYWxseSByZXR1cm5zIHRvIHRoZWlyIHBlcm1hbmVudCBzaGlmdCBhc3NpZ25tZW50LiBObyBtYW51YWwgcm9sbGJhY2sgcmVxdWlyZWQuXG4gICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogRm9vdGVyICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGp1c3RpZnktZW5kIGdhcC0yLjUgYm9yZGVyLXQgYm9yZGVyLWJvcmRlci81MCBwdC00XCI+XG4gICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTQgcHktMiByb3VuZGVkLXhsIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgdHJhbnNpdGlvbi1hbGwgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgQ2FuY2VsXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgdHlwZT1cInN1Ym1pdFwiXG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmcgfHwgQm9vbGVhbihjb25mbGljdFdhcm5pbmcpfVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTUgcHktMiByb3VuZGVkLXhsIGJnLWVtZXJhbGQtNjAwIGhvdmVyOmJnLWVtZXJhbGQtNzAwIHRleHQtd2hpdGUgZm9udC1ibGFjayBzaGFkb3ctbWQgc2hhZG93LWVtZXJhbGQtNjAwLzIwIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjUgY3Vyc29yLXBvaW50ZXIgZGlzYWJsZWQ6b3BhY2l0eS01MFwiXG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICB7c3VibWl0dGluZyAmJiA8UmVmcmVzaEN3IGNsYXNzTmFtZT1cImgtMy41IHctMy41IGFuaW1hdGUtc3BpblwiIC8+fVxuICAgICAgICAgICAgICAgIDxzcGFuPlBsYW4gU2hpZnQ8L3NwYW4+XG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9mb3JtPlxuICAgICAgICA8L21vdGlvbi5kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L0FuaW1hdGVQcmVzZW5jZT5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IFNoaWZ0UGxhbm5lck1vZGFsO1xuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvb3JnYW5pemF0aW9uL1NoaWZ0UGxhbm5lck1vZGFsLmpzeCJ9

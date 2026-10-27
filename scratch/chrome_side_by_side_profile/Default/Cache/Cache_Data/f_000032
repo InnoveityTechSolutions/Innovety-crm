@@ -1,0 +1,652 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/super-admin/LatePolicySettings.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import {
+  Clock,
+  ShieldCheck,
+  Calendar,
+  AlertTriangle,
+  CheckCircle2,
+  Users,
+  DollarSign,
+  Save,
+  RotateCcw,
+  Sparkles,
+  Info
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+import { useAuth } from "/src/context/AuthContext.jsx";
+import { useCompanyScope } from "/src/context/CompanyScopeContext.jsx";
+import CompanyScopeSelector from "/src/components/common/CompanyScopeSelector.jsx";
+const LatePolicySettings = () => {
+  _s();
+  const { user } = useAuth();
+  const { effectiveOrgId } = useCompanyScope();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [policy, setPolicy] = useState({
+    latePolicyEnabled: true,
+    warningLateLimit: 3,
+    deductionPerLate: "1_DAY_SALARY",
+    latePolicyAppliesTo: ["INTERN", "EMPLOYEE", "TEAM_LEADER"]
+  });
+  const fetchLatePolicy = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/late-policy", {
+        params: effectiveOrgId ? { organizationId: effectiveOrgId } : {}
+      });
+      if (res.data?.success && res.data?.data) {
+        setPolicy({
+          latePolicyEnabled: res.data.data.latePolicyEnabled !== false,
+          warningLateLimit: res.data.data.warningLateLimit ?? 3,
+          deductionPerLate: res.data.data.deductionPerLate || "1_DAY_SALARY",
+          latePolicyAppliesTo: Array.isArray(res.data.data.latePolicyAppliesTo) ? res.data.data.latePolicyAppliesTo : ["INTERN", "EMPLOYEE", "TEAM_LEADER"]
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch late policy:", err);
+      showToast("error", "Failed to load late policy settings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchLatePolicy();
+  }, [effectiveOrgId]);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+  const handleRoleToggle = (role) => {
+    setPolicy((prev) => {
+      const exists = prev.latePolicyAppliesTo.includes(role);
+      const nextRoles = exists ? prev.latePolicyAppliesTo.filter((r) => r !== role) : [...prev.latePolicyAppliesTo, role];
+      return {
+        ...prev,
+        latePolicyAppliesTo: nextRoles
+      };
+    });
+  };
+  const handleSave = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setSaving(true);
+      const res = await api.put("/late-policy", {
+        ...policy,
+        organizationId: effectiveOrgId || void 0
+      });
+      if (res.data?.success) {
+        showToast("success", "Late Policy settings updated successfully.");
+      } else {
+        showToast("error", res.data?.message || "Failed to save settings.");
+      }
+    } catch (err) {
+      console.error("Error saving late policy:", err);
+      showToast("error", err.response?.data?.message || "Failed to update late policy.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "w-full space-y-6 animate-in fade-in duration-300 text-left py-2", children: [
+    toast && /* @__PURE__ */ jsxDEV(
+      motion.div,
+      {
+        initial: { opacity: 0, y: -10 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0 },
+        className: `fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-lg border flex items-center gap-2.5 text-xs font-bold transition-all ${toast.type === "success" ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-900/20" : "bg-rose-600 text-white border-rose-500 shadow-rose-900/20"}`,
+        children: [
+          toast.type === "success" ? /* @__PURE__ */ jsxDEV(CheckCircle2, { className: "w-4 h-4" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 139,
+            columnNumber: 39
+          }, this) : /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-4 h-4" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 139,
+            columnNumber: 78
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { children: toast.message }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 140,
+            columnNumber: 11
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 129,
+        columnNumber: 7
+      },
+      this
+    ),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary", children: /* @__PURE__ */ jsxDEV(Clock, { className: "h-5 w-5" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 149,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 148,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h1", { className: "text-xl font-black tracking-tight text-foreground", children: "Late Policy Settings" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 152,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Configure monthly late warnings and automated payroll deduction limits." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 153,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 151,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 147,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 146,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-3", children: /* @__PURE__ */ jsxDEV(CompanyScopeSelector, {}, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 160,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 159,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+      lineNumber: 145,
+      columnNumber: 7
+    }, this),
+    loading ? /* @__PURE__ */ jsxDEV("div", { className: "p-12 text-center text-muted-foreground", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "animate-spin w-8 h-8 border-3 border-primary border-t-transparent rounded-full mx-auto mb-3" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 166,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("p", { className: "text-xs font-semibold", children: "Loading Late Policy settings..." }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 167,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+      lineNumber: 165,
+      columnNumber: 7
+    }, this) : /* @__PURE__ */ jsxDEV("div", { className: "space-y-6", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-card border border-border/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-8", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-muted/20 border border-border/60", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-sm font-extrabold text-foreground", children: "Enable Late Policy" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 177,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: `text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${policy.latePolicyEnabled ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-muted text-muted-foreground"}`, children: policy.latePolicyEnabled ? "Active" : "Disabled" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 178,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 176,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: "When enabled, employees will receive warnings up to the threshold, after which late deductions apply." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 184,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 175,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "relative inline-flex items-center cursor-pointer", children: [
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: policy.latePolicyEnabled,
+              onChange: (e) => setPolicy({ ...policy, latePolicyEnabled: e.target.checked }),
+              className: "sr-only peer"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 189,
+              columnNumber: 17
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV("div", { className: "w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 195,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 188,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 174,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxDEV(Users, { className: "w-3.5 h-3.5" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 203,
+              columnNumber: 19
+            }, this),
+            "Applies To"
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 202,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground mt-0.5", children: "Select which employee roles are governed by the monthly late policy." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 206,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 201,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3", children: [
+          { role: "INTERN", label: "Intern", desc: "Applies to active interns" },
+          { role: "EMPLOYEE", label: "Employee", desc: "Applies to general employees" },
+          { role: "TEAM_LEADER", label: "Team Leader", desc: "Applies to team leads" }
+        ].map(({ role, label, desc }) => {
+          const isChecked = policy.latePolicyAppliesTo.includes(role);
+          return /* @__PURE__ */ jsxDEV(
+            "div",
+            {
+              onClick: () => handleRoleToggle(role),
+              className: `p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 select-none ${isChecked ? "bg-primary/5 border-primary text-foreground shadow-sm" : "bg-muted/10 border-border/60 text-muted-foreground hover:bg-muted/20"}`,
+              children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: isChecked,
+                    onChange: () => {
+                    },
+                    className: "mt-0.5 rounded text-primary focus:ring-primary h-4 w-4"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                    lineNumber: 228,
+                    columnNumber: 23
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "text-xs font-bold text-foreground", children: label }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                    lineNumber: 235,
+                    columnNumber: 25
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] text-muted-foreground mt-0.5", children: desc }, void 0, false, {
+                    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                    lineNumber: 236,
+                    columnNumber: 25
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                  lineNumber: 234,
+                  columnNumber: 23
+                }, this)
+              ]
+            },
+            role,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 219,
+              columnNumber: 19
+            },
+            this
+          );
+        }) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 211,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 200,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-6", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxDEV(AlertTriangle, { className: "w-3.5 h-3.5 text-amber-500" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 249,
+              columnNumber: 19
+            }, this),
+            "Warning Late Limit"
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 248,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: "Number of late arrivals permitted per month before salary deductions start." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 252,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                type: "number",
+                min: "1",
+                max: "10",
+                value: policy.warningLateLimit,
+                onChange: (e) => setPolicy({ ...policy, warningLateLimit: parseInt(e.target.value, 10) || 1 }),
+                className: "w-full bg-background border border-border/80 rounded-2xl px-4 py-2.5 text-sm font-black text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              },
+              void 0,
+              false,
+              {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                lineNumber: 256,
+                columnNumber: 19
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV("span", { className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none", children: "Lates / Month" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 264,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 255,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] text-muted-foreground font-medium pt-1", children: [
+            "Default is ",
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-primary", children: "3 warnings" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 269,
+              columnNumber: 30
+            }, this),
+            ". Salary deduction begins from the 4th late onward."
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 268,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 247,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-2", children: [
+          /* @__PURE__ */ jsxDEV("label", { className: "text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxDEV(DollarSign, { className: "w-3.5 h-3.5 text-emerald-500" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 276,
+              columnNumber: 19
+            }, this),
+            "Deduction Per Late"
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 275,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground", children: "Amount deducted for every late arrival exceeding the warning limit." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 279,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "select",
+            {
+              value: policy.deductionPerLate,
+              onChange: (e) => setPolicy({ ...policy, deductionPerLate: e.target.value }),
+              className: "w-full bg-background border border-border/80 rounded-2xl px-4 py-2.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer",
+              children: [
+                /* @__PURE__ */ jsxDEV("option", { value: "1_DAY_SALARY", children: "1 Day Salary (Gross Salary ÷ Working Days)" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                  lineNumber: 287,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("option", { value: "0.5_DAY_SALARY", children: "0.5 Day Salary (Half Day)" }, void 0, false, {
+                  fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                  lineNumber: 288,
+                  columnNumber: 19
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 282,
+              columnNumber: 17
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV("div", { className: "text-[11px] text-muted-foreground font-medium pt-1", children: [
+            "Formula: ",
+            /* @__PURE__ */ jsxDEV("span", { className: "font-mono font-bold text-foreground", children: [
+              "Deduction = (Total Lates - ",
+              policy.warningLateLimit,
+              ") × Rate"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 291,
+              columnNumber: 28
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 290,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 274,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 245,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "p-4 sm:p-5 rounded-2xl bg-muted/20 border border-border/60 flex items-start gap-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-2 rounded-xl bg-primary/10 text-primary mt-0.5", children: /* @__PURE__ */ jsxDEV(Calendar, { className: "w-4 h-4" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 299,
+          columnNumber: 17
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 298,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "text-xs font-extrabold text-foreground flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV("span", { children: "Monthly Reset" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 303,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full border border-primary/20", children: "Automatic" }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 304,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 302,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground leading-relaxed", children: "Monthly late arrival counts automatically reset to zero at the start of each calendar month. Each calendar month begins with fresh warning allowances." }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 308,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+          lineNumber: 301,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 297,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "pt-2 flex items-center justify-end gap-3 border-t border-border/60", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: fetchLatePolicy,
+            disabled: saving,
+            className: "px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-colors",
+            children: "Reset Changes"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 316,
+            columnNumber: 15
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: handleSave,
+            disabled: saving,
+            className: "flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-extrabold shadow-sm hover:opacity-90 transition-all active:scale-95 disabled:opacity-50",
+            children: saving ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                lineNumber: 332,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Saving..." }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                lineNumber: 333,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 331,
+              columnNumber: 15
+            }, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV(Save, { className: "w-4 h-4" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                lineNumber: 337,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { children: "Save Policy Settings" }, void 0, false, {
+                fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+                lineNumber: 338,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+              lineNumber: 336,
+              columnNumber: 15
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+            lineNumber: 324,
+            columnNumber: 15
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+        lineNumber: 315,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+      lineNumber: 172,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+      lineNumber: 170,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx",
+    lineNumber: 126,
+    columnNumber: 5
+  }, this);
+};
+_s(LatePolicySettings, "nv9noxXqzqcxOWF6q+k+XFy1Q58=", false, function() {
+  return [useAuth, useCompanyScope];
+});
+_c = LatePolicySettings;
+export default LatePolicySettings;
+var _c;
+$RefreshReg$(_c, "LatePolicySettings");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/pages/super-admin/LatePolicySettings.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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c0ZBQWY7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBaUc7QUFBQSxjQUNqRyx1QkFBQyxVQUFLLHlCQUFOO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQWU7QUFBQSxpQkFGakI7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFHQSxJQUVBLG1DQUNFO0FBQUEscUNBQUMsUUFBSyxXQUFVLGFBQWhCO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQXlCO0FBQUEsY0FDekIsdUJBQUMsVUFBSyxvQ0FBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUEwQjtBQUFBLGlCQUY1QjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUdBO0FBQUE7QUFBQSxVQWZKO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQWlCQTtBQUFBLFdBMUJGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUEyQkE7QUFBQSxTQTFLRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBMktBLEtBN0tGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0E4S0E7QUFBQSxPQTFOSjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBNE5BO0FBRUo7QUFBRUwsR0FwVElELG9CQUFrQjtBQUFBLFVBQ0xILFNBQ1VDLGVBQWU7QUFBQTtBQUFBLEtBRnRDRTtBQXNUTixlQUFlQTtBQUFtQixJQUFBd0Q7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsInVzZUVmZmVjdCIsIm1vdGlvbiIsIkNsb2NrIiwiU2hpZWxkQ2hlY2siLCJDYWxlbmRhciIsIkFsZXJ0VHJpYW5nbGUiLCJDaGVja0NpcmNsZTIiLCJVc2VycyIsIkRvbGxhclNpZ24iLCJTYXZlIiwiUm90YXRlQ2N3IiwiU3BhcmtsZXMiLCJJbmZvIiwiYXBpIiwidXNlQXV0aCIsInVzZUNvbXBhbnlTY29wZSIsIkNvbXBhbnlTY29wZVNlbGVjdG9yIiwiTGF0ZVBvbGljeVNldHRpbmdzIiwiX3MiLCJ1c2VyIiwiZWZmZWN0aXZlT3JnSWQiLCJsb2FkaW5nIiwic2V0TG9hZGluZyIsInNhdmluZyIsInNldFNhdmluZyIsInRvYXN0Iiwic2V0VG9hc3QiLCJwb2xpY3kiLCJzZXRQb2xpY3kiLCJsYXRlUG9saWN5RW5hYmxlZCIsIndhcm5pbmdMYXRlTGltaXQiLCJkZWR1Y3Rpb25QZXJMYXRlIiwibGF0ZVBvbGljeUFwcGxpZXNUbyIsImZldGNoTGF0ZVBvbGljeSIsInJlcyIsImdldCIsInBhcmFtcyIsIm9yZ2FuaXphdGlvbklkIiwiZGF0YSIsInN1Y2Nlc3MiLCJBcnJheSIsImlzQXJyYXkiLCJlcnIiLCJjb25zb2xlIiwiZXJyb3IiLCJzaG93VG9hc3QiLCJ0eXBlIiwibWVzc2FnZSIsInNldFRpbWVvdXQiLCJoYW5kbGVSb2xlVG9nZ2xlIiwicm9sZSIsInByZXYiLCJleGlzdHMiLCJpbmNsdWRlcyIsIm5leHRSb2xlcyIsImZpbHRlciIsInIiLCJoYW5kbGVTYXZlIiwiZSIsInByZXZlbnREZWZhdWx0IiwicHV0IiwidW5kZWZpbmVkIiwicmVzcG9uc2UiLCJvcGFjaXR5IiwieSIsInRhcmdldCIsImNoZWNrZWQiLCJsYWJlbCIsImRlc2MiLCJtYXAiLCJpc0NoZWNrZWQiLCJwYXJzZUludCIsInZhbHVlIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiTGF0ZVBvbGljeVNldHRpbmdzLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUsIHVzZUVmZmVjdCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IG1vdGlvbiB9IGZyb20gJ2ZyYW1lci1tb3Rpb24nO1xuaW1wb3J0IHtcbiAgQ2xvY2ssXG4gIFNoaWVsZENoZWNrLFxuICBDYWxlbmRhcixcbiAgQWxlcnRUcmlhbmdsZSxcbiAgQ2hlY2tDaXJjbGUyLFxuICBVc2VycyxcbiAgRG9sbGFyU2lnbixcbiAgU2F2ZSxcbiAgUm90YXRlQ2N3LFxuICBTcGFya2xlcyxcbiAgSW5mb1xufSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IGFwaSBmcm9tICcuLi8uLi9zZXJ2aWNlcy9hcGknO1xuaW1wb3J0IHsgdXNlQXV0aCB9IGZyb20gJy4uLy4uL2NvbnRleHQvQXV0aENvbnRleHQnO1xuaW1wb3J0IHsgdXNlQ29tcGFueVNjb3BlIH0gZnJvbSAnLi4vLi4vY29udGV4dC9Db21wYW55U2NvcGVDb250ZXh0JztcbmltcG9ydCBDb21wYW55U2NvcGVTZWxlY3RvciBmcm9tICcuLi8uLi9jb21wb25lbnRzL2NvbW1vbi9Db21wYW55U2NvcGVTZWxlY3Rvcic7XG5cbmNvbnN0IExhdGVQb2xpY3lTZXR0aW5ncyA9ICgpID0+IHtcbiAgY29uc3QgeyB1c2VyIH0gPSB1c2VBdXRoKCk7XG4gIGNvbnN0IHsgZWZmZWN0aXZlT3JnSWQgfSA9IHVzZUNvbXBhbnlTY29wZSgpO1xuXG4gIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKHRydWUpO1xuICBjb25zdCBbc2F2aW5nLCBzZXRTYXZpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbdG9hc3QsIHNldFRvYXN0XSA9IHVzZVN0YXRlKG51bGwpO1xuXG4gIC8vIFNldHRpbmdzIFN0YXRlXG4gIGNvbnN0IFtwb2xpY3ksIHNldFBvbGljeV0gPSB1c2VTdGF0ZSh7XG4gICAgbGF0ZVBvbGljeUVuYWJsZWQ6IHRydWUsXG4gICAgd2FybmluZ0xhdGVMaW1pdDogMyxcbiAgICBkZWR1Y3Rpb25QZXJMYXRlOiAnMV9EQVlfU0FMQVJZJyxcbiAgICBsYXRlUG9saWN5QXBwbGllc1RvOiBbJ0lOVEVSTicsICdFTVBMT1lFRScsICdURUFNX0xFQURFUiddXG4gIH0pO1xuXG4gIGNvbnN0IGZldGNoTGF0ZVBvbGljeSA9IGFzeW5jICgpID0+IHtcbiAgICB0cnkge1xuICAgICAgc2V0TG9hZGluZyh0cnVlKTtcbiAgICAgIGNvbnN0IHJlcyA9IGF3YWl0IGFwaS5nZXQoJy9sYXRlLXBvbGljeScsIHtcbiAgICAgICAgcGFyYW1zOiBlZmZlY3RpdmVPcmdJZCA/IHsgb3JnYW5pemF0aW9uSWQ6IGVmZmVjdGl2ZU9yZ0lkIH0gOiB7fVxuICAgICAgfSk7XG4gICAgICBpZiAocmVzLmRhdGE/LnN1Y2Nlc3MgJiYgcmVzLmRhdGE/LmRhdGEpIHtcbiAgICAgICAgc2V0UG9saWN5KHtcbiAgICAgICAgICBsYXRlUG9saWN5RW5hYmxlZDogcmVzLmRhdGEuZGF0YS5sYXRlUG9saWN5RW5hYmxlZCAhPT0gZmFsc2UsXG4gICAgICAgICAgd2FybmluZ0xhdGVMaW1pdDogcmVzLmRhdGEuZGF0YS53YXJuaW5nTGF0ZUxpbWl0ID8/IDMsXG4gICAgICAgICAgZGVkdWN0aW9uUGVyTGF0ZTogcmVzLmRhdGEuZGF0YS5kZWR1Y3Rpb25QZXJMYXRlIHx8ICcxX0RBWV9TQUxBUlknLFxuICAgICAgICAgIGxhdGVQb2xpY3lBcHBsaWVzVG86IEFycmF5LmlzQXJyYXkocmVzLmRhdGEuZGF0YS5sYXRlUG9saWN5QXBwbGllc1RvKVxuICAgICAgICAgICAgPyByZXMuZGF0YS5kYXRhLmxhdGVQb2xpY3lBcHBsaWVzVG9cbiAgICAgICAgICAgIDogWydJTlRFUk4nLCAnRU1QTE9ZRUUnLCAnVEVBTV9MRUFERVInXVxuICAgICAgICB9KTtcbiAgICAgIH1cbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0ZhaWxlZCB0byBmZXRjaCBsYXRlIHBvbGljeTonLCBlcnIpO1xuICAgICAgc2hvd1RvYXN0KCdlcnJvcicsICdGYWlsZWQgdG8gbG9hZCBsYXRlIHBvbGljeSBzZXR0aW5ncy4nKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0TG9hZGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgZmV0Y2hMYXRlUG9saWN5KCk7XG4gIH0sIFtlZmZlY3RpdmVPcmdJZF0pO1xuXG4gIGNvbnN0IHNob3dUb2FzdCA9ICh0eXBlLCBtZXNzYWdlKSA9PiB7XG4gICAgc2V0VG9hc3QoeyB0eXBlLCBtZXNzYWdlIH0pO1xuICAgIHNldFRpbWVvdXQoKCkgPT4ge1xuICAgICAgc2V0VG9hc3QobnVsbCk7XG4gICAgfSwgMzUwMCk7XG4gIH07XG5cbiAgY29uc3QgaGFuZGxlUm9sZVRvZ2dsZSA9IChyb2xlKSA9PiB7XG4gICAgc2V0UG9saWN5KHByZXYgPT4ge1xuICAgICAgY29uc3QgZXhpc3RzID0gcHJldi5sYXRlUG9saWN5QXBwbGllc1RvLmluY2x1ZGVzKHJvbGUpO1xuICAgICAgY29uc3QgbmV4dFJvbGVzID0gZXhpc3RzXG4gICAgICAgID8gcHJldi5sYXRlUG9saWN5QXBwbGllc1RvLmZpbHRlcihyID0+IHIgIT09IHJvbGUpXG4gICAgICAgIDogWy4uLnByZXYubGF0ZVBvbGljeUFwcGxpZXNUbywgcm9sZV07XG4gICAgICByZXR1cm4ge1xuICAgICAgICAuLi5wcmV2LFxuICAgICAgICBsYXRlUG9saWN5QXBwbGllc1RvOiBuZXh0Um9sZXNcbiAgICAgIH07XG4gICAgfSk7XG4gIH07XG5cbiAgY29uc3QgaGFuZGxlU2F2ZSA9IGFzeW5jIChlKSA9PiB7XG4gICAgaWYgKGUpIGUucHJldmVudERlZmF1bHQoKTtcbiAgICB0cnkge1xuICAgICAgc2V0U2F2aW5nKHRydWUpO1xuICAgICAgY29uc3QgcmVzID0gYXdhaXQgYXBpLnB1dCgnL2xhdGUtcG9saWN5Jywge1xuICAgICAgICAuLi5wb2xpY3ksXG4gICAgICAgIG9yZ2FuaXphdGlvbklkOiBlZmZlY3RpdmVPcmdJZCB8fCB1bmRlZmluZWRcbiAgICAgIH0pO1xuICAgICAgaWYgKHJlcy5kYXRhPy5zdWNjZXNzKSB7XG4gICAgICAgIHNob3dUb2FzdCgnc3VjY2VzcycsICdMYXRlIFBvbGljeSBzZXR0aW5ncyB1cGRhdGVkIHN1Y2Nlc3NmdWxseS4nKTtcbiAgICAgIH0gZWxzZSB7XG4gICAgICAgIHNob3dUb2FzdCgnZXJyb3InLCByZXMuZGF0YT8ubWVzc2FnZSB8fCAnRmFpbGVkIHRvIHNhdmUgc2V0dGluZ3MuJyk7XG4gICAgICB9XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBjb25zb2xlLmVycm9yKCdFcnJvciBzYXZpbmcgbGF0ZSBwb2xpY3k6JywgZXJyKTtcbiAgICAgIHNob3dUb2FzdCgnZXJyb3InLCBlcnIucmVzcG9uc2U/LmRhdGE/Lm1lc3NhZ2UgfHwgJ0ZhaWxlZCB0byB1cGRhdGUgbGF0ZSBwb2xpY3kuJyk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldFNhdmluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIHJldHVybiAoXG4gICAgPGRpdiBjbGFzc05hbWU9XCJ3LWZ1bGwgc3BhY2UteS02IGFuaW1hdGUtaW4gZmFkZS1pbiBkdXJhdGlvbi0zMDAgdGV4dC1sZWZ0IHB5LTJcIj5cbiAgICAgIHsvKiBUb2FzdCBOb3RpZmljYXRpb24gKi99XG4gICAgICB7dG9hc3QgJiYgKFxuICAgICAgICA8bW90aW9uLmRpdlxuICAgICAgICAgIGluaXRpYWw9e3sgb3BhY2l0eTogMCwgeTogLTEwIH19XG4gICAgICAgICAgYW5pbWF0ZT17eyBvcGFjaXR5OiAxLCB5OiAwIH19XG4gICAgICAgICAgZXhpdD17eyBvcGFjaXR5OiAwIH19XG4gICAgICAgICAgY2xhc3NOYW1lPXtgZml4ZWQgdG9wLTUgcmlnaHQtNSB6LTUwIHB4LTQgcHktMyByb3VuZGVkLTJ4bCBzaGFkb3ctbGcgYm9yZGVyIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjUgdGV4dC14cyBmb250LWJvbGQgdHJhbnNpdGlvbi1hbGwgJHtcbiAgICAgICAgICAgIHRvYXN0LnR5cGUgPT09ICdzdWNjZXNzJ1xuICAgICAgICAgICAgICA/ICdiZy1lbWVyYWxkLTYwMCB0ZXh0LXdoaXRlIGJvcmRlci1lbWVyYWxkLTUwMCBzaGFkb3ctZW1lcmFsZC05MDAvMjAnXG4gICAgICAgICAgICAgIDogJ2JnLXJvc2UtNjAwIHRleHQtd2hpdGUgYm9yZGVyLXJvc2UtNTAwIHNoYWRvdy1yb3NlLTkwMC8yMCdcbiAgICAgICAgICB9YH1cbiAgICAgICAgPlxuICAgICAgICAgIHt0b2FzdC50eXBlID09PSAnc3VjY2VzcycgPyA8Q2hlY2tDaXJjbGUyIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPiA6IDxBbGVydFRyaWFuZ2xlIGNsYXNzTmFtZT1cInctNCBoLTRcIiAvPn1cbiAgICAgICAgICA8c3Bhbj57dG9hc3QubWVzc2FnZX08L3NwYW4+XG4gICAgICAgIDwvbW90aW9uLmRpdj5cbiAgICAgICl9XG5cbiAgICAgIHsvKiBIZWFkZXIgd2l0aCBPcmdhbml6YXRpb24gU2NvcGUgU2VsZWN0b3IgKi99XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggZmxleC1jb2wgc206ZmxleC1yb3cgc206aXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBnYXAtNCBib3JkZXItYiBib3JkZXItYm9yZGVyIHBiLTVcIj5cbiAgICAgICAgPGRpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0yLjVcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0xMCB3LTEwIHJvdW5kZWQtMnhsIGJnLXByaW1hcnkvMTAgYm9yZGVyIGJvcmRlci1wcmltYXJ5LzIwIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHRleHQtcHJpbWFyeVwiPlxuICAgICAgICAgICAgICA8Q2xvY2sgY2xhc3NOYW1lPVwiaC01IHctNVwiIC8+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgIDxoMSBjbGFzc05hbWU9XCJ0ZXh0LXhsIGZvbnQtYmxhY2sgdHJhY2tpbmctdGlnaHQgdGV4dC1mb3JlZ3JvdW5kXCI+TGF0ZSBQb2xpY3kgU2V0dGluZ3M8L2gxPlxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBmb250LW1lZGl1bVwiPlxuICAgICAgICAgICAgICAgIENvbmZpZ3VyZSBtb250aGx5IGxhdGUgd2FybmluZ3MgYW5kIGF1dG9tYXRlZCBwYXlyb2xsIGRlZHVjdGlvbiBsaW1pdHMuXG4gICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtM1wiPlxuICAgICAgICAgIDxDb21wYW55U2NvcGVTZWxlY3RvciAvPlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuXG4gICAgICB7bG9hZGluZyA/IChcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTEyIHRleHQtY2VudGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYW5pbWF0ZS1zcGluIHctOCBoLTggYm9yZGVyLTMgYm9yZGVyLXByaW1hcnkgYm9yZGVyLXQtdHJhbnNwYXJlbnQgcm91bmRlZC1mdWxsIG14LWF1dG8gbWItM1wiIC8+XG4gICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LXNlbWlib2xkXCI+TG9hZGluZyBMYXRlIFBvbGljeSBzZXR0aW5ncy4uLjwvcD5cbiAgICAgICAgPC9kaXY+XG4gICAgICApIDogKFxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktNlwiPlxuICAgICAgICAgIHsvKiBNYWluIENhcmQgKi99XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1jYXJkIGJvcmRlciBib3JkZXItYm9yZGVyLzgwIHJvdW5kZWQtM3hsIHAtNiBzbTpwLTggc2hhZG93LXNtIHNwYWNlLXktOFwiPlxuICAgICAgICAgICAgey8qIDEuIFBvbGljeSBNYXN0ZXIgVG9nZ2xlICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gcC00IHNtOnAtNSByb3VuZGVkLTJ4bCBiZy1tdXRlZC8yMCBib3JkZXIgYm9yZGVyLWJvcmRlci82MFwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMVwiPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtc20gZm9udC1leHRyYWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+RW5hYmxlIExhdGUgUG9saWN5PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPXtgdGV4dC1bMTBweF0gdXBwZXJjYXNlIGZvbnQtYmxhY2sgcHgtMiBweS0wLjUgcm91bmRlZC1mdWxsICR7XG4gICAgICAgICAgICAgICAgICAgIHBvbGljeS5sYXRlUG9saWN5RW5hYmxlZCA/ICdiZy1lbWVyYWxkLTUwMC8xMCB0ZXh0LWVtZXJhbGQtNjAwIGJvcmRlciBib3JkZXItZW1lcmFsZC01MDAvMjAnIDogJ2JnLW11dGVkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCdcbiAgICAgICAgICAgICAgICAgIH1gfT5cbiAgICAgICAgICAgICAgICAgICAge3BvbGljeS5sYXRlUG9saWN5RW5hYmxlZCA/ICdBY3RpdmUnIDogJ0Rpc2FibGVkJ31cbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAgV2hlbiBlbmFibGVkLCBlbXBsb3llZXMgd2lsbCByZWNlaXZlIHdhcm5pbmdzIHVwIHRvIHRoZSB0aHJlc2hvbGQsIGFmdGVyIHdoaWNoIGxhdGUgZGVkdWN0aW9ucyBhcHBseS5cbiAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwicmVsYXRpdmUgaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGN1cnNvci1wb2ludGVyXCI+XG4gICAgICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxuICAgICAgICAgICAgICAgICAgY2hlY2tlZD17cG9saWN5LmxhdGVQb2xpY3lFbmFibGVkfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRQb2xpY3koeyAuLi5wb2xpY3ksIGxhdGVQb2xpY3lFbmFibGVkOiBlLnRhcmdldC5jaGVja2VkIH0pfVxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwic3Itb25seSBwZWVyXCJcbiAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy0xMSBoLTYgYmctbXV0ZWQgcGVlci1mb2N1czpvdXRsaW5lLW5vbmUgcm91bmRlZC1mdWxsIHBlZXIgcGVlci1jaGVja2VkOmFmdGVyOnRyYW5zbGF0ZS14LWZ1bGwgcGVlci1jaGVja2VkOmFmdGVyOmJvcmRlci13aGl0ZSBhZnRlcjpjb250ZW50LVsnJ10gYWZ0ZXI6YWJzb2x1dGUgYWZ0ZXI6dG9wLVsycHhdIGFmdGVyOmxlZnQtWzJweF0gYWZ0ZXI6Ymctd2hpdGUgYWZ0ZXI6Ym9yZGVyLWdyYXktMzAwIGFmdGVyOmJvcmRlciBhZnRlcjpyb3VuZGVkLWZ1bGwgYWZ0ZXI6aC01IGFmdGVyOnctNSBhZnRlcjp0cmFuc2l0aW9uLWFsbCBwZWVyLWNoZWNrZWQ6YmctcHJpbWFyeVwiPjwvZGl2PlxuICAgICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgIHsvKiAyLiBBcHBsaWVzIFRvIFJvbGVzICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTNcIj5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWV4dHJhYm9sZCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgIDxVc2VycyBjbGFzc05hbWU9XCJ3LTMuNSBoLTMuNVwiIC8+XG4gICAgICAgICAgICAgICAgICBBcHBsaWVzIFRvXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0wLjVcIj5cbiAgICAgICAgICAgICAgICAgIFNlbGVjdCB3aGljaCBlbXBsb3llZSByb2xlcyBhcmUgZ292ZXJuZWQgYnkgdGhlIG1vbnRobHkgbGF0ZSBwb2xpY3kuXG4gICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgc206Z3JpZC1jb2xzLTMgZ2FwLTNcIj5cbiAgICAgICAgICAgICAgICB7W1xuICAgICAgICAgICAgICAgICAgeyByb2xlOiAnSU5URVJOJywgbGFiZWw6ICdJbnRlcm4nLCBkZXNjOiAnQXBwbGllcyB0byBhY3RpdmUgaW50ZXJucycgfSxcbiAgICAgICAgICAgICAgICAgIHsgcm9sZTogJ0VNUExPWUVFJywgbGFiZWw6ICdFbXBsb3llZScsIGRlc2M6ICdBcHBsaWVzIHRvIGdlbmVyYWwgZW1wbG95ZWVzJyB9LFxuICAgICAgICAgICAgICAgICAgeyByb2xlOiAnVEVBTV9MRUFERVInLCBsYWJlbDogJ1RlYW0gTGVhZGVyJywgZGVzYzogJ0FwcGxpZXMgdG8gdGVhbSBsZWFkcycgfVxuICAgICAgICAgICAgICAgIF0ubWFwKCh7IHJvbGUsIGxhYmVsLCBkZXNjIH0pID0+IHtcbiAgICAgICAgICAgICAgICAgIGNvbnN0IGlzQ2hlY2tlZCA9IHBvbGljeS5sYXRlUG9saWN5QXBwbGllc1RvLmluY2x1ZGVzKHJvbGUpO1xuICAgICAgICAgICAgICAgICAgcmV0dXJuIChcbiAgICAgICAgICAgICAgICAgICAgPGRpdlxuICAgICAgICAgICAgICAgICAgICAgIGtleT17cm9sZX1cbiAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVSb2xlVG9nZ2xlKHJvbGUpfVxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHAtNCByb3VuZGVkLTJ4bCBib3JkZXIgY3Vyc29yLXBvaW50ZXIgdHJhbnNpdGlvbi1hbGwgZmxleCBpdGVtcy1zdGFydCBnYXAtMyBzZWxlY3Qtbm9uZSAke1xuICAgICAgICAgICAgICAgICAgICAgICAgaXNDaGVja2VkXG4gICAgICAgICAgICAgICAgICAgICAgICAgID8gJ2JnLXByaW1hcnkvNSBib3JkZXItcHJpbWFyeSB0ZXh0LWZvcmVncm91bmQgc2hhZG93LXNtJ1xuICAgICAgICAgICAgICAgICAgICAgICAgICA6ICdiZy1tdXRlZC8xMCBib3JkZXItYm9yZGVyLzYwIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1tdXRlZC8yMCdcbiAgICAgICAgICAgICAgICAgICAgICB9YH1cbiAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgICAgICAgICAgdHlwZT1cImNoZWNrYm94XCJcbiAgICAgICAgICAgICAgICAgICAgICAgIGNoZWNrZWQ9e2lzQ2hlY2tlZH1cbiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoKSA9PiB7fX1cbiAgICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cIm10LTAuNSByb3VuZGVkIHRleHQtcHJpbWFyeSBmb2N1czpyaW5nLXByaW1hcnkgaC00IHctNFwiXG4gICAgICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj57bGFiZWx9PC9kaXY+XG4gICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBtdC0wLjVcIj57ZGVzY308L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICApO1xuICAgICAgICAgICAgICAgIH0pfVxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogMy4gV2FybmluZyBMaW1pdCAmIERlZHVjdGlvbiBQZXIgTGF0ZSAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBzbTpncmlkLWNvbHMtMiBnYXAtNlwiPlxuICAgICAgICAgICAgICB7LyogV2FybmluZyBMaW1pdCAqL31cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTJcIj5cbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWV4dHJhYm9sZCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgIDxBbGVydFRyaWFuZ2xlIGNsYXNzTmFtZT1cInctMy41IGgtMy41IHRleHQtYW1iZXItNTAwXCIgLz5cbiAgICAgICAgICAgICAgICAgIFdhcm5pbmcgTGF0ZSBMaW1pdFxuICAgICAgICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmRcIj5cbiAgICAgICAgICAgICAgICAgIE51bWJlciBvZiBsYXRlIGFycml2YWxzIHBlcm1pdHRlZCBwZXIgbW9udGggYmVmb3JlIHNhbGFyeSBkZWR1Y3Rpb25zIHN0YXJ0LlxuICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlXCI+XG4gICAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgICAgICAgIG1pbj1cIjFcIlxuICAgICAgICAgICAgICAgICAgICBtYXg9XCIxMFwiXG4gICAgICAgICAgICAgICAgICAgIHZhbHVlPXtwb2xpY3kud2FybmluZ0xhdGVMaW1pdH1cbiAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRQb2xpY3koeyAuLi5wb2xpY3ksIHdhcm5pbmdMYXRlTGltaXQ6IHBhcnNlSW50KGUudGFyZ2V0LnZhbHVlLCAxMCkgfHwgMSB9KX1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGJnLWJhY2tncm91bmQgYm9yZGVyIGJvcmRlci1ib3JkZXIvODAgcm91bmRlZC0yeGwgcHgtNCBweS0yLjUgdGV4dC1zbSBmb250LWJsYWNrIHRleHQtZm9yZWdyb3VuZCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6cmluZy0yIGZvY3VzOnJpbmctcHJpbWFyeS80MFwiXG4gICAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiYWJzb2x1dGUgcmlnaHQtMy41IHRvcC0xLzIgLXRyYW5zbGF0ZS15LTEvMiB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgcG9pbnRlci1ldmVudHMtbm9uZVwiPlxuICAgICAgICAgICAgICAgICAgICBMYXRlcyAvIE1vbnRoXG4gICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW0gcHQtMVwiPlxuICAgICAgICAgICAgICAgICAgRGVmYXVsdCBpcyA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1wcmltYXJ5XCI+MyB3YXJuaW5nczwvc3Bhbj4uIFNhbGFyeSBkZWR1Y3Rpb24gYmVnaW5zIGZyb20gdGhlIDR0aCBsYXRlIG9ud2FyZC5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgICAgey8qIERlZHVjdGlvbiBQZXIgTGF0ZSAqL31cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTJcIj5cbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC14cyBmb250LWV4dHJhYm9sZCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0xLjVcIj5cbiAgICAgICAgICAgICAgICAgIDxEb2xsYXJTaWduIGNsYXNzTmFtZT1cInctMy41IGgtMy41IHRleHQtZW1lcmFsZC01MDBcIiAvPlxuICAgICAgICAgICAgICAgICAgRGVkdWN0aW9uIFBlciBMYXRlXG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgICAgICAgICAgQW1vdW50IGRlZHVjdGVkIGZvciBldmVyeSBsYXRlIGFycml2YWwgZXhjZWVkaW5nIHRoZSB3YXJuaW5nIGxpbWl0LlxuICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICA8c2VsZWN0XG4gICAgICAgICAgICAgICAgICB2YWx1ZT17cG9saWN5LmRlZHVjdGlvblBlckxhdGV9XG4gICAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFBvbGljeSh7IC4uLnBvbGljeSwgZGVkdWN0aW9uUGVyTGF0ZTogZS50YXJnZXQudmFsdWUgfSl9XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgYmctYmFja2dyb3VuZCBib3JkZXIgYm9yZGVyLWJvcmRlci84MCByb3VuZGVkLTJ4bCBweC00IHB5LTIuNSB0ZXh0LXNtIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmQgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXByaW1hcnkvNDAgY3Vyc29yLXBvaW50ZXJcIlxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCIxX0RBWV9TQUxBUllcIj4xIERheSBTYWxhcnkgKEdyb3NzIFNhbGFyeSDDtyBXb3JraW5nIERheXMpPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiMC41X0RBWV9TQUxBUllcIj4wLjUgRGF5IFNhbGFyeSAoSGFsZiBEYXkpPC9vcHRpb24+XG4gICAgICAgICAgICAgICAgPC9zZWxlY3Q+XG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW0gcHQtMVwiPlxuICAgICAgICAgICAgICAgICAgRm9ybXVsYTogPHNwYW4gY2xhc3NOYW1lPVwiZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5EZWR1Y3Rpb24gPSAoVG90YWwgTGF0ZXMgLSB7cG9saWN5Lndhcm5pbmdMYXRlTGltaXR9KSDDlyBSYXRlPC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7LyogNC4gTW9udGhseSBSZXNldCBJbmZvIENhcmQgKi99XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNCBzbTpwLTUgcm91bmRlZC0yeGwgYmctbXV0ZWQvMjAgYm9yZGVyIGJvcmRlci1ib3JkZXIvNjAgZmxleCBpdGVtcy1zdGFydCBnYXAtM1wiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMiByb3VuZGVkLXhsIGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IG10LTAuNVwiPlxuICAgICAgICAgICAgICAgIDxDYWxlbmRhciBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0wLjVcIj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1leHRyYWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgICA8c3Bhbj5Nb250aGx5IFJlc2V0PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1ib2xkIHB4LTIgcHktMC41IGJnLXByaW1hcnkvMTAgdGV4dC1wcmltYXJ5IHJvdW5kZWQtZnVsbCBib3JkZXIgYm9yZGVyLXByaW1hcnkvMjBcIj5cbiAgICAgICAgICAgICAgICAgICAgQXV0b21hdGljXG4gICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgbGVhZGluZy1yZWxheGVkXCI+XG4gICAgICAgICAgICAgICAgICBNb250aGx5IGxhdGUgYXJyaXZhbCBjb3VudHMgYXV0b21hdGljYWxseSByZXNldCB0byB6ZXJvIGF0IHRoZSBzdGFydCBvZiBlYWNoIGNhbGVuZGFyIG1vbnRoLiBFYWNoIGNhbGVuZGFyIG1vbnRoIGJlZ2lucyB3aXRoIGZyZXNoIHdhcm5pbmcgYWxsb3dhbmNlcy5cbiAgICAgICAgICAgICAgICA8L3A+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICAgIHsvKiBTYXZlIEJ1dHRvbiAqL31cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHQtMiBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWVuZCBnYXAtMyBib3JkZXItdCBib3JkZXItYm9yZGVyLzYwXCI+XG4gICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgICAgICBvbkNsaWNrPXtmZXRjaExhdGVQb2xpY3l9XG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3NhdmluZ31cbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJweC00IHB5LTIgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LW11dGVkLWZvcmVncm91bmQgaG92ZXI6YmctbXV0ZWQgdHJhbnNpdGlvbi1jb2xvcnNcIlxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgUmVzZXQgQ2hhbmdlc1xuICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZVNhdmV9XG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3NhdmluZ31cbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiBweC02IHB5LTIuNSByb3VuZGVkLXhsIGJnLXByaW1hcnkgdGV4dC1wcmltYXJ5LWZvcmVncm91bmQgdGV4dC14cyBmb250LWV4dHJhYm9sZCBzaGFkb3ctc20gaG92ZXI6b3BhY2l0eS05MCB0cmFuc2l0aW9uLWFsbCBhY3RpdmU6c2NhbGUtOTUgZGlzYWJsZWQ6b3BhY2l0eS01MFwiXG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICB7c2F2aW5nID8gKFxuICAgICAgICAgICAgICAgICAgPD5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3LTMuNSBoLTMuNSBib3JkZXItMiBib3JkZXItd2hpdGUgYm9yZGVyLXQtdHJhbnNwYXJlbnQgcm91bmRlZC1mdWxsIGFuaW1hdGUtc3BpblwiIC8+XG4gICAgICAgICAgICAgICAgICAgIDxzcGFuPlNhdmluZy4uLjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDwvPlxuICAgICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgICA8PlxuICAgICAgICAgICAgICAgICAgICA8U2F2ZSBjbGFzc05hbWU9XCJ3LTQgaC00XCIgLz5cbiAgICAgICAgICAgICAgICAgICAgPHNwYW4+U2F2ZSBQb2xpY3kgU2V0dGluZ3M8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8Lz5cbiAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICl9XG4gICAgPC9kaXY+XG4gICk7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBMYXRlUG9saWN5U2V0dGluZ3M7XG4iXSwiZmlsZSI6IkQ6L1AgUiBPIEogRSBDIFQgUy9XZWIvTVJGLWNybS9mcm9udGVuZC9zcmMvcGFnZXMvc3VwZXItYWRtaW4vTGF0ZVBvbGljeVNldHRpbmdzLmpzeCJ9

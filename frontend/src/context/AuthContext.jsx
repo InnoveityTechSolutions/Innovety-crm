@@ -238,6 +238,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshProfile = async () => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data) {
+        setUser(res.data);
+        localStorage.setItem('user', JSON.stringify(res.data));
+        return { success: true, user: res.data };
+      }
+    } catch (profileErr) {
+      console.warn('[AuthContext] refreshProfile notice:', profileErr?.message);
+      if (profileErr.response && (profileErr.response.status === 401 || profileErr.response.status === 403)) {
+        logout();
+      }
+    }
+    return { success: false };
+  };
+
   const value = {
     user,
     setUser,
@@ -251,6 +268,7 @@ export const AuthProvider = ({ children }) => {
     organizationLogo: user?.organization?.logo || null,
     login,
     logout,
+    refreshProfile,
     updateProfile,
     removeProfilePicture,
     removeProfilePhoto: removeProfilePicture,

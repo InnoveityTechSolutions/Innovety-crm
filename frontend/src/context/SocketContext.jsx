@@ -5,7 +5,7 @@ import api, { getSocket, disconnectSocket } from '../services/api';
 const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
-  const { user, token } = useAuth();
+  const { user, token, refreshProfile } = useAuth();
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -115,17 +115,61 @@ export const SocketProvider = ({ children }) => {
       setOnlineUsers((prev) => prev.filter((u) => String(u.userId || u.id) !== idStr));
     };
 
+    // Phase 4: Dynamic Role-Based Access Management permission cache invalidation
+    const handleAccessTemplateUpdated = (data) => {
+      console.log('[CLIENT RECEIVED] access_template_updated:', data);
+      if (!data || !user) return;
+      const isAssigned = user.accessTemplateId && (String(user.accessTemplateId) === String(data.templateId));
+      const matchesOrg = data.organizationId && user.organizationId && (String(user.organizationId) === String(data.organizationId));
+      const matchesUser = data.userId && (String(user.id) === String(data.userId));
+
+      if (isAssigned || matchesUser || (matchesOrg && !user.accessTemplateId)) {
+        console.log('[SocketContext] Permissions invalidated by access_template_updated. Refreshing profile...');
+        if (typeof refreshProfile === 'function') {
+          refreshProfile();
+        }
+      }
+    };
+
+    const handleAccessTemplateDeleted = (data) => {
+      console.log('[CLIENT RECEIVED] access_template_deleted:', data);
+      if (!data || !user) return;
+      if (user.accessTemplateId && String(user.accessTemplateId) === String(data.templateId)) {
+        console.log('[SocketContext] Assigned template deleted. Refreshing profile...');
+        if (typeof refreshProfile === 'function') {
+          refreshProfile();
+        }
+      }
+    };
+
+    const handleUserPermissionsUpdated = (data) => {
+      console.log('[CLIENT RECEIVED] user_permissions_updated:', data);
+      if (!data || !user) return;
+      if (!data.userId || String(data.userId) === String(user.id)) {
+        console.log('[SocketContext] Direct user permissions updated. Refreshing profile...');
+        if (typeof refreshProfile === 'function') {
+          refreshProfile();
+        }
+      }
+    };
+
     sharedSocket.off('notification', handleNotification);
     sharedSocket.off('announcement', handleAnnouncement);
     sharedSocket.off('online_users', handleOnlineUsers);
     sharedSocket.off('user_online', handleUserOnline);
     sharedSocket.off('user_offline', handleUserOffline);
+    sharedSocket.off('access_template_updated', handleAccessTemplateUpdated);
+    sharedSocket.off('access_template_deleted', handleAccessTemplateDeleted);
+    sharedSocket.off('user_permissions_updated', handleUserPermissionsUpdated);
 
     sharedSocket.on('notification', handleNotification);
     sharedSocket.on('announcement', handleAnnouncement);
     sharedSocket.on('online_users', handleOnlineUsers);
     sharedSocket.on('user_online', handleUserOnline);
     sharedSocket.on('user_offline', handleUserOffline);
+    sharedSocket.on('access_template_updated', handleAccessTemplateUpdated);
+    sharedSocket.on('access_template_deleted', handleAccessTemplateDeleted);
+    sharedSocket.on('user_permissions_updated', handleUserPermissionsUpdated);
 
     // Initial fetch of online users
     sharedSocket.emit('get_online_users');
@@ -137,8 +181,11 @@ export const SocketProvider = ({ children }) => {
       sharedSocket.off('online_users', handleOnlineUsers);
       sharedSocket.off('user_online', handleUserOnline);
       sharedSocket.off('user_offline', handleUserOffline);
+      sharedSocket.off('access_template_updated', handleAccessTemplateUpdated);
+      sharedSocket.off('access_template_deleted', handleAccessTemplateDeleted);
+      sharedSocket.off('user_permissions_updated', handleUserPermissionsUpdated);
     };
-  }, [user, token]);
+  }, [user, token, refreshProfile]);
 
   const markRead = async (id) => {
     try {

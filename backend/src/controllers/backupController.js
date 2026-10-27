@@ -185,7 +185,7 @@ const executeRestoreAction = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Unauthorized. Super Admin access required.' });
     }
 
-    const { tempFileName, originalFileName } = req.body;
+    const { tempFileName, originalFileName, targetDatabase, promoteToActive } = req.body;
     if (!tempFileName) {
       return res.status(400).json({ success: false, message: 'tempFileName is required to execute restore.' });
     }
@@ -193,7 +193,9 @@ const executeRestoreAction = async (req, res, next) => {
     const result = await executeLiveRestore({
       tempFileName,
       originalFileName,
-      user: req.user
+      user: req.user,
+      targetDatabase,
+      promoteToActive
     });
 
     res.json(result);

@@ -120,6 +120,13 @@ enum AttendanceStatus {
   MISSED
 }
 
+enum MeetingStatus {
+  UPCOMING
+  COMPLETED
+  RESCHEDULED
+  CANCELLED
+}
+
 model User {
   id               String           @id @default(uuid())
   employeeId       String           @unique // Auto-generated string (e.g. IN-1001)
@@ -180,6 +187,12 @@ model User {
   shiftRef                ShiftMaster?           @relation("UserShift", fields: [shiftId], references: [id], onDelete: SetNull)
   employmentType          String?
   probationPeriod         String?
+  autoClockOutEnabled     Boolean                @default(true)
+
+  // Access Template Relations (Phase 1)
+  accessTemplateId        String?
+  accessTemplate          AccessTemplate?        @relation("UserAccessTemplate", fields: [accessTemplateId], references: [id], onDelete: SetNull)
+  createdAccessTemplates  AccessTemplate[]       @relation("CreatedAccessTemplates")
 
   // Future-Ready Enterprise Placeholders
   grade                   String?
@@ -226,6 +239,7 @@ model User {
   chatMemberships        ChatRoomMember[]
   sentChatMessages       ChatMessage[]     @relation("ChatSender")
   messageReads           MessageRead[]
+  assignedAttendanceLocations UserAttendanceLocation[]
 
   // Project Relations
   createdProjects          Project[]         @relation("ProjectCreator")
@@ -262,6 +276,19 @@ model User {
   connectedIntegrations    ExternalIntegration[]    @relation("ConnectedIntegrations")
   performedAuditLogs       OrganizationAuditLog[]   @relation("AuditPerformedBy")
   targetAuditLogs          OrganizationAuditLog[]   @relation("AuditTargetUser")
+  companyDocuments         CompanyDocument[]        @relation("UserCompanyDocuments")
+
+  // Meetings Relations
+  organizedMeetings        Meeting[]                @relation("OrganizedMeetings")
+  meetingAttendances       MeetingAttendee[]        @relation("UserMeetingAttendances")
+  createdMeetingReports    MeetingReport[]          @relation("MeetingReportCreator")
+
+  // Comp-Off Relations
+  compOffCredits           CompOffCredit[]          @relation("UserCompOffCredits")
+  compOffConsumptions      CompOffConsumption[]     @relation("UserCompOffConsumptions")
+  compOffPermissionRequests CompOffPermissionRequest[] @relation("UserCompOffPermissionRequests")
+  approvedCompOffPermissions CompOffPermissionRequest[] @relation("ApprovedCompOffPermissionRequests")
+  compOffSessions          CompOffSession[]         @relation("UserCompOffSessions")
 
   @@map("user")
 }
@@ -448,6 +475,7 @@ model Team {
   announcements Announcement[]
   chatRooms     ChatRoom[]
   projects      Project[]
+  meetings      Meeting[]      @relation("TeamMeetings")
 
   @@index([organizationId])
 
@@ -477,6 +505,14 @@ model Attendance {
   clockOut         DateTime?
   clockInLocation  String?
   clockOutLocation String?
+  clockInLatitude  Float?
+  clockInLongitude Float?
+  clockInAddress   String?          @db.Text
+  clockOutLatitude Float?
+  clockOutLongitude Float?
+  clockOutAddress  String?          @db.Text
+  clockOutWorkLocation String?
+  clockOutWorkLocationOther String?
   ipAddress    String?
   browser      String?
   device       String?
@@ -496,11 +532,14 @@ model Attendance {
   shiftName        String?
   scheduledStartTime String?
   scheduledEndTime   String?
+  attendanceLocationId String?
+  attendanceLocation   AttendanceLocation? @relation("LocationAttendances", fields: [attendanceLocationId], references: [id], onDelete: SetNull)
+  compOffCredits       CompOffCredit[]
 
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
-
+  @@index([attendanceLocationId])
   @@map("attendance")
 }
 
@@ -648,7 +687,7 @@ model Asset {
   organizationId String?
   assetId        String          @unique // Auto-generated e.g. AST-1001
   name           String
-  category       AssetCategory   @default(LAPTOP)
+  category       String          @default("LAPTOP")
   brand          String?
   model          String?
   serialNumber   String?         @unique
@@ -680,6 +719,7 @@ model Asset {
   organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   assignments    AssetAssignment[]
   tickets        Ticket[]
+  estimateItems  AssetEstimateItem[]
 
   @@index([organizationId])
   @@index([branchId])
@@ -883,7 +923,8 @@ model LeaveRequest {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  user                User     @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  user                User                  @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  compOffConsumptions CompOffConsumption[]
 
   @@map("leaverequest")
 }
@@ -902,6 +943,9 @@ model LeavePolicy {
   halfDayAllowed      Boolean              @default(true)
   workingDaysOnly     Boolean              @default(true)
   autoApproval        Boolean              @default(false)
+  compOffValidityDays Int                  @default(90)
+  compOffClaimWindowDays Int               @default(30)
+  compOffClaimWindowEnabled Boolean        @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -922,6 +966,7 @@ model LeaveType {
   allowCarryForward Boolean              @default(false)
   requireDoc        Boolean              @default(false)
   allowHalfDay      Boolean              @default(true)
+  minNoticeDays     Int                  @default(0)
   isSystem          Boolean              @default(false) // Protects system default types
   isActive          Boolean              @default(true)
   createdAt         DateTime             @default(now())
@@ -1067,6 +1112,7 @@ model Project {
   history            ProjectHistory[]
   workLogs           WorkLog[]
   workflowStages     ProjectWorkflowStage[]
+  meetings           Meeting[]              @relation("ProjectMeetings")
 
   @@index([organizationId])
 
@@ -1737,6 +1783,21 @@ model Organization {
   name               String
   slug               String                @unique
   companyCode        String                @unique
+  assetPrefix        String?               @unique
+  assetSequence      Int                   @default(1000)
+  estimatePrefix     String?               @default("EST")
+  estimateSequence   Int                   @default(1000)
+  gstin              String?
+  city               String?
+  state              String?
+  pincode            String?
+  country            String?               @default("India")
+  bankName           String?
+  bankIfsc           String?
+  bankAccountNo      String?
+  bankBranch         String?
+  signatureImage     String?
+  signatoryTitle     String?               @default("Authorized Signatory")
   logo               String?
   email              String?
   phone              String?
@@ -1789,6 +1850,15 @@ model Organization {
   integrations            ExternalIntegration[]
   activityLogs   ActivityLog[]
   auditLogs      OrganizationAuditLog[]
+  estimates      AssetEstimate[]
+  companyDocuments CompanyDocument[] @relation("CompanyDocuments")
+  attendanceLocations AttendanceLocation[] @relation("OrganizationAttendanceLocations")
+  accessTemplates     AccessTemplate[]
+  meetings            Meeting[]                 @relation("OrganizationMeetings")
+  compOffCredits      CompOffCredit[]
+  compOffConsumptions CompOffConsumption[]
+  compOffPermissionRequests CompOffPermissionRequest[]
+  compOffSessions     CompOffSession[]
 
   @@map("organization")
 }
@@ -2178,5 +2248,405 @@ model ExternalIntegration {
   @@map("externalintegration")
 }
 
+model AssetEstimate {
+  id                 String             @id @default(uuid())
+  organizationId     String?
+  createdById        String?
+  estimateNumber     String
+  estimateDate       DateTime           @default(now())
+  reference          String?
+  placeOfSupply      String?
+  status             String             @default("GENERATED")
+  title              String             @default("Estimate")
+
+  // Company / Issuer snapshot
+  companyName        String
+  companyAddress     String?            @db.Text
+  companyCity        String?
+  companyState       String?
+  companyPincode     String?
+  companyCountry     String?            @default("India")
+  companyPhone       String?
+  companyEmail       String?
+  companyGstin       String?
+  companyLogo        String?
+
+  // Bill To / Recipient snapshot
+  billToName         String
+  billToAddress      String?            @db.Text
+  billToCity         String?
+  billToState        String?
+  billToPincode      String?
+  billToCountry      String?            @default("India")
+  billToGstin        String?
+
+  // Financial snapshot
+  subTotal           Float              @default(0)
+  cgstRate           Float              @default(0)
+  sgstRate           Float              @default(0)
+  igstRate           Float              @default(0)
+  cgstAmount         Float              @default(0)
+  sgstAmount         Float              @default(0)
+  igstAmount         Float              @default(0)
+  grandTotal         Float              @default(0)
+  totalInWords       String             @db.Text
+
+  // Banking & Terms snapshot
+  bankName           String?
+  bankIfsc           String?
+  bankAccountNo      String?
+  bankBranch         String?
+  notes              String?            @db.Text
+  termsAndConditions Json?
+  signatureImage     String?
+  signatoryTitle     String?            @default("Authorized Signature")
+
+  // Cancellation metadata
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancellationReason String?            @db.Text
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organization       Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  items              AssetEstimateItem[]
+
+  @@unique([organizationId, estimateNumber])
+  @@index([organizationId])
+  @@index([estimateNumber])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, estimateDate])
+  @@index([organizationId, billToName])
+  @@map("assetestimate")
+}
+
+model AssetEstimateItem {
+  id          String        @id @default(uuid())
+  estimateId  String
+  assetId     String?
+  itemIndex   Int           @default(1)
+  title       String
+  description String?       @db.Text
+  quantity    Float         @default(1)
+  unit        String?       @default("nos")
+  rate        Float         @default(0)
+  cgstAmount  Float         @default(0)
+  sgstAmount  Float         @default(0)
+  igstAmount  Float         @default(0)
+  amount      Float         @default(0)
+
+  estimate    AssetEstimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  asset       Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([estimateId])
+  @@index([assetId])
+  @@map("assetestimateitem")
+}
+
+model CompanyDocument {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation("CompanyDocuments", fields: [organizationId], references: [id], onDelete: Cascade)
+  documentName     String
+  category         String
+  description      String?      @db.Text
+  filePath         String
+  originalFileName String
+  fileType         String
+  fileSize         Int
+  uploadedById     String
+  uploadedBy       User         @relation("UserCompanyDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
+  expiryDate       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([category])
+  @@index([expiryDate])
+  @@map("companydocument")
+}
+
+model AttendanceLocation {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation("OrganizationAttendanceLocations", fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?       @db.Text
+  latitude       Float
+  longitude      Float
+  radiusMeters   Float         @default(100.0)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  assignedUsers  UserAttendanceLocation[]
+  attendances    Attendance[]  @relation("LocationAttendances")
+
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@map("attendancelocation")
+}
+
+model UserAttendanceLocation {
+  id                   String             @id @default(uuid())
+  userId               String
+  attendanceLocationId String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendanceLocation   AttendanceLocation @relation(fields: [attendanceLocationId], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+
+  @@unique([userId, attendanceLocationId])
+  @@index([userId])
+  @@index([attendanceLocationId])
+  @@map("userattendancelocation")
+}
+
+enum AccessLevel {
+  VIEW
+  EDIT
+}
+
+model AccessTemplate {
+  id              String                     @id @default(cuid())
+  name            String
+  description     String?                    @db.Text
+  baseRole        Role
+  organizationId  String
+  organization    Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  status          String                     @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
+  createdById     String?
+  createdBy       User?                      @relation("CreatedAccessTemplates", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  assignedUsers   User[]                     @relation("UserAccessTemplate")
+  permissions     AccessTemplatePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([baseRole])
+  @@index([status])
+  @@map("accesstemplate")
+}
+
+model AccessTemplatePermission {
+  id          String         @id @default(cuid())
+  templateId  String
+  template    AccessTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  moduleKey   String
+  accessLevel AccessLevel    @default(VIEW)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([templateId, moduleKey])
+  @@index([templateId])
+  @@map("accesstemplatepermission")
+}
+
+model Meeting {
+  id             String            @id @default(uuid())
+  organizationId String
+  title          String
+  description    String?           @db.Text
+  date           DateTime
+  startTime      DateTime
+  endTime        DateTime
+  organizerId    String
+  googleMeetUrl  String?
+  status         MeetingStatus     @default(UPCOMING)
+  projectId      String?
+  teamId         String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization      @relation("OrganizationMeetings", fields: [organizationId], references: [id], onDelete: Cascade)
+  organizer      User              @relation("OrganizedMeetings", fields: [organizerId], references: [id], onDelete: Cascade)
+  project        Project?          @relation("ProjectMeetings", fields: [projectId], references: [id], onDelete: SetNull)
+  team           Team?             @relation("TeamMeetings", fields: [teamId], references: [id], onDelete: SetNull)
+  attendees      MeetingAttendee[]
+  report         MeetingReport?
+
+  @@index([organizationId])
+  @@index([organizerId])
+  @@index([projectId])
+  @@index([teamId])
+  @@index([date])
+  @@index([status])
+  @@map("meeting")
+}
+
+model MeetingAttendee {
+  id        String   @id @default(uuid())
+  meetingId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserMeetingAttendances", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+  @@index([meetingId])
+  @@map("meetingattendee")
+}
+
+model MeetingReport {
+  id            String    @id @default(uuid())
+  meetingId     String    @unique
+  summary       String    @db.Text
+  followUpTasks Json?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  meeting       Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  createdBy     User      @relation("MeetingReportCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@map("meetingreport")
+}
+
+model CompOffCredit {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  userId             String
+  workDate           DateTime     @db.Date
+  attendanceId       String?
+  creditDays         Float        @default(1.0)
+  usedDays           Float        @default(0.0)
+  availableDays      Float        @default(1.0)
+  earnedAt           DateTime     @default(now())
+  expiresAt          DateTime
+  status             String       @default("APPROVED")
+  reason             String       @db.Text
+  claimedByRole      String
+  claimedById        String
+  tlApprovedById     String?
+  tlApprovedAt       DateTime?
+  tlRemarks          String?
+  adminApprovedById  String?
+  adminApprovedAt    DateTime?
+  adminRemarks       String?
+  sessionId          String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User         @relation("UserCompOffCredits", fields: [userId], references: [id], onDelete: Cascade)
+  attendance         Attendance?          @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  consumptions       CompOffConsumption[]
+
+  @@unique([userId, workDate])
+  @@index([organizationId])
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@index([workDate])
+  @@index([status])
+  @@index([sessionId])
+  @@map("compoffcredit")
+}
+
+model CompOffConsumption {
+  id             String        @id @default(uuid())
+  organizationId String
+  creditId       String
+  leaveRequestId String
+  userId         String
+  consumedDays   Float
+  status         String        @default("CONSUMED") // CONSUMED, RESTORED
+  restoredAt     DateTime?
+  restoredById   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  credit         CompOffCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  leaveRequest   LeaveRequest  @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  user           User          @relation("UserCompOffConsumptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leaveRequestId, creditId])
+  @@index([organizationId])
+  @@index([creditId])
+  @@index([leaveRequestId])
+  @@index([userId])
+  @@index([status])
+  @@map("compoffconsumption")
+}
+
+model CompOffPermissionRequest {
+  id              String        @id @default(uuid())
+  organizationId  String
+  userId          String
+  workDate        DateTime      @db.Date
+  holidayType     String        @default("WEEKLY_OFF")
+  reason          String        @db.Text
+  status          String        @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?       @db.Text
+  adminRemarks    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User          @relation("UserCompOffPermissionRequests", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy      User?         @relation("ApprovedCompOffPermissionRequests", fields: [approvedById], references: [id], onDelete: SetNull)
+  session         CompOffSession?
+
+  @@unique([userId, workDate])
+  @@index([organizationId])
+  @@index([userId, status])
+  @@index([workDate])
+  @@index([status])
+  @@map("compoffpermissionrequest")
+}
+
+model CompOffSession {
+  id                  String                   @id @default(uuid())
+  organizationId      String
+  userId              String
+  permissionRequestId String                   @unique
+  workDate            DateTime                 @db.Date
+  loginTime           DateTime
+  clockOutTime        DateTime?
+  durationHours       Decimal                  @default(0.00) @db.Decimal(5, 2)
+  status              String                   @default("ACTIVE") // ACTIVE, COMPLETED
+  clockOutType        String?                  // MANUAL, AUTO
+  latitude            Decimal?                 @db.Decimal(10, 7)
+  longitude           Decimal?                 @db.Decimal(10, 7)
+  locationStatus      String                   @default("INSIDE") // INSIDE, OUTSIDE
+  locationName        String?
+  distanceMeters      Int?
+  allowedRadiusMeters Int?
+  locationReason      String?                  @db.Text
+  flaggedForReview    Boolean                  @default(false)
+  ipAddress           String?
+  device              String?
+  browser             String?
+  autoClockOutTarget  DateTime?
+  approvalStatus      String                   @default("PENDING") // PENDING, APPROVED, REJECTED
+  adminApprovedById   String?
+  adminApprovedAt     DateTime?
+  adminRemarks        String?                  @db.Text
+  rejectionReason     String?                  @db.Text
+  creditId            String?
+  calculatedCredit    Decimal?                 @db.Decimal(3, 1)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                User                     @relation("UserCompOffSessions", fields: [userId], references: [id], onDelete: Cascade)
+  permissionRequest   CompOffPermissionRequest @relation(fields: [permissionRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workDate])
+  @@index([organizationId])
+  @@index([userId, status])
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([autoClockOutTarget])
+  @@map("compoffsession")
+}
 
 

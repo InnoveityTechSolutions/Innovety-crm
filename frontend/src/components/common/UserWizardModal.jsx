@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft, UserCheck, CheckCircle2, AlertCircle, UploadCloud, FileText, Trash2, Building2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, UserCheck, CheckCircle2, AlertCircle, UploadCloud, FileText, Trash2, Building2, Clock } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { extractCompanyList } from '../../context/CompanyScopeContext';
@@ -25,6 +25,7 @@ const UserWizardModal = ({
   const [step, setStep] = useState(1);
   const [orgTree, setOrgTree] = useState(null);
   const [organizations, setOrganizations] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [treeLoading, setTreeLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
@@ -40,6 +41,7 @@ const UserWizardModal = ({
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
   const dobRef = useRef(null);
+  const joiningDateRef = useRef(null);
   const collegeRef = useRef(null);
   const degreeRef = useRef(null);
   const gradYearRef = useRef(null);
@@ -57,6 +59,7 @@ const UserWizardModal = ({
     email: '',
     phone: '',
     dob: '',
+    joiningDate: '',
     gender: 'Male',
     branchId: '',
     departmentId: '',
@@ -73,7 +76,8 @@ const UserWizardModal = ({
     companyName: '',
     designation: '',
     totalExperience: '',
-    noticePeriod: ''
+    noticePeriod: '',
+    autoClockOutEnabled: true
   });
 
   const initialId = initialData?.id || initialData?.email || null;
@@ -87,12 +91,18 @@ const UserWizardModal = ({
       if (mappedType === 'Graduate') mappedType = 'Graduated';
       if (!CANDIDATE_TYPES.find(t => t.id === mappedType)) mappedType = 'Student';
 
+      const todayStr = new Date().toISOString().split('T')[0];
+      const initialJoining = data.joiningDate
+        ? new Date(data.joiningDate).toISOString().split('T')[0]
+        : (isEdit ? '' : todayStr);
+
       setForm({
         candidateType: mappedType,
         name: data.name || '',
         email: data.email || '',
         phone: data.phone || '',
         dob: data.dob ? new Date(data.dob).toISOString().split('T')[0] : '',
+        joiningDate: initialJoining,
         gender: data.gender || 'Male',
         organizationId: data.organizationId || data.organization?.id || '',
         branchId: data.branchId || '',
@@ -110,7 +120,9 @@ const UserWizardModal = ({
         companyName: data.companyName || '',
         designation: data.designation || '',
         totalExperience: data.totalExperience || '',
-        noticePeriod: data.customData?.noticePeriod || data.noticePeriod || ''
+        noticePeriod: data.customData?.noticePeriod || data.noticePeriod || '',
+        attendanceLocationIds: data.attendanceLocationIds || (data.assignedLocations ? data.assignedLocations.map(l => l.id) : (data.assignedAttendanceLocations ? data.assignedAttendanceLocations.map(a => a.attendanceLocationId) : [])),
+        autoClockOutEnabled: data.autoClockOutEnabled !== undefined ? Boolean(data.autoClockOutEnabled) : true
       });
       setStep(1);
       setErrors({});
@@ -147,6 +159,23 @@ const UserWizardModal = ({
     window.addEventListener('organization-updated', fetchOrgs);
     return () => window.removeEventListener('organization-updated', fetchOrgs);
   }, [isOpen]);
+
+  // Fetch attendance locations for target organization
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchLocs = async () => {
+      try {
+        const targetOrg = form.organizationId || (user?.role === 'SUPER_ADMIN' ? '' : user?.organizationId);
+        const params = {};
+        if (targetOrg) params.organizationId = targetOrg;
+        const res = await api.get('/attendance-locations', { params });
+        setLocations(res.data.locations || []);
+      } catch (err) {
+        console.warn('Failed to load locations in wizard:', err);
+      }
+    };
+    fetchLocs();
+  }, [isOpen, form.organizationId, user]);
 
   // Fetch dynamic org tree & reporting managers
   useEffect(() => {
@@ -317,6 +346,16 @@ const UserWizardModal = ({
       }
     }
 
+    // Joining Date: Required, valid date
+    if (!form.joiningDate) {
+      newErrors.joiningDate = 'Please enter a valid Joining Date.';
+    } else {
+      const jDate = new Date(form.joiningDate);
+      if (isNaN(jDate.getTime())) {
+        newErrors.joiningDate = 'Please enter a valid Joining Date.';
+      }
+    }
+
     // Dynamic validation strictly by candidateType
     const type = form.candidateType;
     if (type === 'Student') {
@@ -378,6 +417,7 @@ const UserWizardModal = ({
     else if (newErrors.email) emailRef.current?.focus();
     else if (newErrors.phone) phoneRef.current?.focus();
     else if (newErrors.dob) dobRef.current?.focus();
+    else if (newErrors.joiningDate) joiningDateRef.current?.focus();
     else if (newErrors.college) collegeRef.current?.focus();
     else if (newErrors.degree) degreeRef.current?.focus();
     else if (newErrors.graduationYear) gradYearRef.current?.focus();
@@ -428,6 +468,7 @@ const UserWizardModal = ({
         email: form.email.trim(),
         phone: form.phone,
         dob: form.dob,
+        joiningDate: form.joiningDate || undefined,
         gender: form.gender,
         candidateType: form.candidateType,
         role: targetRole,
@@ -436,7 +477,9 @@ const UserWizardModal = ({
         positionId: form.positionId || null,
         branchId: form.branchId || null,
         departmentId: form.departmentId || null,
-        reportingManagerId: form.reportingManagerId || null
+        reportingManagerId: form.reportingManagerId || null,
+        attendanceLocationIds: form.attendanceLocationIds || [],
+        autoClockOutEnabled: form.autoClockOutEnabled !== undefined ? Boolean(form.autoClockOutEnabled) : true
       };
 
       if (resumeFile) {
@@ -664,7 +707,7 @@ const UserWizardModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Phone Number *</label>
                   <input
@@ -687,6 +730,22 @@ const UserWizardModal = ({
                 </div>
 
                 <div>
+                  <label className="block text-xs font-bold text-foreground mb-1">Gender</label>
+                  <select
+                    name="gender"
+                    value={form.gender || 'Male'}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-card cursor-pointer"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Date of Birth *</label>
                   <input
                     ref={dobRef}
@@ -707,17 +766,23 @@ const UserWizardModal = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Gender</label>
-                  <select
-                    name="gender"
-                    value={form.gender || 'Male'}
+                  <label className="block text-xs font-bold text-foreground mb-1">Joining Date *</label>
+                  <input
+                    ref={joiningDateRef}
+                    type="date"
+                    name="joiningDate"
+                    value={form.joiningDate || ''}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-border bg-card cursor-pointer"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
+                    className={`w-full px-3 py-2 text-xs font-medium rounded-xl border ${
+                      errors.joiningDate ? 'border-rose-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-rose-500/5' : 'border-border bg-muted/30 focus:bg-background'
+                    } transition-all`}
+                  />
+                  {errors.joiningDate && (
+                    <p className="text-rose-500 text-[11px] font-semibold flex items-center gap-1 mt-1">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      {errors.joiningDate}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1209,6 +1274,119 @@ const UserWizardModal = ({
                   </select>
                 </div>
               </div>
+
+              {/* Allowed Attendance Locations */}
+              <div className="space-y-2 pt-3 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-foreground">
+                    Allowed Attendance Locations
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-semibold">
+                    {(form.attendanceLocationIds || []).length} assigned
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Select the physical company sites where this member is allowed to clock in:
+                </p>
+
+                {locations.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground italic p-2.5 rounded-xl bg-muted/20 border border-border/40">
+                    No attendance locations configured for this company. Default office geofence will be used until locations are added in Site Settings.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-48 overflow-y-auto pr-1">
+                    {locations.map((loc) => {
+                      const isChecked = (form.attendanceLocationIds || []).includes(loc.id);
+                      return (
+                        <label
+                          key={loc.id}
+                          className={`flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all select-none ${
+                            isChecked
+                              ? 'bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs'
+                              : 'bg-card border-border/60 hover:bg-muted/30 text-muted-foreground'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setForm(prev => {
+                                const current = prev.attendanceLocationIds || [];
+                                const updated = checked
+                                  ? [...current, loc.id]
+                                  : current.filter(id => id !== loc.id);
+                                return { ...prev, attendanceLocationIds: updated };
+                              });
+                            }}
+                            className="mt-0.5 h-4 w-4 rounded-md border-border text-primary focus:ring-primary/20 cursor-pointer"
+                          />
+                          <div className="text-left overflow-hidden">
+                            <span className="text-xs font-bold text-foreground block truncate">{loc.name}</span>
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              {loc.address || `${loc.radiusMeters}m radius`}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Individual Auto Clock-Out Setting */}
+              {['ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
+                <div className="p-4 rounded-2xl border border-border/80 bg-muted/20 space-y-2 mt-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <div className={`p-2 rounded-xl shrink-0 transition-colors ${form.autoClockOutEnabled ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-slate-500/10 text-slate-500'}`}>
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-foreground block">
+                          Auto Clock-Out Setting
+                        </span>
+                        <span className="text-[11px] text-muted-foreground leading-tight block">
+                          Automatic shift-end checkout vs. manual device clock-out
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
+                        form.autoClockOutEnabled
+                          ? 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/30'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                      }`}>
+                        {form.autoClockOutEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                      <button
+                        type="button"
+                        id="auto-clock-out-toggle-btn"
+                        onClick={() => setForm(prev => ({ ...prev, autoClockOutEnabled: !prev.autoClockOutEnabled }))}
+                        className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out cursor-pointer border focus:outline-none focus:ring-2 focus:ring-orange-500/30 ${
+                          form.autoClockOutEnabled
+                            ? 'bg-orange-500 border-orange-600 hover:bg-orange-600'
+                            : 'bg-slate-300 border-slate-400 hover:bg-slate-350 dark:bg-slate-700 dark:border-slate-500 shadow-inner'
+                        }`}
+                        role="switch"
+                        aria-checked={form.autoClockOutEnabled}
+                        title={form.autoClockOutEnabled ? 'Disable Auto Clock-Out' : 'Enable Auto Clock-Out'}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md border border-black/10 transition-transform duration-200 ease-in-out ${
+                            form.autoClockOutEnabled ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed pt-1 border-t border-border/30">
+                    {form.autoClockOutEnabled
+                      ? 'Employee will be automatically clocked out at scheduled shift end without GPS capture.'
+                      : 'Auto clock-out is disabled for this employee. The employee must manually clock out with device GPS location and geofence verification. A shift-end reminder will be sent.'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

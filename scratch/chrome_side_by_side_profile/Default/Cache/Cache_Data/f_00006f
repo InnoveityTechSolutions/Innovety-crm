@@ -1,0 +1,334 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/dashboard/TeamLeaderShiftWidget.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=d349bcef"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=d349bcef"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useEffect = __vite__cjsImport3_react["useEffect"];
+import { motion } from "/node_modules/.vite/deps/framer-motion.js?v=d349bcef";
+import {
+  Clock,
+  ArrowRightLeft,
+  Zap,
+  ShieldAlert,
+  CheckCircle2,
+  Calendar,
+  Users,
+  AlertCircle,
+  RefreshCw
+} from "/node_modules/.vite/deps/lucide-react.js?v=d349bcef";
+import api from "/src/services/api.js";
+const TeamLeaderShiftWidget = ({ organizationId, onOpenOverrideRequest, onOpenSwapRequest }) => {
+  _s();
+  const [teamSchedule, setTeamSchedule] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [teamExceptions, setTeamExceptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const fetchTLShiftData = async () => {
+    try {
+      setLoading(true);
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const [dayRes, apprRes, excRes] = await Promise.all(
+        [
+          api.get("/schedules/day", { params: { date: today } }).catch(() => ({ data: { members: [] } })),
+          api.get("/workforce/approvals", { params: { status: "PENDING_TL_APPROVAL" } }).catch(() => ({ data: { approvals: [] } })),
+          api.get("/workforce/exceptions", { params: { status: "OPEN" } }).catch(() => ({ data: { exceptions: [] } }))
+        ]
+      );
+      setTeamSchedule(dayRes.data?.members || []);
+      setPendingApprovals(apprRes.data?.approvals || []);
+      setTeamExceptions(excRes.data?.exceptions || []);
+    } catch (err) {
+      console.error("[TeamLeaderShiftWidget] Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchTLShiftData();
+  }, [organizationId]);
+  const handleEndorseSwap = async (approvalId) => {
+    try {
+      await api.put(`/workforce/approvals/${approvalId}/review`, {
+        action: "APPROVE",
+        note: "Endorsed by Team Leader"
+      });
+      fetchTLShiftData();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to endorse swap.");
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "rounded-[28px] border border-border/70 bg-card p-6 shadow-sm space-y-4 text-left", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-border/40 pb-3", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2.5", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400", children: /* @__PURE__ */ jsxDEV(Clock, { className: "h-5 w-5" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 77,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 76,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-base font-bold text-foreground", children: "Team Shift Operations" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 80,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground font-medium", children: "Today's team roster, pending approvals & shift adjustments" }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 81,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 79,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 75,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: fetchTLShiftData,
+          disabled: loading,
+          className: "p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground",
+          title: "Refresh",
+          children: /* @__PURE__ */ jsxDEV(RefreshCw, { className: `h-4 w-4 ${loading ? "animate-spin" : ""}` }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 93,
+            columnNumber: 11
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 87,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+      lineNumber: 74,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-muted/20 border border-border/60", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-black uppercase tracking-wider text-muted-foreground block", children: "Team On Duty" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 100,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-xl font-black text-foreground mt-0.5 block", children: teamSchedule.filter((m) => m.todayStatus === "Working").length }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 103,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 99,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-muted/20 border border-border/60", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-black uppercase tracking-wider text-muted-foreground block", children: "Pending Reviews" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 109,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-xl font-black text-amber-500 mt-0.5 block", children: pendingApprovals.length }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 112,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 108,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-2xl bg-muted/20 border border-border/60 col-span-2 sm:col-span-1", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-black uppercase tracking-wider text-muted-foreground block", children: "Open Exceptions" }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 118,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "text-xl font-black text-rose-500 mt-0.5 block", children: teamExceptions.length }, void 0, false, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 121,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 117,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+      lineNumber: 98,
+      columnNumber: 7
+    }, this),
+    pendingApprovals.length > 0 && /* @__PURE__ */ jsxDEV("div", { className: "space-y-2 pt-1", children: [
+      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block", children: [
+        "Awaiting Your Endorsement (",
+        pendingApprovals.length,
+        ")"
+      ] }, void 0, true, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 130,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-2 max-h-36 overflow-y-auto", children: pendingApprovals.map(
+        (appr) => /* @__PURE__ */ jsxDEV("div", { className: "p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-extrabold text-foreground block", children: [
+              appr.requester?.name,
+              " — ",
+              appr.requestType.replace(/_/g, " ")
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+              lineNumber: 137,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] text-muted-foreground block", children: [
+              '"',
+              appr.reason || "Swap request",
+              '"'
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+              lineNumber: 140,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 136,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              onClick: () => handleEndorseSwap(appr.id),
+              className: "px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] shadow-xs cursor-pointer shrink-0",
+              children: "Endorse"
+            },
+            void 0,
+            false,
+            {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+              lineNumber: 144,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, appr.id, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 135,
+          columnNumber: 11
+        }, this)
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 133,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+      lineNumber: 129,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "space-y-1.5 pt-1", children: [
+      /* @__PURE__ */ jsxDEV("span", { className: "text-[11px] font-black uppercase tracking-wider text-muted-foreground block", children: "Today's Team Shift Roster" }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 158,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "max-h-48 overflow-y-auto divide-y divide-border/40 border border-border/60 rounded-2xl p-2 bg-muted/10 text-xs", children: teamSchedule.length === 0 ? /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-muted-foreground p-3 text-center", children: "No team members scheduled today." }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 163,
+        columnNumber: 11
+      }, this) : teamSchedule.map(
+        (m) => /* @__PURE__ */ jsxDEV("div", { className: "py-2 px-1 flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-bold text-foreground block", children: m.userName }, void 0, false, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+              lineNumber: 168,
+              columnNumber: 19
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] text-muted-foreground font-mono", children: [
+              m.shiftName,
+              " (",
+              m.startTime,
+              " – ",
+              m.endTime,
+              ")"
+            ] }, void 0, true, {
+              fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+              lineNumber: 169,
+              columnNumber: 19
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 167,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: `px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase ${m.todayStatus === "Holiday" ? "bg-rose-500/10 text-rose-600" : m.todayStatus === "WFH" ? "bg-purple-500/10 text-purple-600" : "bg-emerald-500/10 text-emerald-600"}`, children: m.todayStatus }, void 0, false, {
+            fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+            lineNumber: 173,
+            columnNumber: 17
+          }, this)
+        ] }, m.userId, true, {
+          fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+          lineNumber: 166,
+          columnNumber: 11
+        }, this)
+      ) }, void 0, false, {
+        fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+        lineNumber: 161,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+      lineNumber: 157,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx",
+    lineNumber: 72,
+    columnNumber: 5
+  }, this);
+};
+_s(TeamLeaderShiftWidget, "4nyrPxp9yHtsWQVUQl6rGsFsZ8I=");
+_c = TeamLeaderShiftWidget;
+export default TeamLeaderShiftWidget;
+var _c;
+$RefreshReg$(_c, "TeamLeaderShiftWidget");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/P R O J E C T S/Web/MRF-crm/frontend/src/components/dashboard/TeamLeaderShiftWidget.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QTtBQUFBO0FBQUEsZUFnQkE7QUFBQSxNQUNELEtBdEJMO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUF3QkE7QUFBQSxTQTVCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBNkJBO0FBQUEsT0FsSEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQW1IQTtBQUVKO0FBQUV2RCxHQWpLSUosdUJBQXFCO0FBQUEsS0FBckJBO0FBbUtOLGVBQWVBO0FBQXNCLElBQUE0RDtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsInVzZVN0YXRlIiwidXNlRWZmZWN0IiwibW90aW9uIiwiQ2xvY2siLCJBcnJvd1JpZ2h0TGVmdCIsIlphcCIsIlNoaWVsZEFsZXJ0IiwiQ2hlY2tDaXJjbGUyIiwiQ2FsZW5kYXIiLCJVc2VycyIsIkFsZXJ0Q2lyY2xlIiwiUmVmcmVzaEN3IiwiYXBpIiwiVGVhbUxlYWRlclNoaWZ0V2lkZ2V0Iiwib3JnYW5pemF0aW9uSWQiLCJvbk9wZW5PdmVycmlkZVJlcXVlc3QiLCJvbk9wZW5Td2FwUmVxdWVzdCIsIl9zIiwidGVhbVNjaGVkdWxlIiwic2V0VGVhbVNjaGVkdWxlIiwicGVuZGluZ0FwcHJvdmFscyIsInNldFBlbmRpbmdBcHByb3ZhbHMiLCJ0ZWFtRXhjZXB0aW9ucyIsInNldFRlYW1FeGNlcHRpb25zIiwibG9hZGluZyIsInNldExvYWRpbmciLCJmZXRjaFRMU2hpZnREYXRhIiwidG9kYXkiLCJEYXRlIiwidG9JU09TdHJpbmciLCJzcGxpdCIsImRheVJlcyIsImFwcHJSZXMiLCJleGNSZXMiLCJQcm9taXNlIiwiYWxsIiwiZ2V0IiwicGFyYW1zIiwiZGF0ZSIsImNhdGNoIiwiZGF0YSIsIm1lbWJlcnMiLCJzdGF0dXMiLCJhcHByb3ZhbHMiLCJleGNlcHRpb25zIiwiZXJyIiwiY29uc29sZSIsImVycm9yIiwiaGFuZGxlRW5kb3JzZVN3YXAiLCJhcHByb3ZhbElkIiwicHV0IiwiYWN0aW9uIiwibm90ZSIsImFsZXJ0IiwicmVzcG9uc2UiLCJtZXNzYWdlIiwiZmlsdGVyIiwibSIsInRvZGF5U3RhdHVzIiwibGVuZ3RoIiwibWFwIiwiYXBwciIsInJlcXVlc3RlciIsIm5hbWUiLCJyZXF1ZXN0VHlwZSIsInJlcGxhY2UiLCJyZWFzb24iLCJpZCIsInVzZXJOYW1lIiwic2hpZnROYW1lIiwic3RhcnRUaW1lIiwiZW5kVGltZSIsInVzZXJJZCIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlRlYW1MZWFkZXJTaGlmdFdpZGdldC5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VFZmZlY3QgfSBmcm9tICdyZWFjdCc7XG5pbXBvcnQgeyBtb3Rpb24gfSBmcm9tICdmcmFtZXItbW90aW9uJztcbmltcG9ydCB7XG4gIENsb2NrLCBBcnJvd1JpZ2h0TGVmdCwgWmFwLCBTaGllbGRBbGVydCwgQ2hlY2tDaXJjbGUyLFxuICBDYWxlbmRhciwgVXNlcnMsIEFsZXJ0Q2lyY2xlLCBSZWZyZXNoQ3dcbn0gZnJvbSAnbHVjaWRlLXJlYWN0JztcbmltcG9ydCBhcGkgZnJvbSAnLi4vLi4vc2VydmljZXMvYXBpJztcblxuY29uc3QgVGVhbUxlYWRlclNoaWZ0V2lkZ2V0ID0gKHsgb3JnYW5pemF0aW9uSWQsIG9uT3Blbk92ZXJyaWRlUmVxdWVzdCwgb25PcGVuU3dhcFJlcXVlc3QgfSkgPT4ge1xuICBjb25zdCBbdGVhbVNjaGVkdWxlLCBzZXRUZWFtU2NoZWR1bGVdID0gdXNlU3RhdGUoW10pO1xuICBjb25zdCBbcGVuZGluZ0FwcHJvdmFscywgc2V0UGVuZGluZ0FwcHJvdmFsc10gPSB1c2VTdGF0ZShbXSk7XG4gIGNvbnN0IFt0ZWFtRXhjZXB0aW9ucywgc2V0VGVhbUV4Y2VwdGlvbnNdID0gdXNlU3RhdGUoW10pO1xuICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG5cbiAgY29uc3QgZmV0Y2hUTFNoaWZ0RGF0YSA9IGFzeW5jICgpID0+IHtcbiAgICB0cnkge1xuICAgICAgc2V0TG9hZGluZyh0cnVlKTtcbiAgICAgIGNvbnN0IHRvZGF5ID0gbmV3IERhdGUoKS50b0lTT1N0cmluZygpLnNwbGl0KCdUJylbMF07XG5cbiAgICAgIGNvbnN0IFtkYXlSZXMsIGFwcHJSZXMsIGV4Y1Jlc10gPSBhd2FpdCBQcm9taXNlLmFsbChbXG4gICAgICAgIGFwaS5nZXQoJy9zY2hlZHVsZXMvZGF5JywgeyBwYXJhbXM6IHsgZGF0ZTogdG9kYXkgfSB9KS5jYXRjaCgoKSA9PiAoeyBkYXRhOiB7IG1lbWJlcnM6IFtdIH0gfSkpLFxuICAgICAgICBhcGkuZ2V0KCcvd29ya2ZvcmNlL2FwcHJvdmFscycsIHsgcGFyYW1zOiB7IHN0YXR1czogJ1BFTkRJTkdfVExfQVBQUk9WQUwnIH0gfSkuY2F0Y2goKCkgPT4gKHsgZGF0YTogeyBhcHByb3ZhbHM6IFtdIH0gfSkpLFxuICAgICAgICBhcGkuZ2V0KCcvd29ya2ZvcmNlL2V4Y2VwdGlvbnMnLCB7IHBhcmFtczogeyBzdGF0dXM6ICdPUEVOJyB9IH0pLmNhdGNoKCgpID0+ICh7IGRhdGE6IHsgZXhjZXB0aW9uczogW10gfSB9KSlcbiAgICAgIF0pO1xuXG4gICAgICBzZXRUZWFtU2NoZWR1bGUoZGF5UmVzLmRhdGE/Lm1lbWJlcnMgfHwgW10pO1xuICAgICAgc2V0UGVuZGluZ0FwcHJvdmFscyhhcHByUmVzLmRhdGE/LmFwcHJvdmFscyB8fCBbXSk7XG4gICAgICBzZXRUZWFtRXhjZXB0aW9ucyhleGNSZXMuZGF0YT8uZXhjZXB0aW9ucyB8fCBbXSk7XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBjb25zb2xlLmVycm9yKCdbVGVhbUxlYWRlclNoaWZ0V2lkZ2V0XSBFcnJvcjonLCBlcnIpO1xuICAgIH0gZmluYWxseSB7XG4gICAgICBzZXRMb2FkaW5nKGZhbHNlKTtcbiAgICB9XG4gIH07XG5cbiAgdXNlRWZmZWN0KCgpID0+IHtcbiAgICBmZXRjaFRMU2hpZnREYXRhKCk7XG4gIH0sIFtvcmdhbml6YXRpb25JZF0pO1xuXG4gIGNvbnN0IGhhbmRsZUVuZG9yc2VTd2FwID0gYXN5bmMgKGFwcHJvdmFsSWQpID0+IHtcbiAgICB0cnkge1xuICAgICAgYXdhaXQgYXBpLnB1dChgL3dvcmtmb3JjZS9hcHByb3ZhbHMvJHthcHByb3ZhbElkfS9yZXZpZXdgLCB7XG4gICAgICAgIGFjdGlvbjogJ0FQUFJPVkUnLFxuICAgICAgICBub3RlOiAnRW5kb3JzZWQgYnkgVGVhbSBMZWFkZXInXG4gICAgICB9KTtcbiAgICAgIGZldGNoVExTaGlmdERhdGEoKTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIGFsZXJ0KGVyci5yZXNwb25zZT8uZGF0YT8ubWVzc2FnZSB8fCAnRmFpbGVkIHRvIGVuZG9yc2Ugc3dhcC4nKTtcbiAgICB9XG4gIH07XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInJvdW5kZWQtWzI4cHhdIGJvcmRlciBib3JkZXItYm9yZGVyLzcwIGJnLWNhcmQgcC02IHNoYWRvdy1zbSBzcGFjZS15LTQgdGV4dC1sZWZ0XCI+XG4gICAgICB7LyogSGVhZGVyICovfVxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLWJvcmRlci80MCBwYi0zXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIuNVwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0yLjUgcm91bmRlZC14bCBiZy1wdXJwbGUtNTAwLzEwIHRleHQtcHVycGxlLTYwMCBkYXJrOnRleHQtcHVycGxlLTQwMFwiPlxuICAgICAgICAgICAgPENsb2NrIGNsYXNzTmFtZT1cImgtNSB3LTVcIiAvPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8aDMgY2xhc3NOYW1lPVwidGV4dC1iYXNlIGZvbnQtYm9sZCB0ZXh0LWZvcmVncm91bmRcIj5UZWFtIFNoaWZ0IE9wZXJhdGlvbnM8L2gzPlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgZm9udC1tZWRpdW1cIj5cbiAgICAgICAgICAgICAgVG9kYXkncyB0ZWFtIHJvc3RlciwgcGVuZGluZyBhcHByb3ZhbHMgJiBzaGlmdCBhZGp1c3RtZW50c1xuICAgICAgICAgICAgPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgb25DbGljaz17ZmV0Y2hUTFNoaWZ0RGF0YX1cbiAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZ31cbiAgICAgICAgICBjbGFzc05hbWU9XCJwLTEuNSByb3VuZGVkLXhsIGhvdmVyOmJnLW11dGVkIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3Zlcjp0ZXh0LWZvcmVncm91bmRcIlxuICAgICAgICAgIHRpdGxlPVwiUmVmcmVzaFwiXG4gICAgICAgID5cbiAgICAgICAgICA8UmVmcmVzaEN3IGNsYXNzTmFtZT17YGgtNCB3LTQgJHtsb2FkaW5nID8gJ2FuaW1hdGUtc3BpbicgOiAnJ31gfSAvPlxuICAgICAgICA8L2J1dHRvbj5cbiAgICAgIDwvZGl2PlxuXG4gICAgICB7LyogUXVpY2sgQWN0aW9uIEJhZGdlcyAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMiBzbTpncmlkLWNvbHMtMyBnYXAtMiB0ZXh0LXhzXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQtMnhsIGJnLW11dGVkLzIwIGJvcmRlciBib3JkZXItYm9yZGVyLzYwXCI+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1ibGFjayB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGJsb2NrXCI+XG4gICAgICAgICAgICBUZWFtIE9uIER1dHlcbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC14bCBmb250LWJsYWNrIHRleHQtZm9yZWdyb3VuZCBtdC0wLjUgYmxvY2tcIj5cbiAgICAgICAgICAgIHt0ZWFtU2NoZWR1bGUuZmlsdGVyKG0gPT4gbS50b2RheVN0YXR1cyA9PT0gJ1dvcmtpbmcnKS5sZW5ndGh9XG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtMyByb3VuZGVkLTJ4bCBiZy1tdXRlZC8yMCBib3JkZXIgYm9yZGVyLWJvcmRlci82MFwiPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9ja1wiPlxuICAgICAgICAgICAgUGVuZGluZyBSZXZpZXdzXG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQteGwgZm9udC1ibGFjayB0ZXh0LWFtYmVyLTUwMCBtdC0wLjUgYmxvY2tcIj5cbiAgICAgICAgICAgIHtwZW5kaW5nQXBwcm92YWxzLmxlbmd0aH1cbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC0zIHJvdW5kZWQtMnhsIGJnLW11dGVkLzIwIGJvcmRlciBib3JkZXItYm9yZGVyLzYwIGNvbC1zcGFuLTIgc206Y29sLXNwYW4tMVwiPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtYmxhY2sgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9ja1wiPlxuICAgICAgICAgICAgT3BlbiBFeGNlcHRpb25zXG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQteGwgZm9udC1ibGFjayB0ZXh0LXJvc2UtNTAwIG10LTAuNSBibG9ja1wiPlxuICAgICAgICAgICAge3RlYW1FeGNlcHRpb25zLmxlbmd0aH1cbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9kaXY+XG5cbiAgICAgIHsvKiBQZW5kaW5nIFJldmlld3MgU2VjdGlvbiAqL31cbiAgICAgIHtwZW5kaW5nQXBwcm92YWxzLmxlbmd0aCA+IDAgJiYgKFxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMiBwdC0xXCI+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1ibGFjayB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1hbWJlci02MDAgZGFyazp0ZXh0LWFtYmVyLTQwMCBibG9ja1wiPlxuICAgICAgICAgICAgQXdhaXRpbmcgWW91ciBFbmRvcnNlbWVudCAoe3BlbmRpbmdBcHByb3ZhbHMubGVuZ3RofSlcbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTIgbWF4LWgtMzYgb3ZlcmZsb3cteS1hdXRvXCI+XG4gICAgICAgICAgICB7cGVuZGluZ0FwcHJvdmFscy5tYXAoYXBwciA9PiAoXG4gICAgICAgICAgICAgIDxkaXYga2V5PXthcHByLmlkfSBjbGFzc05hbWU9XCJwLTMgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLWFtYmVyLTUwMC8zMCBiZy1hbWJlci01MDAvNSB0ZXh0LXhzIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBnYXAtMlwiPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0wLjVcIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtZXh0cmFib2xkIHRleHQtZm9yZWdyb3VuZCBibG9ja1wiPlxuICAgICAgICAgICAgICAgICAgICB7YXBwci5yZXF1ZXN0ZXI/Lm5hbWV9IOKAlCB7YXBwci5yZXF1ZXN0VHlwZS5yZXBsYWNlKC9fL2csICcgJyl9XG4gICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2tcIj5cbiAgICAgICAgICAgICAgICAgICAgXCJ7YXBwci5yZWFzb24gfHwgJ1N3YXAgcmVxdWVzdCd9XCJcbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBoYW5kbGVFbmRvcnNlU3dhcChhcHByLmlkKX1cbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTMgcHktMS41IHJvdW5kZWQtbGcgYmctZW1lcmFsZC02MDAgaG92ZXI6YmctZW1lcmFsZC03MDAgdGV4dC13aGl0ZSBmb250LWJsYWNrIHRleHQtWzExcHhdIHNoYWRvdy14cyBjdXJzb3ItcG9pbnRlciBzaHJpbmstMFwiXG4gICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgRW5kb3JzZVxuICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICkpfVxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICl9XG5cbiAgICAgIHsvKiBUb2RheSBUZWFtIFNjaGVkdWxlIE1pbmkgTGlzdCAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS0xLjUgcHQtMVwiPlxuICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LW11dGVkLWZvcmVncm91bmQgYmxvY2tcIj5cbiAgICAgICAgICBUb2RheSdzIFRlYW0gU2hpZnQgUm9zdGVyXG4gICAgICAgIDwvc3Bhbj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtYXgtaC00OCBvdmVyZmxvdy15LWF1dG8gZGl2aWRlLXkgZGl2aWRlLWJvcmRlci80MCBib3JkZXIgYm9yZGVyLWJvcmRlci82MCByb3VuZGVkLTJ4bCBwLTIgYmctbXV0ZWQvMTAgdGV4dC14c1wiPlxuICAgICAgICAgIHt0ZWFtU2NoZWR1bGUubGVuZ3RoID09PSAwID8gKFxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LW11dGVkLWZvcmVncm91bmQgcC0zIHRleHQtY2VudGVyXCI+Tm8gdGVhbSBtZW1iZXJzIHNjaGVkdWxlZCB0b2RheS48L3A+XG4gICAgICAgICAgKSA6IChcbiAgICAgICAgICAgIHRlYW1TY2hlZHVsZS5tYXAobSA9PiAoXG4gICAgICAgICAgICAgIDxkaXYga2V5PXttLnVzZXJJZH0gY2xhc3NOYW1lPVwicHktMiBweC0xIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBnYXAtMlwiPlxuICAgICAgICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmb250LWJvbGQgdGV4dC1mb3JlZ3JvdW5kIGJsb2NrXCI+e20udXNlck5hbWV9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICAgICAgICB7bS5zaGlmdE5hbWV9ICh7bS5zdGFydFRpbWV9IOKAkyB7bS5lbmRUaW1lfSlcbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9e2BweC0yIHB5LTAuNSByb3VuZGVkLW1kIHRleHQtWzlweF0gZm9udC1leHRyYWJvbGQgdXBwZXJjYXNlICR7XG4gICAgICAgICAgICAgICAgICBtLnRvZGF5U3RhdHVzID09PSAnSG9saWRheSdcbiAgICAgICAgICAgICAgICAgICAgPyAnYmctcm9zZS01MDAvMTAgdGV4dC1yb3NlLTYwMCdcbiAgICAgICAgICAgICAgICAgICAgOiBtLnRvZGF5U3RhdHVzID09PSAnV0ZIJ1xuICAgICAgICAgICAgICAgICAgICA/ICdiZy1wdXJwbGUtNTAwLzEwIHRleHQtcHVycGxlLTYwMCdcbiAgICAgICAgICAgICAgICAgICAgOiAnYmctZW1lcmFsZC01MDAvMTAgdGV4dC1lbWVyYWxkLTYwMCdcbiAgICAgICAgICAgICAgICB9YH0+XG4gICAgICAgICAgICAgICAgICB7bS50b2RheVN0YXR1c31cbiAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgKSlcbiAgICAgICAgICApfVxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuICAgIDwvZGl2PlxuICApO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgVGVhbUxlYWRlclNoaWZ0V2lkZ2V0O1xuIl0sImZpbGUiOiJEOi9QIFIgTyBKIEUgQyBUIFMvV2ViL01SRi1jcm0vZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvZGFzaGJvYXJkL1RlYW1MZWFkZXJTaGlmdFdpZGdldC5qc3gifQ==

@@ -5,6 +5,7 @@ const { broadcastAttendanceEvent } = require('../socket');
 const { getOrganizationWhere, getEffectiveOrgId } = require('../utils/organizationScope');
 const { getEffectiveSettings } = require('../utils/settingsResolver');
 const shiftService = require('../services/shiftService');
+const compOffService = require('../services/compOffService');
 const {
   getSystemTimeZone,
   getTodayZonedDate,
@@ -12,7 +13,8 @@ const {
   createZonedDate,
   validateAttendanceWindow,
   calculateHaversineDistance,
-  formatDistance
+  formatDistance,
+  evaluateAttendanceGeofence
 } = require('../utils/attendanceUtils');
 
 const parseInputDate = (inputVal, timeZone = 'Asia/Kolkata') => {
@@ -89,19 +91,20 @@ const getClockInStatus = async (req, res) => {
     // Check user's joiningDate - attendance is strictly active from joiningDate onwards
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, role: true, joiningDate: true }
+      select: { id: true, name: true, role: true, joiningDate: true, createdAt: true }
     });
 
-    if (currentUser?.joiningDate) {
-      const joiningMidnight = new Date(new Date(currentUser.joiningDate).toISOString().split('T')[0] + 'T00:00:00.000Z');
+    const effectiveJoining = currentUser?.joiningDate || currentUser?.createdAt;
+    if (effectiveJoining) {
+      const joiningMidnight = new Date(new Date(effectiveJoining).toISOString().split('T')[0] + 'T00:00:00.000Z');
       if (todayDate < joiningMidnight) {
         return res.json({
           isClockedIn: false,
           eligibleForAttendance: false,
           canClockIn: false,
-          joiningDate: currentUser.joiningDate,
+          joiningDate: effectiveJoining,
           reason: 'EMPLOYMENT_NOT_STARTED',
-          message: `Your employment starts on ${new Date(currentUser.joiningDate).toLocaleDateString()}. Attendance will be available from your joining date.`,
+          message: `Your employment starts on ${new Date(effectiveJoining).toLocaleDateString()}. Attendance will be available from your joining date.`,
           serverTime: now.toISOString(),
           autoClockOutEnabled: settings?.autoClockOutEnabled !== undefined ? settings.autoClockOutEnabled : true,
           clockInTime: settings?.clockInTime || settings?.internShiftStart || '09:00',
@@ -134,6 +137,31 @@ const getClockInStatus = async (req, res) => {
     // Fetch user's assigned shift enriched with today's schedule
     const userShift = await shiftService.getEmployeeShiftWithSchedule(userId, now, timeZone);
 
+    // Validate whether today is an eligible off-day (Sunday, Company Holiday, or Shift Weekly Off)
+    const dayValidation = await compOffService.validateEligibleDay({
+      userId,
+      workDate: todayDate,
+      organizationId: req.user?.organizationId
+    });
+
+    const isOffDay = Boolean(dayValidation.isEligible);
+    const offDayType = isOffDay
+      ? (dayValidation.eligibleReason?.includes('HOLIDAY') ? 'HOLIDAY' : 'WEEKLY_OFF')
+      : null;
+    const offDayReason = isOffDay ? dayValidation.eligibleReason : null;
+    let offDayTitle = null;
+    if (isOffDay) {
+      if (dayValidation.eligibleReason?.includes(':')) {
+        offDayTitle = dayValidation.eligibleReason.split(':')[1].trim();
+      } else if (dayValidation.eligibleReason === 'SUNDAY_WEEKLY_OFF') {
+        offDayTitle = 'Sunday Weekly Off';
+      } else if (dayValidation.eligibleReason === 'SATURDAY_LEAVE') {
+        offDayTitle = 'Saturday Leave';
+      } else {
+        offDayTitle = offDayType === 'HOLIDAY' ? 'Company Holiday' : 'Weekly Off';
+      }
+    }
+
     const validation = validateAttendanceWindow({
       userRole: req.user.role,
       settings,
@@ -142,6 +170,13 @@ const getClockInStatus = async (req, res) => {
       now,
       userShift
     });
+
+    // If today is an off-day (holiday or weekly off) and employee hasn't already clocked in/out
+    if (isOffDay && !existing) {
+      validation.canClockIn = false;
+      validation.state = 'HOLIDAY';
+      validation.reason = offDayType === 'HOLIDAY' ? 'HOLIDAY' : (userShift?.isSaturdayLeave ? 'SATURDAY_LEAVE' : 'WEEKLY_OFF');
+    }
 
     const clockInTimeStr = userShift?.startTime || settings?.clockInTime || (req.user.role === 'TEAM_LEADER' ? settings?.tlShiftStart : settings?.internShiftStart) || '09:00';
     const clockOutTimeStr = userShift?.endTime || settings?.clockOutTime || (req.user.role === 'TEAM_LEADER' ? settings?.tlShiftEnd : settings?.internShiftEnd) || '18:00';
@@ -168,7 +203,9 @@ const getClockInStatus = async (req, res) => {
       ? Math.max(0, Math.floor((new Date(shiftEndAt).getTime() - now.getTime()) / 1000))
       : 0;
 
-    const autoClockOutEnabled = settings?.autoClockOutEnabled !== undefined ? settings.autoClockOutEnabled : true;
+    const userAutoClockOut = req.user?.autoClockOutEnabled !== undefined ? req.user.autoClockOutEnabled : true;
+    const orgAutoClockOut = settings?.autoClockOutEnabled !== undefined ? settings.autoClockOutEnabled : true;
+    const autoClockOutEnabled = Boolean(userAutoClockOut && orgAutoClockOut);
 
     // Dynamic Late Policy Calculations for Current Calendar Month
     const { year: currentYear, month: currentMonth } = getZonedParts(now, timeZone);
@@ -221,8 +258,24 @@ const getClockInStatus = async (req, res) => {
       deductionPerLate: settings?.deductionPerLate || '1_DAY_SALARY'
     };
 
+    const assignedLocations = (await prisma.userAttendanceLocation.findMany({
+      where: {
+        userId: req.user.id,
+        attendanceLocation: { isActive: true }
+      },
+      include: { attendanceLocation: true }
+    })).map(a => a.attendanceLocation);
+
+    const hasOrganizationLocations = (await prisma.attendanceLocation.count({
+      where: { organizationId: req.user.organizationId }
+    })) > 0;
+
     res.json({
       ...validation,
+      isOffDay,
+      offDayType,
+      offDayReason,
+      offDayTitle,
       lateStats,
       timezone: timeZone,
       isClockedIn,
@@ -254,18 +307,22 @@ const getClockInStatus = async (req, res) => {
       ...(validation.reason === 'SATURDAY_LEAVE'
         ? { message: 'Today is a scheduled Saturday leave. Clock-in is not required.' }
         : validation.reason === 'HOLIDAY'
-        ? { message: 'Today is a designated Holiday. Clock-in is disabled.' }
+        ? { message: `Today is a designated Holiday${offDayTitle ? ` (${offDayTitle})` : ''}. Clock-in is disabled.` }
+        : validation.reason === 'WEEKLY_OFF'
+        ? { message: `Today is your scheduled weekly off${offDayTitle ? ` (${offDayTitle})` : ''}. Clock-in is not required.` }
         : validation.reason === 'SHIFT_NOT_STARTED'
         ? { message: `Clock-in window opens at ${validation.windowOpenFormatted} (Shift starts at ${validation.shiftStartFormatted || '09:00 AM'}).` }
         : validation.reason === 'ALREADY_CLOCKED_OUT'
         ? { message: 'You have already clocked out today. Daily attendance is completed.' }
         : {}),
       geofence: {
-        officeLatitude: settings?.officeLatitude ?? 12.971598,
-        officeLongitude: settings?.officeLongitude ?? 77.594562,
-        allowedRadiusMeters: settings?.allowedRadiusMeters ?? 200.0,
-        officeLocationName: settings?.officeLocationName || 'Innoveity Headquarters'
-      }
+        officeLatitude: assignedLocations[0]?.latitude ?? settings?.officeLatitude ?? 12.971598,
+        officeLongitude: assignedLocations[0]?.longitude ?? settings?.officeLongitude ?? 77.594562,
+        allowedRadiusMeters: assignedLocations.length > 0 ? assignedLocations[0].radiusMeters : (settings?.allowedRadiusMeters ?? 200.0),
+        officeLocationName: assignedLocations[0]?.name ?? settings?.officeLocationName ?? 'Innoveity Headquarters'
+      },
+      assignedLocations,
+      hasOrganizationLocations
     });
   } catch (error) {
     console.error('Get clock-in status error:', error);
@@ -329,25 +386,70 @@ const clockIn = async (req, res) => {
     const timeZone = getSystemTimeZone(settings);
     const todayDate = getTodayZonedDate(now, timeZone);
 
-    // Geofence Validation against Admin Configured Office Location
-    const officeLat = settings.officeLatitude ?? 12.971598;
-    const officeLon = settings.officeLongitude ?? 77.594562;
-    const allowedRadius = settings.allowedRadiusMeters ?? 200.0;
+    // Strictly enforce joiningDate restriction on clockIn API
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, role: true, joiningDate: true, createdAt: true }
+    });
 
-    const distanceMeters = calculateHaversineDistance(userLat, userLon, officeLat, officeLon);
-    const isWithinRadius = !isNaN(distanceMeters) && distanceMeters <= allowedRadius;
+    const effectiveJoining = currentUser?.joiningDate || currentUser?.createdAt;
+    if (effectiveJoining) {
+      const joiningMidnight = new Date(new Date(effectiveJoining).toISOString().split('T')[0] + 'T00:00:00.000Z');
+      if (todayDate < joiningMidnight) {
+        return res.status(400).json({
+          success: false,
+          reason: 'EMPLOYMENT_NOT_STARTED',
+          message: `Your employment starts on ${new Date(effectiveJoining).toLocaleDateString()}. Attendance clock-in is only permitted from your official joining date.`
+        });
+      }
+    }
 
-    // Security Rule: If outside permitted radius, user cannot claim OFFICE location
-    if (workLocation === 'OFFICE' && !isWithinRadius) {
-      return res.status(400).json({
-        success: false,
-        reason: 'OUTSIDE_GEOFENCE',
-        isOutside: true,
-        distanceMeters: Math.round(distanceMeters),
-        allowedRadiusMeters: allowedRadius,
-        formattedDistance: formatDistance(distanceMeters),
-        message: `You are currently outside the permitted location (${formatDistance(distanceMeters)} away). Allowed radius is ${allowedRadius}m.`
+    // Multiple Attendance Locations Geofence Validation
+    let matchedLocation = null;
+    let distanceMeters = null;
+
+    if (workLocation === 'OFFICE') {
+      const assignedLocRecords = await prisma.userAttendanceLocation.findMany({
+        where: {
+          userId,
+          attendanceLocation: { isActive: true }
+        },
+        include: {
+          attendanceLocation: true
+        }
       });
+
+      const orgLocationCount = await prisma.attendanceLocation.count({
+        where: { organizationId: req.user.organizationId }
+      });
+
+      const evalResult = evaluateAttendanceGeofence({
+        userLat,
+        userLon,
+        assignedLocations: assignedLocRecords.map(r => r.attendanceLocation),
+        hasOrgLocations: orgLocationCount > 0,
+        settings
+      });
+
+      if (evalResult.status === 'NO_ASSIGNED_LOCATION') {
+        return res.status(400).json({
+          success: false,
+          reason: 'NO_ASSIGNED_LOCATION',
+          message: evalResult.message
+        });
+      }
+
+      if (!evalResult.isInside) {
+        return res.status(400).json({
+          success: false,
+          reason: 'OUTSIDE_GEOFENCE',
+          isOutside: true,
+          ...evalResult
+        });
+      }
+
+      matchedLocation = evalResult.matchedLocation;
+      distanceMeters = evalResult.distanceMeters;
     }
 
     // Check if user already clocked in today
@@ -389,6 +491,22 @@ const clockIn = async (req, res) => {
 
     // Fetch user's assigned shift enriched with today's schedule
     const userShift = await shiftService.getEmployeeShiftWithSchedule(userId, now, timeZone);
+
+    // Validate whether today is an eligible off-day (Sunday, Company Holiday, or Shift Weekly Off)
+    const dayValidation = await compOffService.validateEligibleDay({
+      userId,
+      workDate: todayDate,
+      organizationId: req.user?.organizationId
+    });
+
+    if (dayValidation.isEligible && !existing) {
+      const isHoliday = dayValidation.eligibleReason?.includes('HOLIDAY');
+      return res.status(400).json({
+        success: false,
+        reason: isHoliday ? 'HOLIDAY' : 'WEEKLY_OFF',
+        message: `Today is a ${isHoliday ? 'designated holiday' : 'scheduled weekly off'}. Regular clock-in is disabled.`
+      });
+    }
 
     const validation = validateAttendanceWindow({
       userRole: req.user.role,
@@ -458,8 +576,10 @@ const clockIn = async (req, res) => {
 
     const formattedLocationStr = workLocation === 'OTHER'
       ? workLocationOther.trim()
-      : (workLocation === 'HOME' ? 'Home (Remote)' : 'Office');
-    const formattedGeofenceDetails = `Lat: ${userLat.toFixed(6)}, Lon: ${userLon.toFixed(6)} (${formatDistance(distanceMeters)} from Office)`;
+      : (workLocation === 'HOME' ? 'Home (Remote)' : (matchedLocation ? matchedLocation.name : 'Office'));
+    const formattedGeofenceDetails = distanceMeters !== null
+      ? `Lat: ${userLat.toFixed(6)}, Lon: ${userLon.toFixed(6)} (${formatDistance(distanceMeters)} from ${matchedLocation ? matchedLocation.name : 'Office'})`
+      : `Lat: ${userLat.toFixed(6)}, Lon: ${userLon.toFixed(6)}`;
     const clockInLocDisplay = location || `${formattedLocationStr} • ${formattedGeofenceDetails}`;
 
     const attendance = await prisma.attendance.create({
@@ -473,6 +593,9 @@ const clockIn = async (req, res) => {
         device,
         status: finalStatus,
         clockInLocation: clockInLocDisplay,
+        clockInLatitude: userLat,
+        clockInLongitude: userLon,
+        clockInAddress: req.body.address || matchedLocation?.address || null,
         workLocation,
         workLocationOther: workLocation === 'OTHER' ? workLocationOther.trim() : null,
         lateMinutes,
@@ -483,7 +606,8 @@ const clockIn = async (req, res) => {
         shiftId: userShift?.id || null,
         shiftName: userShift?.name || 'Company Default',
         scheduledStartTime: shiftStartStr,
-        scheduledEndTime: clockOutTimeStr
+        scheduledEndTime: clockOutTimeStr,
+        attendanceLocationId: matchedLocation?.id || null
       }
     });
 
@@ -596,7 +720,86 @@ const clockOut = async (req, res) => {
       status = 'HALF_DAY';
     }
 
-    const { location } = req.body;
+    const { latitude, longitude, address, workLocation, workLocationOther, location } = req.body;
+
+    // Validate GPS Coordinates for Manual Clock-Out
+    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null || latitude === '' || longitude === '') {
+      return res.status(400).json({
+        success: false,
+        reason: 'LOCATION_REQUIRED',
+        message: 'Location permission is required to verify your location before Clock-Out.'
+      });
+    }
+
+    const userLat = parseFloat(latitude);
+    const userLon = parseFloat(longitude);
+
+    if (isNaN(userLat) || isNaN(userLon) || userLat < -90 || userLat > 90 || userLon < -180 || userLon > 180) {
+      return res.status(400).json({
+        success: false,
+        reason: 'LOCATION_REQUIRED',
+        message: 'Unable to determine your current location. Please enable location services and try again.'
+      });
+    }
+
+    const effectiveWorkLocation = workLocation || attendance.workLocation || 'OFFICE';
+    const effectiveWorkLocationOther = workLocationOther !== undefined ? workLocationOther : attendance.workLocationOther;
+
+    let matchedLocation = null;
+    let distanceMeters = null;
+
+    if (effectiveWorkLocation === 'OFFICE') {
+      const assignedLocRecords = await prisma.userAttendanceLocation.findMany({
+        where: {
+          userId,
+          attendanceLocation: { isActive: true }
+        },
+        include: {
+          attendanceLocation: true
+        }
+      });
+
+      const orgLocationCount = await prisma.attendanceLocation.count({
+        where: { organizationId: req.user.organizationId }
+      });
+
+      const evalResult = evaluateAttendanceGeofence({
+        userLat,
+        userLon,
+        assignedLocations: assignedLocRecords.map(r => r.attendanceLocation),
+        hasOrgLocations: orgLocationCount > 0,
+        settings
+      });
+
+      if (evalResult.status === 'NO_ASSIGNED_LOCATION') {
+        return res.status(400).json({
+          success: false,
+          reason: 'NO_ASSIGNED_LOCATION',
+          message: evalResult.message
+        });
+      }
+
+      if (!evalResult.isInside) {
+        return res.status(400).json({
+          success: false,
+          reason: 'OUTSIDE_GEOFENCE',
+          isOutside: true,
+          ...evalResult
+        });
+      }
+
+      matchedLocation = evalResult.matchedLocation;
+      distanceMeters = evalResult.distanceMeters;
+    }
+
+    const formattedLocationStr = effectiveWorkLocation === 'OTHER'
+      ? (effectiveWorkLocationOther || 'Other').trim()
+      : (effectiveWorkLocation === 'HOME' ? 'Home (Remote)' : (matchedLocation ? matchedLocation.name : 'Office'));
+    const formattedGeofenceDetails = distanceMeters !== null
+      ? `Lat: ${userLat.toFixed(6)}, Lon: ${userLon.toFixed(6)} (${formatDistance(distanceMeters)} from ${matchedLocation ? matchedLocation.name : 'Office'})`
+      : `Lat: ${userLat.toFixed(6)}, Lon: ${userLon.toFixed(6)}`;
+    const clockOutLocDisplay = location || `${formattedLocationStr} • ${formattedGeofenceDetails}`;
+    const clockOutAddr = address || matchedLocation?.address || null;
 
     const updatedAttendance = await prisma.attendance.update({
       where: { id: attendance.id },
@@ -604,7 +807,13 @@ const clockOut = async (req, res) => {
         clockOut: now,
         workingHours,
         status,
-        clockOutLocation: location || null,
+        clockOutLocation: clockOutLocDisplay,
+        clockOutLatitude: userLat,
+        clockOutLongitude: userLon,
+        clockOutAddress: clockOutAddr,
+        clockOutWorkLocation: effectiveWorkLocation,
+        clockOutWorkLocationOther: effectiveWorkLocation === 'OTHER' ? (effectiveWorkLocationOther || '').trim() : null,
+        autoClockOut: false,
         clockOutReason: 'MANUAL'
       }
     });
@@ -811,7 +1020,8 @@ const getAttendanceLogs = async (req, res) => {
         department: true,
         profilePic: true,
         role: true,
-        joiningDate: true
+        joiningDate: true,
+        createdAt: true
       },
       orderBy: { name: 'asc' }
     });
@@ -829,7 +1039,8 @@ const getAttendanceLogs = async (req, res) => {
           userId: { in: userIds }
         },
         include: {
-          user: { select: { id: true, name: true, employeeId: true, email: true, department: true, profilePic: true } }
+          user: { select: { id: true, name: true, employeeId: true, email: true, department: true, profilePic: true } },
+          attendanceLocation: { select: { id: true, name: true, address: true, radiusMeters: true } }
         }
       }),
       prisma.leaveRequest.findMany({
@@ -935,8 +1146,9 @@ const getAttendanceLogs = async (req, res) => {
 
       for (const u of activeUsers) {
         // STRICT RULE: Attendance audit only starts from each employee's official joining date
-        if (u.joiningDate) {
-          const uJoiningMidnight = new Date(new Date(u.joiningDate).toISOString().split('T')[0] + 'T00:00:00.000Z').getTime();
+        const uEffectiveJoining = u.joiningDate || u.createdAt;
+        if (uEffectiveJoining) {
+          const uJoiningMidnight = new Date(new Date(uEffectiveJoining).toISOString().split('T')[0] + 'T00:00:00.000Z').getTime();
           if (dTime < uJoiningMidnight) {
             continue; // Skip pre-employment date completely
           }
@@ -1218,12 +1430,13 @@ const getAttendanceAnalytics = async (req, res) => {
 
     const activeUsers = await prisma.user.findMany({
       where: userWhere,
-      select: { id: true, joiningDate: true }
+      select: { id: true, joiningDate: true, createdAt: true }
     });
     // Filter active users to only those who have joined on or before today
     const eligibleActiveUsers = activeUsers.filter(u => {
-      if (!u.joiningDate) return true;
-      const uJoining = new Date(new Date(u.joiningDate).toISOString().split('T')[0] + 'T00:00:00.000Z');
+      const uEffective = u.joiningDate || u.createdAt;
+      if (!uEffective) return true;
+      const uJoining = new Date(new Date(uEffective).toISOString().split('T')[0] + 'T00:00:00.000Z');
       return uJoining <= startOfToday;
     });
     const totalMembersCount = eligibleActiveUsers.length;
@@ -1293,11 +1506,12 @@ const getAttendanceHistory = async (req, res) => {
     // Fetch target user's joiningDate & organizationId
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, name: true, joiningDate: true, organizationId: true }
+      select: { id: true, name: true, joiningDate: true, createdAt: true, organizationId: true }
     });
 
-    const targetUserJoiningMidnight = targetUser?.joiningDate
-      ? new Date(new Date(targetUser.joiningDate).toISOString().split('T')[0] + 'T00:00:00.000Z')
+    const effectiveJoining = targetUser?.joiningDate || targetUser?.createdAt;
+    const targetUserJoiningMidnight = effectiveJoining
+      ? new Date(new Date(effectiveJoining).toISOString().split('T')[0] + 'T00:00:00.000Z')
       : null;
 
     // 1. Determine month boundaries
@@ -1314,6 +1528,9 @@ const getAttendanceHistory = async (req, res) => {
         include: {
           user: {
             select: { id: true, name: true, email: true, employeeId: true, role: true, department: true }
+          },
+          attendanceLocation: {
+            select: { id: true, name: true, address: true, radiusMeters: true }
           }
         }
       }),
@@ -1737,6 +1954,120 @@ const getCompanyLeaveReport = async (req, res) => {
   }
 };
 
+const verifyLocation = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null || latitude === '' || longitude === '') {
+      return res.status(400).json({
+        success: false,
+        reason: 'LOCATION_REQUIRED',
+        message: 'Location coordinates are required.'
+      });
+    }
+
+    const userLat = parseFloat(latitude);
+    const userLon = parseFloat(longitude);
+    if (isNaN(userLat) || userLat < -90 || userLat > 90 || isNaN(userLon) || userLon < -180 || userLon > 180) {
+      return res.status(400).json({
+        success: false,
+        reason: 'LOCATION_REQUIRED',
+        message: 'Invalid GPS coordinates.'
+      });
+    }
+
+    const userId = req.user.id;
+    const settings = await getOrCreateSystemSettings(req.user?.organizationId);
+
+    const assignedLocRecords = await prisma.userAttendanceLocation.findMany({
+      where: {
+        userId,
+        attendanceLocation: { isActive: true }
+      },
+      include: {
+        attendanceLocation: true
+      }
+    });
+
+    const hasOrgLocations = (await prisma.attendanceLocation.count({
+      where: { organizationId: req.user.organizationId }
+    })) > 0;
+
+    const evalResult = evaluateAttendanceGeofence({
+      userLat,
+      userLon,
+      assignedLocations: assignedLocRecords.map(r => r.attendanceLocation),
+      hasOrgLocations,
+      settings
+    });
+
+    return res.json({
+      success: true,
+      ...evalResult
+    });
+  } catch (error) {
+    console.error('Verify location error:', error);
+    return res.status(500).json({
+      success: false,
+      reason: 'SERVER_ERROR',
+      message: 'Failed to verify attendance location.'
+    });
+  }
+};
+
+const getAttendanceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetOrgId = getEffectiveOrgId(req);
+
+    const record = await prisma.attendance.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            employeeId: true,
+            email: true,
+            department: true,
+            profilePic: true,
+            role: true,
+            organizationId: true
+          }
+        },
+        attendanceLocation: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            radiusMeters: true,
+            latitude: true,
+            longitude: true
+          }
+        }
+      }
+    });
+
+    if (!record) {
+      return res.status(404).json({ success: false, message: 'Attendance record not found.' });
+    }
+
+    // Organization tenant isolation check
+    if (targetOrgId && record.user?.organizationId && record.user.organizationId !== targetOrgId && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Access denied to this organization record.' });
+    }
+
+    // Role permission check: Interns/Employees can only view their own
+    if (['INTERN', 'EMPLOYEE'].includes(req.user.role) && record.userId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    return res.json({ success: true, record });
+  } catch (error) {
+    console.error('Error fetching attendance by id:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch attendance record.' });
+  }
+};
+
 module.exports = {
   getClockInStatus,
   clockIn,
@@ -1745,5 +2076,8 @@ module.exports = {
   updateAttendance,
   getAttendanceAnalytics,
   getAttendanceHistory,
-  getCompanyLeaveReport
+  getCompanyLeaveReport,
+  verifyLocation,
+  getAttendanceById
 };
+

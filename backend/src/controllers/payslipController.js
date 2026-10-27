@@ -9,6 +9,7 @@ const getPayslips = async (req, res) => {
     const userRole = req.user.role;
     const userId = req.user.id;
 
+    const { month, year, status } = req.query;
     const targetOrgId = getEffectiveOrgId(req);
 
     let payslips = [];
@@ -23,8 +24,15 @@ const getPayslips = async (req, res) => {
           ]
         }
       };
+      if (month) whereClause.month = Number(month);
+      if (year) whereClause.year = Number(year);
+      if (status) whereClause.status = status;
+
       if (targetOrgId) {
-        whereClause.organizationId = targetOrgId;
+        whereClause.OR = [
+          { organizationId: targetOrgId },
+          { batch: { organizationId: targetOrgId } }
+        ];
       }
 
       payslips = await prisma.payslip.findMany({
@@ -49,11 +57,15 @@ const getPayslips = async (req, res) => {
       });
     } else {
       // Employees/Interns/TLs view published or own payslips
+      const empWhere = {
+        userId,
+        status: status || 'PUBLISHED'
+      };
+      if (month) empWhere.month = Number(month);
+      if (year) empWhere.year = Number(year);
+
       payslips = await prisma.payslip.findMany({
-        where: {
-          userId,
-          status: 'PUBLISHED'
-        },
+        where: empWhere,
         include: {
           user: {
             select: {

@@ -43,7 +43,8 @@ const processAutoClockOut = async (simulatedNow = null) => {
             name: true,
             employeeId: true,
             role: true,
-            organizationId: true
+            organizationId: true,
+            autoClockOutEnabled: true
           }
         }
       }
@@ -174,6 +175,39 @@ const processAutoClockOut = async (simulatedNow = null) => {
             const empIdentifier = record.user?.employeeId || record.user?.name || record.userId;
             const shiftName = record.shiftName || 'Company Default';
 
+            // Check individual employee Auto Clock-Out setting
+            const isIndividualAutoClockOutEnabled = record.user?.autoClockOutEnabled !== false;
+            if (!isIndividualAutoClockOutEnabled) {
+              // If shift end has arrived, send a manual clock-out reminder without duplicates
+              if (now >= effectiveEnd) {
+                try {
+                  const existingReminder = await prisma.notification.findFirst({
+                    where: {
+                      userId: record.userId,
+                      type: 'ATTENDANCE_MANUAL_CLOCKOUT_REMINDER',
+                      createdAt: { gte: record.date || record.clockIn }
+                    }
+                  });
+
+                  if (!existingReminder) {
+                    await createNotification({
+                      userId: record.userId,
+                      title: 'Shift Ended 🕒',
+                      message: `Your scheduled shift (${shiftName}) ended at ${scheduledEndDisplay}. Please remember to clock out manually with your location.`,
+                      type: 'ATTENDANCE_MANUAL_CLOCKOUT_REMINDER'
+                    });
+                  }
+                } catch (notifErr) {
+                  console.warn('[AutoClockOutService] Failed to send manual clock-out reminder:', notifErr.message);
+                }
+              }
+
+              console.log(`(AutoClockOut) Employee: ${empIdentifier} Shift: ${shiftName} Action: SKIPPED (Auto clock-out disabled for individual employee)`);
+              summary.skippedCount++;
+              summary.results.push({ id: record.id, userId: record.userId, action: 'SKIPPED', reason: 'INDIVIDUAL_DISABLED' });
+              continue;
+            }
+
             // Check if current server time has reached or passed effective shift end time
             if (now < effectiveEnd) {
               console.log(`(AutoClockOut) Employee: ${empIdentifier} Shift: ${shiftName} Scheduled End: ${scheduledEndDisplay} Current Time: ${currentTimeStr} Action: SKIPPED`);
@@ -264,6 +298,20 @@ const processAutoClockOut = async (simulatedNow = null) => {
     }
   } catch (error) {
     console.error('[AutoClockOutService] Cron run error:', error);
+  }
+
+  // 4. Dedicated Comp-Off Working Sessions Auto Clock-Out (Phase 2)
+  try {
+    const { processCompOffAutoClockOut } = require('./compOffService');
+    const compOffSummary = await processCompOffAutoClockOut(now);
+    if (compOffSummary && compOffSummary.autoClockedOutCount > 0) {
+      summary.autoClockedOutCount += compOffSummary.autoClockedOutCount;
+      if (Array.isArray(compOffSummary.results)) {
+        summary.results.push(...compOffSummary.results);
+      }
+    }
+  } catch (compOffErr) {
+    console.error('[AutoClockOutService] Error running Comp-Off auto clock-out:', compOffErr.message);
   }
 
   return summary;

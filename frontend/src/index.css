@@ -473,4 +473,141 @@ input::placeholder, textarea::placeholder {
   animation-play-state: paused;
 }
 
+/* ==========================================================================
+   ESTIMATE DOCUMENT GLOBAL PRINT ISOLATION
+   Ensures ONLY the A4 Estimate document prints without any CRM background UI
+   ========================================================================== */
+@media print {
+  /* Set A4 page size with zero margin so browser-generated header/footer have no margin space */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
 
+  /* 1. Force exact color printing on estimate container and all descendants */
+  #printable-estimate-document,
+  #printable-estimate-document * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Reset body and root containers when estimate document is present */
+  body:has(.estimate-print-wrapper),
+  body.has-estimate-preview {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body:has(.estimate-print-wrapper) #root,
+  body:has(.estimate-print-wrapper) .theme-canvas-bg,
+  body:has(.estimate-print-wrapper) main,
+  body.has-estimate-preview #root,
+  body.has-estimate-preview .theme-canvas-bg,
+  body.has-estimate-preview main {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 2. Hide Dashboard sidebar, header, and floating navigations */
+  body:has(.estimate-print-wrapper) aside,
+  body:has(.estimate-print-wrapper) header,
+  body:has(.estimate-print-wrapper) nav,
+  body.has-estimate-preview aside,
+  body.has-estimate-preview header,
+  body.has-estimate-preview nav {
+    display: none !important;
+  }
+
+  /* 3. Hide CRM Background Page Content (Company Scope bar, Asset tabs, search/filters, tables) */
+  body:has(.estimate-print-wrapper) .theme-canvas-bg > div > main > div > *:not(:has(.estimate-print-wrapper)),
+  body:has(.estimate-print-wrapper) .theme-canvas-bg > div > main > div > div > *:not(:has(.estimate-print-wrapper)),
+  body.has-estimate-preview .theme-canvas-bg > div > main > div > *:not(:has(.estimate-print-wrapper)),
+  body.has-estimate-preview .theme-canvas-bg > div > main > div > div > *:not(:has(.estimate-print-wrapper)) {
+    display: none !important;
+  }
+
+  /* 4. Hide all non-estimate tables and control bars */
+  body:has(.estimate-print-wrapper) table:not(#printable-estimate-document table),
+  body:has(.estimate-print-wrapper) input,
+  body:has(.estimate-print-wrapper) select,
+  body.has-estimate-preview table:not(#printable-estimate-document table),
+  body.has-estimate-preview input,
+  body.has-estimate-preview select {
+    display: none !important;
+  }
+
+  /* 5. Ensure Estimate Print Wrapper occupies the entire printable area starting at top */
+  .estimate-print-wrapper {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  /* 6. A4 Estimate Document: perfect fit into one A4 page */
+  #printable-estimate-document {
+    box-sizing: border-box !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    padding: 10mm 14mm 8mm 14mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    page-break-inside: auto;
+  }
+
+  /* Avoid breaking individual table rows across pages */
+  #printable-estimate-document table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Avoid breaking signature block */
+  #printable-estimate-document > div:last-child {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* Leaflet & OpenStreetMap Integrations */
+.leaflet-container {
+  font-family: inherit;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  z-index: 1 !important;
+}
+
+.leaflet-container img {
+  max-width: none !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}
+
+.custom-leaflet-marker-pin {
+  background: transparent !important;
+  border: none !important;
+}
