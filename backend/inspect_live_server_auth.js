@@ -1,10 +1,13 @@
 const https = require('https');
 
+const LIVE_HOST = process.env.LIVE_SERVER_HOST || 'crm.innoveity.tech';
+const LIVE_PORT = Number(process.env.LIVE_SERVER_PORT || 443);
+
 function makeRequest(path, method = 'GET', postData = null) {
   return new Promise((resolve) => {
     const options = {
-      hostname: 'crm.innoveity.tech',
-      port: 443,
+      hostname: LIVE_HOST,
+      port: LIVE_PORT,
       path: path,
       method: method,
       headers: {

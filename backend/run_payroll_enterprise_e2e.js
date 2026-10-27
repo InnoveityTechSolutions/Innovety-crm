@@ -1,8 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 const axios = require('axios');
 const prisma = new PrismaClient();
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const API_BASE = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const API_BASE = testConfig.apiUrl;
 
 async function runPayrollE2ETestSuite() {
   console.log('====================================================');

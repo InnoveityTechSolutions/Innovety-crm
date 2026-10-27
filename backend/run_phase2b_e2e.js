@@ -1,6 +1,8 @@
 const axios = require('axios');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const API_URL = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const API_URL = testConfig.apiUrl;
 
 async function runTest() {
   console.log('====================================================');

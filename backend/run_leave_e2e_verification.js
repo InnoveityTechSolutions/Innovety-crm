@@ -1,6 +1,8 @@
 const axios = require('axios');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const API_BASE = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const API_BASE = testConfig.apiUrl;
 
 const USERS = {
   superAdmin: { email: 'superadmin@enterprise-crm.com', password: 'Password123!' },

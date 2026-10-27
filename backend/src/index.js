@@ -62,37 +62,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // Robust Production & Development CORS Configuration
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-
-    const cleanOrigin = String(origin).replace(/\/$/, '');
-    const configuredFrontend = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '';
-
-    const allowedOrigins = [
-      configuredFrontend,
-      'https://crm.innoveity.tech',
-      'http://crm.innoveity.tech',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174'
-    ].filter(Boolean);
-
-    if (allowedOrigins.includes(cleanOrigin) || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-      return callback(null, true);
-    }
-
-    if (process.env.NODE_ENV === 'production') {
-      console.warn(`[CORS Warning] Origin "${origin}" not in FRONTEND_URL configuration ("${process.env.FRONTEND_URL}"). Granting request to prevent 502 Bad Gateway.`);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Disposition']
-};
+const { corsOptions } = require('./utils/corsConfig');
 
 app.use(cors(corsOptions));
 app.use(express.json());

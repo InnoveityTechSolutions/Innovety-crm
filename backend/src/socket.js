@@ -51,10 +51,12 @@ const removeSocket = (socketId, reason = 'transport_close') => {
   }
 };
 
+const { corsOriginValidator } = require('./utils/corsConfig');
+
 const init = (server) => {
   io = socketIo(server, {
     cors: {
-      origin: (origin, callback) => callback(null, true),
+      origin: corsOriginValidator,
       credentials: true,
       methods: ['GET', 'POST']
     },

@@ -1,10 +1,18 @@
 const http = require('http');
 const prisma = require('./src/utils/db');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
+
+const testConfig = getTestConfig({ isDestructive: true });
 
 // Helper to send HTTP requests to live backend
 function makeRequest(options, postData) {
+  const reqOptions = {
+    hostname: testConfig.hostname,
+    port: testConfig.port,
+    ...options
+  };
   return new Promise((resolve, reject) => {
-    const req = http.request(options, (res) => {
+    const req = http.request(reqOptions, (res) => {
       let body = '';
       res.on('data', (chunk) => body += chunk);
       res.on('end', () => {
@@ -38,8 +46,8 @@ async function runFullApiVerification() {
     // 1. Authenticate as Admin
     console.log('STEP 1: Authenticating as Admin (POST /api/auth/login)...');
     const loginRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/auth/login',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -65,8 +73,8 @@ async function runFullApiVerification() {
 
     // Find valid Team Leader or Employee for task assignment
     const usersRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/users?limit=1000&status=ACTIVE',
       method: 'GET',
       headers: authHeaders
@@ -94,8 +102,8 @@ async function runFullApiVerification() {
     };
 
     const createProjRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/projects',
       method: 'POST',
       headers: authHeaders
@@ -116,8 +124,8 @@ async function runFullApiVerification() {
     // 3. Verify project exists via GET /api/projects
     console.log('STEP 3 & 4: Verifying project in GET /api/projects listing & initial task count...');
     const getProjectsRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/projects',
       method: 'GET',
       headers: authHeaders
@@ -151,8 +159,8 @@ async function runFullApiVerification() {
     };
 
     const createTaskRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/tasks',
       method: 'POST',
       headers: authHeaders
@@ -173,8 +181,8 @@ async function runFullApiVerification() {
     // 6 & 7. Verify GET /api/tasks returns the new task with correct projectId and status PENDING
     console.log('STEP 6 & 7: Verifying task in GET /api/tasks listing...');
     const getTasksRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/tasks',
       method: 'GET',
       headers: authHeaders
@@ -197,8 +205,8 @@ async function runFullApiVerification() {
     // 8. Verify project's task count changes from 0 -> 1
     console.log('STEP 8: Verifying project task count update (0 -> 1) via GET /api/projects...');
     const getProjectsAfterTaskRes = await makeRequest({
-      hostname: 'localhost',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: '/api/projects',
       method: 'GET',
       headers: authHeaders

@@ -2,12 +2,15 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const http = require('http');
 const prisma = new PrismaClient();
+const { getTestConfig } = require('./src/utils/testConfigHelper');
+
+const testConfig = getTestConfig({ isDestructive: true });
 
 function req(method, path, body, token) {
   return new Promise((resolve) => {
     const data = body ? JSON.stringify(body) : null;
     const opts = {
-      hostname: 'localhost', port: 5000, path, method,
+      hostname: testConfig.hostname, port: testConfig.port, path, method,
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': 'Bearer ' + token } : {}),

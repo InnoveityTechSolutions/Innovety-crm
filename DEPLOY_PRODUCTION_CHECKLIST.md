@@ -1,10 +1,20 @@
 # Production Deployment Checklist & Verification Guide
 
-Follow this step-by-step checklist to deploy the backend fixes and resolve 502 Bad Gateway issues on `https://crm.innoveity.tech`.
+Follow this step-by-step checklist to deploy the backend and frontend configuration updates for `https://crm.innoveity.tech`.
 
 ---
 
-## 1. SSH into the Production VPS Server
+## 1. Production Requirements Overview
+
+The deployment environment uses the following verified configuration:
+- **Backend Port:** `3002` (managed via PM2)
+- **Frontend Origin:** `https://crm.innoveity.tech`
+- **API Base URL:** `https://crm.innoveity.tech/api`
+- **Database Engine:** MySQL (as specified in `backend/prisma/schema.prisma`)
+
+---
+
+## 2. SSH into the Production VPS Server
 
 Connect to your server:
 ```bash
@@ -18,48 +28,48 @@ cd /path/to/MRF-crm
 
 ---
 
-## 2. Execute Deployment Commands
+## 3. Environment Variables Configuration (`backend/.env`)
 
-Run the standard deployment sequence:
+Ensure your production `backend/.env` file contains:
+
+```env
+NODE_ENV=production
+PORT=3002
+DATABASE_URL="mysql://<user>:<password>@localhost:3306/innoveity_crm"
+JWT_SECRET="<your_secure_production_jwt_secret>"
+FRONTEND_URL="https://crm.innoveity.tech"
+ALLOWED_ORIGINS="https://crm.innoveity.tech"
+COMPANY_NAME="Innoveity"
+MULTI_TENANT_ENABLED=true
+```
+
+> **Note on `backend/env`:** If a file named `backend/env` exists on the server, note that it is a legacy/stale file containing obsolete PostgreSQL settings. Production uses `backend/.env` with MySQL.
+
+---
+
+## 4. Frontend Build Instructions (Vite)
+
+> **Important:** Vite environment variables are compiled into static client bundles at **build time**. 
+> After updating `VITE_API_URL`, the frontend bundle must be rebuilt before changes take effect in the browser.
+
+In the `frontend/` directory, build the production assets:
 
 ```bash
-# 1. Pull the latest backend fixes from git repository
-git pull
-
-# 2. Install any new dependencies (if applicable)
-npm install
-
-# 3. Regenerate Prisma Client
-npx prisma generate
-
-# 4. Apply Prisma database schema migrations cleanly without data loss
-npx prisma migrate deploy
-
-# 5. Seed initial multi-tenant organizations and accounts
-npx prisma db seed
-
-# 6. Restart PM2 node application processes
-pm2 restart all
-
-# 6. Check PM2 logs to verify clean startup and database connection
-pm2 logs --lines 50
-
-# 7. Test Nginx reverse proxy configuration syntax
-sudo nginx -t
-
-# 8. Reload Nginx configuration cleanly
-sudo systemctl reload nginx
+cd frontend
+VITE_API_URL=https://crm.innoveity.tech/api npm run build
+cd ..
 ```
 
 ---
 
-## 3. Recommended Nginx Reverse Proxy Configuration
+## 5. Recommended Nginx Reverse Proxy Configuration
 
-Ensure `/etc/nginx/sites-available/innoveity-crm` or `/etc/nginx/conf.d/crm.conf` includes:
+The deployment team must review and ensure `/etc/nginx/sites-available/innoveity-crm` or `/etc/nginx/conf.d/crm.conf` routes `/api/`, `/uploads/`, and `/socket.io/` to backend port `3002`:
 
 ```nginx
+# 1. API Reverse Proxy to Backend Port 3002
 location /api/ {
-    proxy_pass http://127.0.0.1:5000;
+    proxy_pass http://127.0.0.1:3002;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection 'upgrade';
@@ -68,37 +78,93 @@ location /api/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_cache_bypass $http_upgrade;
+    client_max_body_size 25M;
 }
+
+# 2. Uploads Directory Reverse Proxy to Backend Port 3002
+location /uploads/ {
+    proxy_pass http://127.0.0.1:3002/uploads/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 25M;
+}
+
+# 3. Socket.IO Real-Time WebSocket Proxy to Backend Port 3002
+location /socket.io/ {
+    proxy_pass http://127.0.0.1:3002/socket.io/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 86400s;
+    proxy_send_timeout 86400s;
+}
+
+# 4. Frontend Static Application Bundle
+location / {
+    root /path/to/MRF-crm/frontend/dist;
+    index index.html;
+    try_files $uri $uri/ /index.html;
+}
+```
+
+Test syntax and reload Nginx:
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
 ---
 
-## 4. Production Health Verification
+## 6. Application Deployment & Restart
+
+Execute the deployment sequence:
+
+```bash
+# 1. Pull latest changes
+git pull
+
+# 2. Backend dependency and Prisma sync
+cd backend
+npm install --production
+npx prisma generate
+npx prisma migrate deploy
+
+# 3. Restart PM2 node application process with updated environment
+pm2 restart all --update-env
+# or: pm2 restart innoveity-crm-backend --update-env
+
+# 4. Verify PM2 startup logs
+pm2 logs --lines 50
+```
+
+Verify the log contains:
+`[STARTUP] Enterprise CRM backend server is running on port 3002`
+`[STARTUP] Frontend URL: https://crm.innoveity.tech`
+
+---
+
+## 7. Production Health & Sanity Verification
 
 Run these verification commands directly on the server or from any terminal:
 
 ```bash
 # 1. Verify health probe endpoint (Expect HTTP 200: {"status":"healthy"})
-curl https://crm.innoveity.tech/api/health
+curl -I https://crm.innoveity.tech/api/health
 
 # 2. Verify platform settings endpoint (Expect HTTP 200 OK)
-curl https://crm.innoveity.tech/api/platform/settings
+curl -I https://crm.innoveity.tech/api/platform/settings
 
 # 3. Verify organizations endpoint (Expect HTTP 200 OK)
-curl https://crm.innoveity.tech/api/organizations
-```
+curl -I https://crm.innoveity.tech/api/organizations
 
----
-
-## 5. Environment Variables Audit (`.env`)
-
-Ensure your production `backend/.env` file contains:
-
-```env
-PORT=5000
-DATABASE_URL="postgresql://user:password@localhost:5432/mrf_crm?schema=public"
-JWT_SECRET="your_secure_jwt_secret_here"
-JWT_REFRESH_SECRET="your_secure_refresh_secret_here"
-NODE_ENV="production"
-FRONTEND_URL="https://crm.innoveity.tech"
+# 4. Run automated non-destructive live production probes
+node backend/check_live_server.js
+node backend/test_live_logins.js
 ```

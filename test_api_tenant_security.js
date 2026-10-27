@@ -1,4 +1,7 @@
-const API_URL = 'http://localhost:5000/api';
+const { getTestConfig } = require('./backend/src/utils/testConfigHelper');
+
+const testConfig = getTestConfig({ isDestructive: true });
+const API_URL = testConfig.apiUrl;
 
 async function postJSON(url, body, headers = {}) {
   const res = await fetch(url, {

@@ -2,13 +2,26 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 
 const getApiUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) return envUrl;
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '');
+  }
   if (import.meta.env.PROD) {
-    console.error('[Production Config Warning] VITE_API_URL environment variable is required for production deployment.');
+    console.warn('[Production Config Warning] VITE_API_URL environment variable is recommended for production deployment. Defaulting to relative /api');
     return '/api';
   }
   return 'http://localhost:5000/api';
+};
+
+export const getSocketServerUrl = () => {
+  const explicitSocketUrl = (import.meta.env.VITE_SOCKET_URL || '').trim();
+  if (explicitSocketUrl) {
+    return explicitSocketUrl.replace(/\/+$/, '');
+  }
+  if (API_URL.startsWith('http://') || API_URL.startsWith('https://')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  return typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
 };
 
 const API_URL = getApiUrl();
@@ -256,12 +269,7 @@ export const getSocket = () => {
   }
 
   if (!socketInstance) {
-    let backendServer = '';
-    if (API_URL.startsWith('http://') || API_URL.startsWith('https://')) {
-      backendServer = API_URL.replace(/\/api\/?$/, '');
-    } else {
-      backendServer = window.location.origin;
-    }
+    const backendServer = getSocketServerUrl();
 
     socketInstance = io(backendServer, {
       auth: {

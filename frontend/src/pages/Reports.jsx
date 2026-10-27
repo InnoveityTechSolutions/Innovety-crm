@@ -79,30 +79,24 @@ const Reports = () => {
     const companyName = selectedCompany?.name || 'Company';
     const cleanCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, '_');
 
-    const params = new URLSearchParams();
-    params.append('format', 'csv');
-    if (targetOrg) params.append('organizationId', targetOrg);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    if (statusFilter) params.append('status', statusFilter);
-    if (priorityFilter) params.append('priority', priorityFilter);
-
-    const token = localStorage.getItem('token');
-    const baseUrl = api.defaults.baseURL || 'http://localhost:5000/api';
-    const downloadUrl = `${baseUrl}/reports/${reportType}?${params.toString()}`;
-
-    fetch(downloadUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    api.get(`/reports/${reportType}`, {
+      params: {
+        format: 'csv',
+        ...(targetOrg ? { organizationId: targetOrg } : {}),
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(priorityFilter ? { priority: priorityFilter } : {})
+      },
+      responseType: 'blob'
     })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
+      .then(res => {
+        const url = window.URL.createObjectURL(new Blob([res.data]));
         const a = document.createElement('a');
         a.setAttribute('href', url);
         a.setAttribute('download', `${cleanCompanyName}_${reportType}_report.csv`);
         a.click();
+        window.URL.revokeObjectURL(url);
       })
       .catch(() => setAlertMsg('Failed to initiate CSV download.'));
   };

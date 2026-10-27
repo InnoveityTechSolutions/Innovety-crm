@@ -1,8 +1,10 @@
 const prisma = require('./backend/src/utils/db');
 const jwt = require('./backend/node_modules/jsonwebtoken');
 const { getCompanyLeavePolicy } = require('./backend/src/utils/companyLeavePolicyStore');
+const { getTestConfig } = require('./backend/src/utils/testConfigHelper');
 
-const BASE_URL = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const BASE_URL = testConfig.apiUrl;
 const JWT_SECRET = process.env.JWT_SECRET || 'enterprise_internship_crm_super_secret_jwt_key_123!';
 
 function generateToken(user) {

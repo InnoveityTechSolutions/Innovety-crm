@@ -1,8 +1,11 @@
 const axios = require('axios');
 const io = require('../frontend/node_modules/socket.io-client');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const API_URL = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+const testConfig = getTestConfig({ isDestructive: true });
+const API_URL = testConfig.apiUrl;
+const SOCKET_URL = testConfig.socketUrl;
+const SERVER_URL = testConfig.serverUrl;
 
 async function runLiveWorkflowTest() {
   console.log('====================================================');
@@ -227,7 +230,7 @@ async function runLiveWorkflowTest() {
     recordStep(18, 'Role-Based Permissions Enforcement', true, `RBAC verified across Admin, TL, Employee, and Intern roles`);
 
     // 19. System Health & Errors
-    const healthCheck = await axios.get(`http://localhost:5000/health`);
+    const healthCheck = await axios.get(`${SERVER_URL}/health`);
     recordStep(19, 'Backend Logs & Socket Diagnostic Health Check', healthCheck.data.status === 'healthy', `Backend server is healthy (${healthCheck.data.status})`);
 
     // 20. Database Records Verification

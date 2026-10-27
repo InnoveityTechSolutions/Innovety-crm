@@ -1,4 +1,7 @@
 const axios = require('axios');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
+
+const testConfig = getTestConfig();
 
 async function verifyChatAPI() {
   console.log('====================================================');
@@ -6,13 +9,13 @@ async function verifyChatAPI() {
   console.log('====================================================');
 
   try {
-    const loginRes = await axios.post('http://localhost:5000/api/auth/login', {
+    const loginRes = await axios.post(`${testConfig.apiUrl}/auth/login`, {
       email: 'admin@enterprise-crm.com',
       password: 'Admin123!'
     });
     const token = loginRes.data.token;
 
-    const roomsRes = await axios.get('http://localhost:5000/api/chat/rooms', {
+    const roomsRes = await axios.get(`${testConfig.apiUrl}/chat/rooms`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 

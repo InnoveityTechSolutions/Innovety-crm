@@ -1,8 +1,10 @@
 const axios = require('axios');
 const prisma = require('./src/utils/db');
 const jwt = require('jsonwebtoken');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const API_BASE = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const API_BASE = testConfig.apiUrl;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev-only-change-in-production';
 
 async function runE2E() {

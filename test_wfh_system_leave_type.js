@@ -2,8 +2,10 @@ const assert = require('assert');
 const prisma = require('./backend/src/utils/db');
 const jwt = require('./backend/node_modules/jsonwebtoken');
 const http = require('http');
+const { getTestConfig } = require('./backend/src/utils/testConfigHelper');
 
-const BASE_URL = 'http://localhost:5000';
+const testConfig = getTestConfig({ isDestructive: true });
+const BASE_URL = testConfig.serverUrl;
 
 function apiRequest({ method, path, headers = {}, body = null }) {
   return new Promise((resolve, reject) => {

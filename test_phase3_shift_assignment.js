@@ -1,7 +1,9 @@
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const prisma = require('./backend/src/utils/db');
+const { getTestConfig } = require('./backend/src/utils/testConfigHelper');
 
+const testConfig = getTestConfig({ isDestructive: true });
 const JWT_SECRET = process.env.JWT_SECRET || 'enterprise_internship_crm_super_secret_jwt_key_123!';
 
 async function makeRequest(token, method, queryPath, body = null) {
@@ -12,8 +14,8 @@ async function makeRequest(token, method, queryPath, body = null) {
     if (postData) headers['Content-Length'] = Buffer.byteLength(postData);
 
     const options = {
-      hostname: '127.0.0.1',
-      port: 5000,
+      hostname: testConfig.hostname,
+      port: testConfig.port,
       path: queryPath,
       method: method.toUpperCase(),
       headers

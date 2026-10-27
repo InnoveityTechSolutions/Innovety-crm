@@ -1,8 +1,10 @@
 const prisma = require('./src/utils/db');
 const { calculateHaversineDistance, formatDistance } = require('./src/utils/attendanceUtils');
 const axios = require('axios');
+const { getTestConfig } = require('./src/utils/testConfigHelper');
 
-const BASE_URL = 'http://localhost:5000/api';
+const testConfig = getTestConfig({ isDestructive: true });
+const BASE_URL = testConfig.apiUrl;
 
 async function runGeofenceE2ETests() {
   console.log('====================================================');
