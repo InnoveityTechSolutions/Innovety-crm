@@ -209,7 +209,8 @@ export default function LeafletMapPicker({
     // Real OpenStreetMap Tile Layer
     const tileLayer = L.tileLayer(OSM_TILE_URL, {
       attribution: OSM_ATTRIBUTION,
-      maxZoom: 19
+      maxZoom: 19,
+      referrerPolicy: 'strict-origin-when-cross-origin'
     }).addTo(map);
 
     tileLayer.on('tileerror', () => {
